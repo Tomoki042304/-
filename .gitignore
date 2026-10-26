@@ -1,0 +1,38 @@
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+.npmrc
+.netrc
+.dev.vars
+.dev.vars.*
+.wrangler/
+.supabase/
+supabase/.temp/
+supabase/.branches/
+
+# Database backups and local data
+backups/
+*.sql.gz
+*.dump
+*.sqlite
+*.sqlite3
+
+# Logs and local OS files
+*.log
+.DS_Store
+Thumbs.db
