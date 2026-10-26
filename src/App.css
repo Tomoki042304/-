@@ -23,3 +23,7 @@ h1 { margin: 1rem 0; font-size: clamp(2.75rem, 10vw, 4rem); letter-spacing: .16e
 .auth-card :focus-visible { outline: 3px solid #486b61; outline-offset: 3px; }
 .auth-error { color: #9e2828; line-height: 1.7; }
 .member-id { overflow-wrap: anywhere; }
+.profile-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #dfe5df; }
+.profile-section h2 { font-size: 1.2rem; margin: 0; }
+.profile-section p { overflow-wrap: anywhere; line-height: 1.7; }
+.field-help { margin: 0; color: #5b6864; font-size: .8rem; }

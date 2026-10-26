@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabaseClient'
 import { isActiveMembership, type Membership } from './lib/membership'
+import MemberProfile from './MemberProfile'
 
 type Access =
   | { state: 'checking' }
@@ -159,8 +160,8 @@ export default function MemberAccess() {
           {access.state === 'allowed' && <>
             <p>志動録へようこそ。</p>
             <p className="member-id">会員ID：{access.membership.member_id}</p>
-            <p className="auth-note">会員機能は順次追加していきます。</p>
           </>}
+          <MemberProfile key={session.user.id} userId={session.user.id} enabled={access.state === 'allowed'} />
           {(access.state === 'denied' || access.state === 'error') && <p role="alert">{access.message}</p>}
           {access.state === 'error' && <button className="primary-button" type="button"
             onClick={() => { setAccess({ state: 'checking' }); setRefresh(value => value + 1) }}>再試行</button>}
