@@ -3,3 +3,6 @@
 h1 { margin: 1rem 0; font-size: clamp(2.75rem, 10vw, 4rem); letter-spacing: .16em; font-weight: 600; }
 .concept { margin: .5rem 0; font-size: clamp(.9rem, 3.5vw, 1.15rem); line-height: 1.8; }
 .notice { margin-top: 2.5rem; color: #5b6864; font-size: .9rem; }
+.connection-check { margin-top: 1.5rem; padding: .85rem 1.5rem; border: 0; border-radius: .5rem; background: #244e42; color: white; font: inherit; cursor: pointer; }
+.connection-check:disabled { opacity: .6; cursor: wait; }
+.connection-check:focus-visible { outline: 3px solid #486b61; outline-offset: 4px; }

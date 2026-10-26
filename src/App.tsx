@@ -1,7 +1,12 @@
 import './App.css'
 import './lib/supabaseClient'
+import ConnectionCheck from './ConnectionCheck'
 
 function App() {
+  if (new URLSearchParams(window.location.search).get('check') === 'connection') {
+    return <ConnectionCheck />
+  }
+
   return (
     <main className="welcome">
       <p className="eyebrow">SHIDOROKU</p>
