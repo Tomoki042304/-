@@ -1,4 +1,5 @@
 import './App.css'
+import './lib/supabaseClient'
 
 function App() {
   return (
