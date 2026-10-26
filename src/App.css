@@ -29,3 +29,10 @@ h1 { margin: 1rem 0; font-size: clamp(2.75rem, 10vw, 4rem); letter-spacing: .16e
 .field-help { margin: 0; color: #5b6864; font-size: .8rem; }
 .auth-card textarea { width: 100%; min-height: 9rem; padding: .75rem; border: 1px solid #aebdb6; border-radius: .4rem; font: inherit; background: white; color: inherit; resize: vertical; line-height: 1.8; }
 .motto-text { margin: 1rem 0; padding: 1rem; border-left: 3px solid #486b61; background: #f7f6f2; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.goal-list { list-style: none; margin: 1rem 0; padding: 0; }
+.goal-list li { padding: 1rem 0; border-bottom: 1px solid #dfe5df; }
+.goal-list h3, .goal-list p { overflow-wrap: anywhere; }
+.goal-list h3 { font-size: 1rem; }
+.goal-description { white-space: pre-wrap; }
+.goal-editor { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #dfe5df; }
+.auth-card select { width: 100%; min-height: 3rem; padding: .75rem; border: 1px solid #aebdb6; border-radius: .4rem; font: inherit; color: inherit; background: white; }
