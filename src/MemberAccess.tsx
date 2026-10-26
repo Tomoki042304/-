@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabaseClient'
 import { isActiveMembership, type Membership } from './lib/membership'
 import MemberProfile from './MemberProfile'
+import MemberMotto from './MemberMotto'
 
 type Access =
   | { state: 'checking' }
@@ -161,7 +162,8 @@ export default function MemberAccess() {
             <p>志動録へようこそ。</p>
             <p className="member-id">会員ID：{access.membership.member_id}</p>
           </>}
-          <MemberProfile key={session.user.id} userId={session.user.id} enabled={access.state === 'allowed'} />
+          <MemberProfile key={`profile:${session.user.id}`} userId={session.user.id} enabled={access.state === 'allowed'} />
+          <MemberMotto key={`motto:${session.user.id}`} userId={session.user.id} enabled={access.state === 'allowed'} />
           {(access.state === 'denied' || access.state === 'error') && <p role="alert">{access.message}</p>}
           {access.state === 'error' && <button className="primary-button" type="button"
             onClick={() => { setAccess({ state: 'checking' }); setRefresh(value => value + 1) }}>再試行</button>}
