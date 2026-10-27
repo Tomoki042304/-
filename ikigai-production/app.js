@@ -218,6 +218,7 @@
   }
   // ---------- timeline (成長ログ): each person keeps posts, reactions and comments in posts/<uid> ----------
   const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦'];
+  const postCategoriesOf=x=>[...new Set((Array.isArray(x.categories)?x.categories:[x.category]).filter(c=>POST_CATEGORIES.includes(c)))].slice(0,3);
   let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myCmts=[],postWriting=false,postAgain=false,feedReady=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
   const MAX_POSTS=100,MAX_LIKES=500,MAX_CMTS=300;
@@ -226,7 +227,7 @@
       const all=[],likes=[],cmts=[];
       snap.docs.forEach(d=>{
         const v=d.data()||{};
-        if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id,category:POST_CATEGORIES.includes(x.category)?x.category:''})});
+        if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id,categories:postCategoriesOf(x)})});
         if(Array.isArray(v.likes))v.likes.forEach(k=>{if(typeof k==='string')likes.push({by:d.id,key:k})});
         if(Array.isArray(v.comments))v.comments.forEach(c=>{if(c&&typeof c.text==='string'&&typeof c.key==='string'&&typeof c.at==='string')cmts.push({id:String(c.id||''),key:c.key,text:c.text.slice(0,300),at:c.at,uid:d.id})});
         if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
@@ -243,6 +244,7 @@
     finally{postWriting=false}
   }
   const agoText=at=>{const d=new Date(at),m=Math.floor((Date.now()-d)/60000);if(isNaN(m))return'';if(m<1)return'たった今';if(m<60)return`${m}分前`;if(m<1440)return`${Math.floor(m/60)}時間前`;return`${d.getMonth()+1}月${d.getDate()}日`};
+  const postTimeText=at=>{const d=new Date(at);return isNaN(d)?'':d.toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})};
   const FIRE='<svg class="i" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.8 7-7 0-3.5-2.4-6.2-4.2-8.2-.4 2-1.6 3.4-2.8 3.4 0-3-1-6-3.6-8.2C8.6 5.6 5 9 5 14.5 5 18.9 8 22 12 22z"/><path d="M12 22c-1.7 0-3-1.3-3-3.1 0-1.9 1.6-3.3 3-4.9 1.4 1.6 3 3 3 4.9 0 1.8-1.3 3.1-3 3.1z"/></svg>';
   const BUBBLE='<svg class="i" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1 1 21 12z"/></svg>';
   function avatarEl(id,cls){const a=document.createElement('div');a.className='avatar'+(cls?' '+cls:'');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
@@ -253,7 +255,7 @@
     if(pending()){box.innerHTML=PENDING_BOX('成長ログ');return}
     if(!feedReady){box.innerHTML='<div class="card empty">読み込んでいます…</div>';return}
     const q=tlQuery.toLowerCase();
-    const list=feedAll.filter(x=>(!tlMine||x.uid===uid)&&(!q||x.text.toLowerCase().includes(q)||nameOf(x.uid).toLowerCase().includes(q)||(x.category||'').includes(q)));
+    const list=feedAll.filter(x=>(!tlMine||x.uid===uid)&&(!q||x.text.toLowerCase().includes(q)||nameOf(x.uid).toLowerCase().includes(q)||postCategoriesOf(x).some(c=>c.includes(q))));
     if(!list.length){box.innerHTML=feedAll.length
       ?`<div class="card empty"><b style="color:var(--ink)">該当する投稿がありません</b>検索の言葉や「自分の投稿」の切り替えを見直してください。</div>`
       :`<div class="card empty"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b style="color:var(--ink)">最初の記録を書いてみよう</b>今日の学びを共有すると、仲間の学びも深まります。</div>`;return}
@@ -266,9 +268,10 @@
         <div class="acts"><button type="button" class="react cheer" data-like="${esc(key)}" aria-pressed="${mine}" aria-label="応援する"><span class="emo" aria-hidden="true">💪</span><span>${fires}</span></button><button type="button" class="react" data-cmt="${esc(key)}" aria-pressed="${open}" aria-label="コメント">${BUBBLE}<span>${cs.length}</span></button>${x.uid===uid?`<button type="button" class="del-post" data-del-post="${esc(x.id)}">削除</button>`:''}</div>`;
       el.querySelector('.head').prepend(avatarEl(x.uid));
       el.querySelector('b').textContent=nameOf(x.uid);
-      el.querySelector('.head span').textContent=agoText(x.at);
+      el.querySelector('.head span').textContent=postTimeText(x.at);
       el.querySelector('.text').textContent=x.text;
-      if(POST_CATEGORIES.includes(x.category)){const tag=document.createElement('span');tag.className='post-category';tag.textContent=x.category;el.querySelector('.text').before(tag)}
+      const categories=postCategoriesOf(x);
+      if(categories.length){const tags=document.createElement('div');tags.className='post-tags';categories.forEach(category=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=category;tags.append(tag)});el.querySelector('.text').before(tags)}
       if(open){
         const wrap=document.createElement('div');wrap.className='comments';
         cs.forEach(c=>{const row=document.createElement('div');row.className='cmt';const d=document.createElement('div');
@@ -281,6 +284,13 @@
       box.append(el);
     });
   }
+  const selectedPostCategories=()=>[...document.querySelectorAll('#postCategories input:checked')].map(x=>x.value);
+  function updatePostCategories(){
+    const count=selectedPostCategories().length;
+    document.querySelectorAll('#postCategories input').forEach(x=>{x.disabled=!x.checked&&count>=3});
+    $('#postCategoryHint').textContent=`1〜3つ選んでください（${count} / 3）`;
+  }
+  $('#postCategories').addEventListener('change',updatePostCategories);
   const openComposer=on=>{$('#postForm').hidden=!on;$('#writeBtn').hidden=on;if(on)$('#postText').focus()};
   $('#writeBtn').onclick=()=>{if(backend!=='cloud'||!uid){toast('ログインすると投稿できます');return}if(pending()){toast('ホストの承認後に投稿できます');return}openComposer(true)};
   $('#postCancel').onclick=()=>openComposer(false);
@@ -293,12 +303,12 @@
     if(pending()){toast('ホストの承認後に投稿できます');return}
     const text=$('#postText').value.trim();
     if(!text){toast('投稿する内容を書いてください');return}
-    const category=$('#postCategories input:checked')?.value||'';
-    if(!POST_CATEGORIES.includes(category)){toast('記録の種類を選んでください');$('#postCategories input').focus();return}
-    const post={category,id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:text.slice(0,500),at:new Date().toISOString()};
+    const categories=selectedPostCategories();
+    if(categories.length<1||categories.length>3||categories.some(c=>!POST_CATEGORIES.includes(c))){toast('記録の種類は1〜3つ選んでください');$('#postCategories input:checked, #postCategories input:not(:disabled)').focus();return}
+    const post={categories,category:categories[0],id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:text.slice(0,500),at:new Date().toISOString()};
     myPosts.push(post);if(myPosts.length>MAX_POSTS)myPosts=myPosts.slice(-MAX_POSTS);
     feedAll=[{...post,uid},...feedAll];
-    $('#postCategories input:checked').checked=false;
+    document.querySelectorAll('#postCategories input:checked').forEach(x=>{x.checked=false});updatePostCategories();
     $('#postText').value='';$('#postCount').textContent='0 / 500';openComposer(false);
     renderFeed();flushPosts();toast('投稿しました');
   });
