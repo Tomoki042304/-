@@ -109,11 +109,51 @@ if (stopped) {
 
 function start() {
   const auth = supabase.auth;
+  // GitHub uses the existing button styling; keep the Google provider hidden.
+  const githubButton = $("#authGitHub");
+  const githubIntent = "ikigai.oauth.github";
+  let githubBusy = false, githubControls = [];
+  githubButton.hidden = false;
+  document.querySelectorAll("#authScreen .auth-alt").forEach(x => { x.hidden = false; });
+  const restoreGitHub = () => {
+    githubBusy = false;
+    githubControls.forEach(([element, disabled]) => { element.disabled = disabled; });
+    githubControls = [];
+  };
+  window.addEventListener("pageshow", event => {
+    if (!event.persisted) return;
+    restoreGitHub();
+    try { sessionStorage.removeItem(githubIntent); } catch {}
+  });
+  githubButton.onclick = async () => {
+    if (githubBusy) return;
+    githubBusy = true;
+    githubControls = [...document.querySelectorAll("#authForm button, #authForm input")].map(element => [element, element.disabled]);
+    githubControls.forEach(([element]) => { element.disabled = true; });
+    say(""); note(""); $("#authResend").hidden = true;
+    let leaving = false;
+    try {
+      sessionStorage.setItem(githubIntent, "1");
+      const { data, error } = await auth.signInWithOAuth({ provider: "github", options: { redirectTo: appUrl(), skipBrowserRedirect: true } });
+      if (error) throw error;
+      const target = new URL(data.url), expected = new URL(supabase.supabaseUrl);
+      if (target.origin !== expected.origin || target.pathname !== "/auth/v1/authorize" || target.searchParams.get("provider") !== "github") throw new Error("Unexpected OAuth target");
+      location.assign(target.href);
+      leaving = true;
+    } catch (error) {
+      try { sessionStorage.removeItem(githubIntent); } catch {}
+      say(errText(error));
+    } finally {
+      if (!leaving) restoreGitHub();
+    }
+  };
   // opened from the password-reset mail (index.html notes this before the link is consumed)
   let started = false, recovering = window.__recoveryLink === true;
 
   $("#authForm").addEventListener("submit", async e => {
     e.preventDefault();
+    if (githubBusy) return;
+    try { sessionStorage.removeItem(githubIntent); } catch {}
     const email = $("#authEmail").value.trim(), pass = $("#authPass").value;
     say(""); note(""); $("#authResend").hidden = true;
     if (!email) { say("メールアドレスを入れてください"); return; }
@@ -286,9 +326,21 @@ function start() {
     flow_state_not_found: "確認リンクを、登録したときと別のブラウザで開いた可能性があります。",
     bad_code_verifier: "確認リンクを、登録したときと別のブラウザで開いた可能性があります。"
   };
+  let githubReturn = false;
+  try {
+    githubReturn = sessionStorage.getItem(githubIntent) === "1";
+    if (link.fromMail) sessionStorage.removeItem(githubIntent);
+  } catch {}
   const linkChecked = link.fromMail ? auth.initialize().then(async ({ error }) => {
     const { data } = await auth.getSession();
     const ok = !!data.session && !error && !link.errorCode;
+    if (githubReturn) {
+      if (ok) return;
+      say(errText(error));
+      note(""); $("#authResend").hidden = true;
+      history.replaceState(history.state, "", location.pathname);
+      return;
+    }
     console.info(`[認証] メールのリンク：${ok ? "成功（ログインしました）" : "失敗（" + (link.errorCode || error?.code || error?.name || "セッションなし") + "）"}`);
     if (ok) return;
     const code = link.errorCode || error?.code || "";
