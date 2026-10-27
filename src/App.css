@@ -36,3 +36,10 @@ h1 { margin: 1rem 0; font-size: clamp(2.75rem, 10vw, 4rem); letter-spacing: .16e
 .goal-description { white-space: pre-wrap; }
 .goal-editor { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #dfe5df; }
 .auth-card select { width: 100%; min-height: 3rem; padding: .75rem; border: 1px solid #aebdb6; border-radius: .4rem; font: inherit; color: inherit; background: white; }
+.habit-list { list-style: none; margin: 1rem 0; padding: 0; }
+.habit-list li { padding: 1rem 0; border-bottom: 1px solid #dfe5df; }
+.habit-list h3, .habit-list p { overflow-wrap: anywhere; }
+.habit-list h3 { font-size: 1rem; }
+.habit-note { white-space: pre-wrap; }
+.habit-dates { font-size: .8rem; color: #5b6864; }
+.habit-editor { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #dfe5df; }
