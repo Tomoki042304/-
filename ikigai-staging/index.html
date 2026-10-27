@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IKIGAI</title>
+<meta name="description" content="志ある仲間と、最高な朝を。IKIGAIアカデミーのメンバーアプリ">
+<meta name="theme-color" content="#5F1526">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="IKIGAI">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800;900&family=Noto+Serif+JP:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Antique+Soft&family=Cormorant+Garamond:wght@600&display=swap">
+<style>
+/* base reset (was supplied by the prototype host) */
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */
+:root{
+  color-scheme:light;
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#faf3f4;
+  --ink:#2b1418; --ink-2:#7a6266; --line:#ecdfe1;
+  --accent:#7a1f33; --accent-soft:#f5e4e7;
+  --gold:#9c3348; --gold-soft:#f8e8eb;
+  --sea-1:#fbf3f4; --sea-2:#f1dfe2; --land:#ffffff; --land-edge:#dcc3c8;
+  --hero-1:#3d0d18; --hero-2:#6e1a2d; --hero-3:#b4596b;
+  --danger:#c0392b;
+  /* ---- type system: change a role here and every screen follows ----
+     sans  = everyday text, small headings, emphasis, forms, buttons (Latin → Inter, Japanese → Noto Sans JP)
+     serif = calm, considered passages (Latin → Georgia, Japanese → Noto Serif JP)
+     num   = figures: streaks, rates, times, counts (Inter, equal-width digits)
+     display / logo = the large titles and the IKIGAI mark (kept from the academy look) */
+  --font-sans:"Inter","Noto Sans JP",-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+  --font-serif:Georgia,"Noto Serif JP","Hiragino Mincho ProN","Yu Mincho",serif;
+  --font-num:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --display:"Zen Antique Soft","Hiragino Mincho ProN","Yu Mincho",serif;
+  --logo:"Cormorant Garamond","Times New Roman",serif;
+  --body:var(--font-sans);
+  --mono:var(--font-num);
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-heavy:800; --fw-black:900;
+  --fs-xs:11px; --fs-sm:12.5px; --fs-base:15px; --fs-input:16px; --fs-md:17px; --fs-lg:20px;
+  --lh-body:1.7; --lh-tight:1.4; --ls-body:.01em; --ls-label:.08em;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:var(--fs-base);font-weight:var(--fw-regular);line-height:var(--lh-body);letter-spacing:var(--ls-body);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible,input:focus-visible,label:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:480px;margin:0 auto;min-height:100%}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;flex-direction:column;align-items:center;line-height:1}
+.brand .mark{font-family:var(--logo);font-weight:600;font-size:28px;letter-spacing:.22em;color:var(--gold);padding-left:.22em}
+.brand .sub{font-size:11px;letter-spacing:.12em;color:var(--gold);margin-top:6px;padding-left:.12em;white-space:nowrap}
+.navbtns{position:absolute;left:max(10px,env(safe-area-inset-left,0px));display:flex;gap:0}
+.navbtns button{width:36px;height:36px;display:grid;place-items:center;background:none;border:0;border-radius:10px;color:var(--accent);padding:0}
+.navbtns button svg{width:24px;height:24px;stroke-width:2}
+.navbtns button:disabled{color:var(--line);cursor:default}
+.navbtns button:not(:disabled):active{background:var(--accent-soft)}
+.bell{position:absolute;right:max(16px,env(safe-area-inset-right,0px));background:none;border:0;padding:6px;color:var(--accent)}
+
+main{padding-block:20px 120px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+.view{display:flex;flex-direction:column;gap:16px}
+
+.card{background:var(--surface);border-radius:22px;padding:20px;border:1px solid var(--line);box-shadow:0 10px 28px -20px rgba(95,21,38,.35)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:99px;font-size:12px;font-weight:700;letter-spacing:.04em}
+.pill.gold{background:var(--gold-soft);color:var(--gold)}
+.pill.blue{background:var(--accent-soft);color:var(--accent)}
+.icon-tile{width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.view-title{font-family:var(--display);font-size:22px;margin:12px 0 4px}
+.muted{margin:0;color:var(--ink-2);font-size:13px}
+.mono{font-family:var(--mono);color:var(--accent);font-size:14px;font-variant-numeric:tabular-nums}
+
+/* hero: the person's aspiration framed by a slowly turning seal ring */
+.hero{position:relative;border-radius:24px;overflow:hidden;color:#F3ECE0;padding:26px 22px 22px;min-height:330px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  background:radial-gradient(80% 70% at 50% 45%,#5A1424 0%,#3A0B17 60%,#22060D 100%)}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%}
+.hero > *:not(canvas):not(.seal){position:relative}
+.hero .seal{position:absolute;left:50%;top:50%;width:min(118%,440px);aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none}
+.hero .seal svg{display:block;width:100%;height:100%;overflow:visible}
+.hero .seal .out,.hero .seal .in{transform-origin:100px 100px}
+.hero .seal .out{animation:sealSpin 70s linear infinite}
+.hero .seal .in{animation:sealSpin 90s linear infinite reverse}
+.hero .seal .out text{font-family:"Cormorant Garamond","Times New Roman",serif;font-size:13px;font-weight:600;fill:rgba(233,196,106,.28)}
+.hero .seal .in text{font-family:"Zen Antique Soft",var(--display);font-size:11px;fill:rgba(243,236,224,.2)}
+.hero .seal circle{fill:none;stroke:rgba(233,196,106,.22);stroke-width:.5}
+@keyframes sealSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.hero .seal .out,.hero .seal .in{animation:none}}
+.hero .who{display:flex;align-items:center;justify-content:center;gap:8px}
+.hero .kicker{font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:13px;letter-spacing:.32em;color:#E6CC8F}
+.hero .rule{display:flex;align-items:center;gap:10px;width:min(220px,70%);margin:12px auto 10px}
+.hero .rule::before,.hero .rule::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,#E9C46A)}
+.hero .rule::after{background:linear-gradient(270deg,transparent,#E9C46A)}
+.hero .rule i{width:7px;height:7px;border:1px solid #E9C46A;transform:rotate(45deg);flex:none}
+.hero h1{font-family:"Zen Antique Soft",var(--display);font-weight:400;font-size:clamp(22px,6.4vw,28px);line-height:1.6;letter-spacing:.06em;margin:0 0 14px;text-wrap:balance;max-width:16em;
+  background:linear-gradient(170deg,#FFF3D0 0%,#F0CF7A 45%,#D3A447 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .meta{font-size:12px;line-height:1.8;color:rgba(243,236,224,.85);letter-spacing:.06em}
+.hero .meta b{font-family:var(--mono);font-size:15px;color:#E9C46A;font-weight:500}
+
+/* today check */
+.today .stack{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.today h2{font-size:19px;margin:0;line-height:1.5;text-wrap:balance}
+.today p{margin:0;color:var(--ink-2);font-size:13px}
+.big-check{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;border-radius:16px;border:1.5px dashed var(--ink-2);background:var(--surface-2);color:var(--ink-2);font-weight:700;font-size:16px}
+.big-check svg{width:24px;height:24px;stroke-width:2.6}
+.big-check[aria-pressed="true"]{border:1.5px solid var(--accent);background:var(--accent);color:#fff}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.split .card{padding:12px;border-radius:18px;min-width:0}
+.mini-head{display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-bottom:8px}
+.mini-head b{font-size:13px;white-space:nowrap}
+.mini-head .mono{font-size:11px;white-space:nowrap}
+.home-cal .cal{gap:3px;margin-top:0}
+.home-cal .cal .wd{font-size:9px;padding-bottom:0}
+.home-cal .cal button{font-size:10px;border-radius:6px;border-width:1px}
+.home-cal .cal button svg{display:none}
+.split .today,.split .home-rf{display:flex;flex-direction:column}
+.home-rf .stack{display:flex;flex-direction:column;gap:8px;flex:1}
+.home-rf h2{font-size:14px;line-height:1.55;margin:0}
+.home-rf p{font-size:11px;margin:0;color:var(--ink-2)}
+.home-rf p.due{color:var(--gold);font-weight:700}
+.mini-week{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.mini-week i{display:block;aspect-ratio:1;border-radius:4px;background:var(--surface-2);border:1px solid var(--line)}
+.mini-week i.on{background:var(--gold);border-color:var(--gold)}
+.mini-week i.fut{opacity:.4}
+.cal-link{background:none;border:0;padding:2px 0 0;font-size:12px;color:var(--accent);font-weight:700;align-self:center}
+.rf-go{margin-top:auto;padding:12px 8px;border-radius:12px;border:1.5px solid var(--accent);background:var(--surface);color:var(--accent);font-weight:700;font-size:14px}
+.rf-go.done{background:var(--accent-soft);border-color:var(--accent-soft)}
+.split .today .stack{margin-top:0;flex:1;gap:8px}
+.split .today h2{font-size:14px;line-height:1.55}
+.split .today p{font-size:11px}
+.split .today .big-check{margin-top:auto;padding:12px 8px;font-size:14px;gap:6px;border-radius:12px}
+.split .today .big-check svg{width:18px;height:18px}
+
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{display:flex;align-items:center;gap:12px;background:var(--surface);border:0;border-radius:18px;padding:14px;text-align:left;font-weight:700;border:1px solid var(--line);min-width:0}
+.tile .icon-tile{width:42px;height:42px}
+.tile small{display:block;font-weight:500;font-size:11px;color:var(--ink-2)}
+.tile small.due{color:var(--gold);font-weight:700}
+
+/* goal card */
+.goal{position:relative;border-radius:16px;overflow:hidden;min-height:180px;aspect-ratio:16/9;max-width:100%;margin-top:14px;color:#fff;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;padding:16px;
+  background-color:var(--hero-2);background-image:linear-gradient(135deg,var(--hero-2),var(--hero-3));background-size:cover;background-position:center}
+.goal::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(30,6,12,0) 20%,rgba(30,6,12,.75))}
+.goal > *{position:relative}
+.goal .k{font-family:var(--mono);font-size:11px;letter-spacing:.2em;opacity:.9}
+.goal h3{font-family:var(--display);font-weight:800;font-size:22px;margin:0;line-height:1.35;text-wrap:balance;text-shadow:0 1px 8px rgba(0,0,0,.35)}
+.goal .left{font-size:13px;font-weight:700}
+.goal .left b{font-family:var(--mono);font-size:18px;color:#ffd9df}
+.goal .hint{position:absolute;top:16px;left:16px;right:110px;font-size:12px;opacity:.9}
+.goal .gedit{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:99px;padding:4px 12px;font-size:12px;backdrop-filter:blur(4px)}
+.goal-editor{display:flex;flex-direction:column;gap:12px;margin-top:14px;padding:16px;border-radius:16px;background:var(--surface-2)}
+.photo-row{display:flex;gap:12px;align-items:center}
+.photo-thumb{width:96px;height:54px;border-radius:10px;background:var(--line) center/cover no-repeat;flex:none;display:grid;place-items:center;font-size:11px;color:var(--ink-2)}
+.file-btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ms-edit{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:12px;background:var(--surface-2)}
+.goal-editor .ms-edit{background:var(--surface)}
+.ms-list{display:flex;flex-direction:column;gap:8px}
+.ms-count{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink-2)}
+.ms-count b{font-family:var(--mono);color:var(--accent);font-size:17px;margin:0 2px}
+.stepper{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--surface)}
+.stepper button{border:0;background:none;width:42px;height:34px;font-size:18px;color:var(--accent)}
+.stepper button+button{border-left:1px solid var(--line)}
+.ms-row{display:flex;align-items:center;gap:8px}
+.ms-no{font-family:var(--mono);font-size:12px;color:var(--gold);width:20px;text-align:center;flex:none}
+.icon-btn{background:none;border:0;padding:6px 8px;color:var(--ink-2);font-size:18px;line-height:1;flex:none}
+.add-ms{padding:10px;font-size:13px}
+.date-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:40px}
+.date-pick label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer}
+.date-pick input[type=date]{flex:1;min-width:150px;width:auto}
+.crop{position:fixed;inset:0;z-index:60;background:rgba(30,6,12,.6);display:grid;place-items:center;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.crop-box{background:var(--surface);border-radius:20px;padding:18px;width:min(440px,100%);display:flex;flex-direction:column;gap:12px}
+.crop-view{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:12px;background:#1e0a0f;touch-action:none;cursor:grab}
+.crop-view:active{cursor:grabbing}
+.crop-view img{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;user-select:none;pointer-events:none}
+.crop-view::after{content:"";position:absolute;inset:0;border:2px solid rgba(255,255,255,.85);border-radius:12px;pointer-events:none}
+.crop input[type=range]{width:100%;accent-color:var(--accent)}
+.btn-row{display:flex;gap:8px}
+.btn-row > *{flex:1}
+
+/* roadmap */
+.map-wrap{margin:14px -8px 0}
+.dial .ring{fill:none;stroke:var(--line);stroke-width:1}
+.dial .prog{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-linecap:round}
+.dial .tick{stroke:var(--line);stroke-width:1}
+.dial .pt{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.dial .ms.done .pt{fill:var(--accent);stroke:var(--accent)}
+.dial .ms{cursor:pointer}
+.dial .ms .halo{fill:none;stroke:var(--accent);stroke-width:1;opacity:0}
+.dial .ms.sel .halo{opacity:1}
+.dial .ms:focus-visible{outline:none}
+.dial .ms:focus-visible .halo{opacity:1;stroke-width:2}
+.dial .lbl{font-family:var(--body);font-size:12.5px;fill:var(--ink-2)}
+.dial .ms.done .lbl{fill:var(--accent)}
+.dial .lbl.ph{opacity:.5}
+.dial .big{font-family:var(--display);font-weight:600;font-size:64px;fill:var(--accent);font-variant-numeric:tabular-nums}
+.dial .unit{font-family:var(--mono);font-size:14px;letter-spacing:.35em;fill:var(--gold)}
+.dial .left{font-family:var(--body);font-size:15px;fill:var(--ink-2)}
+.map{display:block;width:100%;height:auto}
+.map .grid{stroke:var(--surface);stroke-opacity:.35;stroke-width:1}
+.map .isle{fill:var(--land);stroke:var(--land-edge);stroke-width:1.2}
+.map .leg{fill:none;stroke-width:3;stroke-linecap:round}
+.map .leg.done{stroke:var(--gold)}
+.map .leg.todo{stroke:var(--ink-2);stroke-opacity:.55;stroke-dasharray:2 7}
+.map .ms{cursor:pointer}
+.map .ms circle.base{fill:var(--surface);stroke:var(--ink-2);stroke-width:2}
+.map .ms.done circle.base{fill:var(--gold);stroke:var(--gold)}
+.map .ms.sel circle.base{stroke:var(--accent);stroke-width:3}
+.map .ms text{font-family:var(--body);font-size:11px;font-weight:700;fill:var(--ink)}
+.map .ms text.date{font-family:var(--mono);font-size:9px;font-weight:500;fill:var(--ink-2)}
+.map .here{fill:var(--accent);opacity:.25;transform-box:fill-box;transform-origin:center;animation:pulse 2s ease-out infinite}
+.map .goalflag{fill:var(--gold)}
+.map .compass text{fill:var(--ink-2);font-family:var(--mono);font-size:10px}
+@keyframes pulse{from{transform:scale(.6);opacity:.5}to{transform:scale(1.8);opacity:0}}
+.ms-detail{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--surface-2)}
+.ms-detail div{flex:1;min-width:0}
+.ms-detail b{display:block;font-size:14px}
+.ms-detail span{font-size:12px;color:var(--ink-2)}
+.small-btn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 14px;font-size:12px;font-weight:700;flex:none}
+.small-btn.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.small-btn.warn{border-color:var(--danger);color:var(--danger)}
+
+.ai{display:flex;align-items:center;gap:14px;width:100%;border:0;text-align:left}
+.ai .icon-tile{background:var(--accent);color:#fff;width:54px;height:54px;border-radius:16px}
+.ai b{display:block;font-size:16px}
+.ai span{font-size:12px;color:var(--ink-2)}
+.ai .arr{margin-left:auto;color:var(--accent)}
+
+.sec-title{margin:8px 0 0}
+.sec-title h3{margin:0;font-size:17px}
+.sec-title p{margin:0;font-size:12px;color:var(--ink-2)}
+.menu{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.menu button{background:var(--surface);border:0;border-radius:20px;padding:18px;text-align:left;display:flex;flex-direction:column;gap:10px;border:1px solid var(--line)}
+.menu b{font-size:15px}
+.menu small{display:block;color:var(--ink-2);font-size:12px;margin-top:-6px}
+.menu .wide{grid-column:1/-1}
+
+/* check / calendar */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.stats div{background:var(--surface-2);border-radius:14px;padding:10px;text-align:center;min-width:0}
+.stats b{display:block;font-family:var(--mono);font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums}
+.stats span{font-size:11px;color:var(--ink-2)}
+.cal-head{display:flex;align-items:center;justify-content:space-between}
+.cal-head b{font-size:16px}
+.cal-head button{background:none;border:0;padding:6px;color:var(--accent)}
+.cal-head button:disabled{opacity:.3;cursor:default}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px;text-align:center}
+.cal .wd{font-size:11px;color:var(--ink-2);padding-bottom:2px}
+.cal .wd.sun{color:var(--danger)}
+.cal button{aspect-ratio:1;max-width:100%;border:1.5px solid transparent;border-radius:12px;background:var(--surface-2);font-family:var(--mono);font-size:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0}
+.cal button svg{width:12px;height:12px;stroke-width:3.2}
+.cal button.on{background:var(--gold);color:#fff}
+.cal button.today{border-color:var(--accent)}
+.cal button:disabled{opacity:.35;cursor:default}
+.legend{display:flex;gap:14px;margin-top:12px;font-size:11px;color:var(--ink-2);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+/* reflection */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px;margin-top:14px}
+.seg button{border:0;background:none;border-radius:9px;padding:8px;font-weight:700;font-size:14px;color:var(--ink-2)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(80,20,32,.12)}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px;text-align:center}
+.strip span{font-size:11px;color:var(--ink-2)}
+.strip i{display:grid;place-items:center;margin:4px auto 0;width:30px;height:30px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);font-style:normal;font-size:12px;font-family:var(--mono)}
+.strip i.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.strip i.fut{opacity:.35}
+.q{display:flex;flex-direction:column;gap:6px}
+.q label{font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+.q label .n{width:22px;height:22px;border-radius:50%;background:var(--gold-soft);color:var(--gold);display:grid;place-items:center;font-size:12px;font-family:var(--mono);flex:none}
+textarea,input[type=text],input[type=month],input[type=date]{width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;font-size:14px;resize:vertical;min-width:0}
+.card textarea,.card input[type=text]{background:var(--surface-2)}
+.goal-editor input[type=text],.goal-editor input[type=month],.goal-editor input[type=date]{background:var(--surface)}
+.primary{background:var(--accent);color:#fff;border:0;border-radius:14px;padding:13px;font-weight:700;font-size:15px;width:100%}
+.ghost{background:none;border:1px solid var(--line);border-radius:14px;padding:12px;font-weight:700;font-size:14px;width:100%}
+.status{font-size:12px;font-weight:700}
+.status.done{color:var(--gold)}
+.status.todo{color:var(--ink-2)}
+
+/* reflection box */
+.box-head{display:flex;align-items:center;gap:10px}
+.box-head .icon-tile{width:42px;height:42px;background:var(--gold-soft);color:var(--gold)}
+.box-head b{display:block;font-size:16px}
+.box-head span{font-size:12px;color:var(--ink-2)}
+.chips{display:flex;gap:6px;margin-top:14px}
+.chips button{border:1px solid var(--line);background:var(--surface-2);border-radius:99px;padding:5px 14px;font-size:12px;font-weight:700}
+.chips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.box-list{margin-top:12px}
+details.past{border-top:1px solid var(--line);padding:12px 0}
+details.past:first-child{border-top:0}
+details.past summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none}
+details.past summary::-webkit-details-marker{display:none}
+details.past summary .tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;flex:none}
+details.past summary .tag.week{background:var(--accent-soft);color:var(--accent)}
+details.past summary .tag.month{background:var(--gold-soft);color:var(--gold)}
+details.past summary .lbl{flex:1;min-width:0;font-weight:700;font-size:14px}
+details.past summary .lbl small{display:block;font-weight:400;font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+details.past summary .chev{color:var(--ink-2);transition:transform .2s}
+details.past[open] summary .chev{transform:rotate(90deg)}
+details.past dl{margin:12px 0 0;display:flex;flex-direction:column;gap:10px;font-size:14px}
+details.past dt{color:var(--ink-2);font-size:12px;font-weight:700}
+details.past dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+details.past .edit-link{margin-top:10px}
+.empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:18px 8px;color:var(--ink-2);font-size:13px}
+.empty svg{width:36px;height:36px;color:var(--gold)}
+
+/* members */
+.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;background-size:cover;background-position:center}
+.avatar.big{width:72px;height:72px;font-size:26px;background-color:var(--accent)}
+.hero .who{display:flex;align-items:center;gap:8px}
+.hero .who .avatar{width:30px;height:30px;font-size:13px;background-color:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.6)}
+.crop-view.round::after{border-radius:50%}
+.member .who{display:flex;align-items:center;gap:12px}
+.member .who > div{flex:1;min-width:0}
+.member .who b{font-size:15px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.member .who b em{font-style:normal;font-size:11px;color:var(--accent);margin-left:6px}
+.member .who .avatar{width:56px;height:56px;font-size:22px}
+.member .who .job,.member .who .streak{display:block;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.member .who .streak{font-family:var(--mono);color:var(--gold)}
+.member .chk{font-size:12px;font-weight:700;border-radius:99px;padding:4px 10px;flex:none;background:var(--surface-2);color:var(--ink-2)}
+.member .chk.on{background:var(--gold);color:#fff}
+.member .shi{font-family:var(--font-serif);font-weight:800;font-size:15px;line-height:1.5;margin:12px 0 0;overflow-wrap:anywhere}
+.member .goalline{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-2)}
+.member .bar{flex:1;height:5px;border-radius:5px;background:var(--surface-2);overflow:hidden;min-width:40px}
+.member .bar i{display:block;height:100%;background:var(--gold)}
+
+.list-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.list-row:first-child{border-top:0}
+.list-row b{display:block;font-size:14px}
+.list-row span{font-size:12px;color:var(--ink-2)}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.field .lab{font-size:12px;font-weight:700;color:var(--ink-2)}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .inner{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{background:none;border:0;padding:8px 0 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;white-space:nowrap;font-weight:700;color:var(--ink-2);position:relative}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+
+/* morning meeting (Zoom) */
+.zoom{display:flex;flex-direction:column;gap:10px}
+.zoom .z-when{display:block;font-size:17px;margin-top:2px}
+.zoom #zoomMemo{white-space:pre-wrap;margin-top:2px}
+.z-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.z-join{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;font-size:15px;border-radius:14px;padding:12px 20px}
+.z-join svg{width:20px;height:20px}
+.z-url{margin:8px 0 0;font-family:var(--mono);font-size:11px;color:var(--ink-2);overflow-wrap:anywhere;user-select:all}
+/* daily quote */
+.quote{margin:0;position:relative;overflow:hidden;text-align:center;padding:30px 24px 26px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.quote::before{content:"\201C";position:absolute;top:-14px;left:14px;font-family:"Cormorant Garamond",Georgia,serif;font-size:110px;line-height:1;color:var(--accent-soft)}
+.quote .q-date{position:relative;font-family:var(--mono);font-size:11px;letter-spacing:.22em;color:var(--gold)}
+.quote blockquote{position:relative;margin:0;font-family:var(--font-serif);font-size:18px;line-height:1.9;letter-spacing:.04em;color:var(--ink);text-wrap:balance}
+.quote figcaption{position:relative;font-size:12px;color:var(--ink-2)}
+.quote figcaption::before{content:"— "}
+.quote.in blockquote,.quote.in figcaption{animation:qIn 1.4s ease both}
+.quote.in figcaption{animation-delay:.5s}
+@keyframes qIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.quote.in blockquote,.quote.in figcaption{animation:none}}
+/* timeline (成長ログ) */
+.tl-head{display:flex;flex-direction:column;gap:2px;padding:4px 2px 0}
+.tl-head h2{margin:0;font-size:22px;font-family:var(--display)}
+.tl-head p{margin:0;font-size:13px;color:var(--ink-2)}
+.tl-tools{display:flex;gap:8px;margin-top:12px}
+.search{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--accent-soft);border:1.5px solid var(--accent);border-radius:99px;padding:0 14px}
+.search svg{width:18px;height:18px;color:var(--ink-2);flex:none}
+.search input{flex:1;min-width:0;border:0;background:none;padding:12px 0;font:inherit;font-size:16px;color:var(--ink)}
+.search input:focus{outline:none}
+.search:focus-within{box-shadow:0 0 0 3px var(--accent-soft)}
+.mine-btn{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--accent-soft);color:var(--ink);border-radius:99px;padding:0 14px;font-weight:700;font-size:13px;white-space:nowrap;flex:none}
+.mine-btn svg{width:16px;height:16px}
+.mine-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.write-btn{display:flex;align-items:center;gap:12px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px 20px;color:var(--ink-2);font-size:15px;text-align:left;box-shadow:0 10px 28px -22px rgba(95,21,38,.35)}
+.write-btn svg{width:22px;height:22px;color:var(--ink-2)}
+.post-row{display:flex;gap:10px;align-items:flex-start}
+.post-row .avatar{width:40px;height:40px;font-size:15px}
+.post-row textarea{flex:1;min-width:0}
+.post-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px}
+.feed{display:flex;flex-direction:column;gap:14px}
+.post{display:flex;flex-direction:column;gap:12px;padding:20px 22px}
+.post .head{display:flex;align-items:center;gap:12px}
+.post .head .avatar{width:48px;height:48px;font-size:18px}
+.post .head > div:not(.avatar){flex:1;min-width:0}
+.post .head b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.post .head span{display:block;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.post .text{margin:0;font-size:15px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+.post .acts{display:flex;align-items:center;gap:22px;border-top:1px solid var(--line);padding-top:12px}
+.react{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:4px 0;color:var(--ink-2);font-family:var(--mono);font-size:14px}
+.react svg{width:22px;height:22px}
+.react[aria-pressed="true"]{color:var(--accent)}
+.react .emo{font-size:19px;line-height:1;filter:grayscale(1);opacity:.55;transition:transform .15s}
+.react.cheer[aria-pressed="true"] .emo{filter:none;opacity:1;transform:scale(1.12)}
+.del-post{margin-left:auto;background:none;border:0;color:var(--ink-2);font-size:12px;padding:4px 0}
+.comments{display:flex;flex-direction:column;gap:10px;background:var(--surface-2);border-radius:14px;padding:12px}
+.cmt{display:flex;gap:8px;align-items:flex-start}
+.cmt .avatar{width:28px;height:28px;font-size:11px}
+.cmt div{min-width:0}
+.cmt b{font-size:12px}
+.cmt b small{font-weight:400;color:var(--ink-2);margin-left:6px}
+.cmt p{margin:0;font-size:13.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.cmt-form{display:flex;gap:6px}
+.cmt-form input{flex:1;min-width:0;background:var(--surface)}
+.cmt-form button{flex:none;border:0;background:var(--accent);color:#fff;border-radius:10px;padding:0 14px;font-weight:700;font-size:13px}
+/* buddy chat */
+.buddy-strip{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none}
+.buddy-strip::-webkit-scrollbar{display:none}
+.buddy{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;padding:0;min-width:62px}
+.buddy .avatar{width:52px;height:52px;font-size:20px}
+.buddy[aria-pressed="true"] .avatar{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--gold)}
+.buddy span{font-size:11px;color:var(--ink);max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.buddy b{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--gold);letter-spacing:.08em}
+.chat-log{display:flex;flex-direction:column;gap:10px;min-height:320px;max-height:62vh;overflow-y:auto;padding:14px 12px;background:#F3E6E9;border:0;border-radius:18px}
+.chat-day{align-self:center;font-size:11px;color:#fff;background:rgba(95,21,38,.28);border-radius:99px;padding:2px 12px;margin:4px 0}
+.msg{display:flex;gap:8px;align-items:flex-start}
+.msg.cont{margin-top:-6px}
+.av-sp{width:36px;flex:none}
+.msg .avatar{width:36px;height:36px;font-size:14px}
+.msg .body{display:flex;flex-direction:column;gap:3px;min-width:0;max-width:80%}
+.msg .line{display:flex;align-items:flex-end;gap:5px}
+.msg.me .line{flex-direction:row-reverse}
+.msg .from{font-size:11px;color:var(--ink-2);padding-left:2px}
+.msg .bubble{position:relative;background:#fff;color:var(--ink);border-radius:18px;padding:8px 12px;font-size:14.5px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.msg.first:not(.me) .bubble::before{content:"";position:absolute;left:-6px;top:6px;border:7px solid transparent;border-right-color:#fff;border-left:0}
+.msg.first.me .bubble::before{content:"";position:absolute;right:-6px;top:6px;border:7px solid transparent;border-left-color:var(--accent);border-right:0}
+.msg .line .meta{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:0;line-height:1.3}
+.msg:not(.me) .line .meta{align-items:flex-start}
+.acc-head{display:flex;align-items:center;gap:16px}
+.acc-list{padding:6px 16px}
+.acc-row{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:14px 0;text-align:left}
+.acc-row:first-child{border-top:0}
+.acc-row .icon-tile{width:42px;height:42px}
+.acc-row > span:nth-child(2){flex:1;min-width:0}
+.acc-row b{display:block;font-size:15px}
+.acc-row small{display:block;font-size:12px;color:var(--ink-2)}
+.acc-row .chev{color:var(--ink-2)}
+.back-link{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;background:none;border:0;padding:4px 0;color:var(--accent);font-weight:700;font-size:14px}
+.back-link svg{width:20px;height:20px}
+.rf-lead{margin:0 0 6px;font-family:var(--font-serif);font-size:14px;color:var(--accent);letter-spacing:.04em}
+.del-box{display:flex;flex-direction:column;gap:10px;margin-top:6px;padding:14px;border:1px solid var(--danger);border-radius:14px;background:#fff7f6}
+.del-box p,.del-box ul{margin:0;font-size:13px}
+.del-box ul{padding-left:1.2em;color:var(--ink-2)}
+.del-box label{font-size:12px;font-weight:700;color:var(--danger)}
+.primary.danger{background:var(--danger)}
+.past-row{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:14px 0;text-align:left}
+.past-row:first-child{border-top:0}
+.past-row > span{flex:1;min-width:0}
+.past-row .pd{display:block;font-family:var(--font-sans);font-weight:var(--fw-bold);font-size:15px;color:var(--ink)}
+.past-row small{display:block;font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.past-row .chev{color:var(--ink-2);flex:none}
+.rfv-head{display:flex;flex-direction:column;gap:12px}
+.rfv-label{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--gold)}
+.rfv-row{display:flex;align-items:center;gap:16px}
+.rfv-row .avatar{width:72px;height:72px;font-size:27px;box-shadow:0 0 0 3px var(--surface),0 0 0 4.5px #E9C46A}
+.rfv-id{min-width:0;display:flex;flex-direction:column;gap:2px}
+.rfv-name{font-size:13px;color:var(--ink-2)}
+.rfv-id h1{margin:0;font-family:var(--display);font-weight:400;font-size:20px;line-height:1.45;text-wrap:balance}
+.rfv-meta{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--gold)}
+.rfv-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;background:var(--accent-soft)}
+.rfv-week{display:flex;gap:5px;flex-wrap:wrap}
+.rfv-week i{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-style:normal;font-size:10px;display:grid;place-items:center;font-family:var(--mono);color:var(--ink-2)}
+.rfv-week i.on{background:#E9C46A;color:#3A0B17;border-color:#E9C46A}
+.rfv-score{text-align:right;flex:none}
+.rfv-score b{display:block;font-family:var(--font-num);font-weight:var(--fw-heavy);font-size:24px;line-height:1;color:var(--accent)}
+.rfv-score span{font-size:10px;color:var(--ink-2)}
+.rfv-sec .lab2{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--gold);background:var(--gold-soft);border-radius:99px;padding:3px 12px}
+.rfv-sec p{margin:12px 0 0;font-family:var(--font-serif);font-size:17px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-sys{align-self:center;font-size:11px;color:var(--ink-2);background:rgba(255,255,255,.7);border-radius:99px;padding:3px 12px;text-align:center}
+.msg .bubble[data-mine]{cursor:pointer;-webkit-touch-callout:none;user-select:none}
+.unsend-menu{display:flex;gap:6px;align-self:flex-end;margin-top:2px}
+.unsend-menu button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--ink)}
+.unsend-menu button[data-unsend]{color:var(--danger);border-color:var(--danger)}
+.msg .line .read{font-size:10px;color:var(--ink-2)}
+.msg .line time{white-space:nowrap}
+.msg time,.give-card time{font-size:10px;color:var(--ink-2);font-family:var(--mono)}
+.msg.me{flex-direction:row-reverse}
+.msg.me .body{align-items:flex-end}
+.msg.me .bubble{background:var(--accent);color:#fff}
+.msg .bubble.give,.msg.me .bubble.give{background:var(--gold-soft);color:var(--ink);border:1px solid var(--gold)}
+.msg.first:not(.me) .bubble.give::before{border-right-color:var(--gold)}
+.msg.first.me .bubble.give::before{border-left-color:var(--gold)}
+.bubble .gto{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--gold);margin-bottom:2px}
+.give-card{border:1px solid var(--gold);background:var(--gold-soft);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.give-card .gk{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--gold)}
+.give-card .gp{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14px;flex-wrap:wrap}
+.give-card .gp .avatar{width:26px;height:26px;font-size:11px}
+.give-card .gp i{font-style:normal;color:var(--gold)}
+.give-card p{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.give-card time{align-self:flex-end}
+.composer{position:sticky;bottom:calc(66px + env(safe-area-inset-bottom,0px));background:var(--surface);border-radius:18px;padding:10px;z-index:5;
+  box-shadow:0 1px 0 var(--line),0 8px 24px -12px rgba(80,20,32,.3);display:flex;flex-direction:column;gap:8px}
+.comp-row{display:flex;gap:8px;align-items:flex-end}
+.comp-row textarea{flex:1;min-width:0;background:var(--surface-2);border-radius:20px;padding:9px 16px;resize:none;line-height:1.5;max-height:132px;overflow-y:auto;font-size:16px}
+.comp-row input{flex:1;min-width:0;background:var(--surface-2);border-radius:99px;padding:10px 16px}
+.give-btn{border:1px solid var(--gold);background:var(--surface);color:var(--gold);border-radius:99px;padding:8px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;flex:none}
+.give-btn[aria-pressed="true"]{background:var(--gold);color:#fff}
+.send-btn{width:40px;height:40px;border-radius:50%;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
+.send-btn svg{width:18px;height:18px}
+.seg3{grid-template-columns:repeat(3,1fr)}
+.seg3 button{font-size:13px;padding:8px 4px}
+.give-to{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-2)}
+.give-to .chips{margin-top:0;flex-wrap:wrap}
+.member .gives{font-family:var(--mono);font-size:11px;color:var(--gold);margin-left:8px}
+.talk-desc{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:6px;padding-top:14px;position:relative}
+.talk-desc::before{content:"";position:absolute;top:0;left:0;width:56px;height:1px;background:linear-gradient(90deg,#C9A24A,transparent)}
+.talk-desc p{margin:0;font-family:var(--font-serif);font-size:13.5px;line-height:2;letter-spacing:.04em;color:var(--ink-2)}
+.talk-desc .lead{font-size:16px;line-height:1.8;color:var(--ink);font-weight:600}
+.talk-desc p span{display:inline-block}   /* lines break only between phrases */
+.talk-desc .body{display:flex;flex-direction:column;gap:2px}
+.talk-desc .cta{margin-top:2px;font-family:var(--display);font-size:15px;line-height:1.8;letter-spacing:.08em;color:var(--accent);font-weight:400}
+.talk-desc .cta::before{content:"";display:inline-block;width:7px;height:7px;border:1px solid #C9A24A;transform:rotate(45deg);margin:0 10px 2px 1px;vertical-align:middle}
+/* ---- type roles (A–F) ---- */
+/* large titles keep the display face; it has one weight, so never fake-bold it */
+.view-title,.hero h1,.goal h3,.tl-head h2,.rfv-id h1,.ob-title,.dial .big,.splash .iki{font-synthesis-weight:none}
+/* B: section and card headings — heavy gothic */
+.sec-title h3,.card-head > b,.box-head b,.mini-head b,.today h2,.home-rf h2,.acc-row b,.list-row b,.cal-head b,.post .head b,.member .who b,.tl-head p{font-family:var(--font-sans)}
+.sec-title h3,.card-head > b,.box-head b,.mini-head b,.today h2,.home-rf h2,.acc-row b,.cal-head b{font-weight:var(--fw-heavy);line-height:var(--lh-tight)}
+/* C: emphasis — short words, goals and key figures */
+.big-check,.goal .left b,.stats b,.rfv-score b,.hero .meta b,.zoom .z-when,.status.done{font-weight:var(--fw-heavy)}
+/* E: figures line up */
+.mono,.stats b,.cal button,.strip i,.rfv-week i,.rfv-score b,.member .who .streak,.react,.buddy b,.msg time,.give-card time,.hero .meta b,.goal .left b,.ms-count b,.ms-no,.q label .n,.dial .unit,.member .gives,.mini-head .mono{font-family:var(--font-num);font-variant-numeric:tabular-nums lining-nums}
+/* labels set in the number face read better a touch wider */
+.ob-step,.give-btn,.bubble .gto,.give-card .gk,.rfv-meta,.goal .k{letter-spacing:var(--ls-label);font-weight:var(--fw-semibold)}
+/* F: forms and buttons share the base face; 16px inputs stop iPhone from zooming in */
+button,input,textarea,select{font-family:var(--font-sans);letter-spacing:var(--ls-body)}
+textarea,input[type=text],input[type=password],input[type=search],input[type=month],input[type=date]{font-size:var(--fs-input);line-height:1.5}
+.primary,.ghost,.g-btn,.rf-go,.z-join,.small-btn,.file-btn,.mine-btn,.seg button,.auth-tabs button,nav.tabs button,.cmt-form button{font-weight:var(--fw-bold)}
+.small-btn,.file-btn{font-weight:var(--fw-semibold)}
+.field label,.field .lab{font-weight:var(--fw-bold);letter-spacing:.02em}
+.muted,.tile small,.acc-row small,.list-row span{line-height:1.6}
+/* first-run registration */
+/* opening curtain — same look and timing as the IKIGAI Academy web page */
+.splash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;text-align:center;color:#F3ECE0;cursor:pointer;
+  background:radial-gradient(70% 60% at 50% 45%,#42101C 0%,#26070F 60%,#160409 100%);
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.splash-in{display:flex;flex-direction:column;align-items:center;gap:clamp(10px,1.6vw,20px)}
+.splash .iki{position:relative;z-index:1;margin:0;font-family:"Zen Antique Soft","Hiragino Mincho ProN","Yu Mincho",serif;font-size:clamp(140px,26vw,300px);line-height:1;
+  background:linear-gradient(170deg,#FBE7B0 0%,#D9B26A 40%,#A87F3A 70%,#E9CB86 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  opacity:0;animation:spFade 1.8s ease .4s forwards}
+.splash-dawn{position:absolute;inset:0;background:radial-gradient(70% 50% at 50% 115%,rgba(214,120,110,.55),transparent 70%);opacity:0;animation:spFade 2.2s ease .1s forwards;pointer-events:none}
+.splash small{position:relative;z-index:1;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:clamp(17px,2.3vw,28px);letter-spacing:.38em;padding-left:.38em;text-transform:uppercase;color:#E6CC8F;
+  opacity:0;animation:spFade 1s ease 1.4s forwards}
+.splash.out{animation:spOut 1s ease forwards}
+.splash.skip{animation:spOut .5s ease forwards}
+#app:not([hidden]),#onboard:not([hidden]){animation:spPageIn .9s ease both}
+@keyframes spFade{to{opacity:1}}
+@keyframes spOut{to{opacity:0;visibility:hidden}}
+@keyframes spPageIn{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.splash .iki,.splash small,.splash-dawn{animation:none;opacity:1}.splash.out,.splash.skip{animation:spOut .4s ease forwards}#app:not([hidden]),#onboard:not([hidden]){animation:none}}
+.onboard{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:16px;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.ob-head{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.ob-head .mark{font-family:var(--logo);font-weight:600;font-size:32px;letter-spacing:.22em;color:var(--gold);padding-left:.22em;line-height:1}
+.ob-head .sub{font-size:12px;letter-spacing:.12em;color:var(--gold);padding-left:.12em}
+.ob-bar{display:flex;gap:6px}
+.ob-bar span{flex:1;height:4px;border-radius:4px;background:var(--line)}
+.ob-bar span.on{background:var(--accent)}
+.ob-step{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--accent)}
+.ob-photo{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0}
+.ob-photo .avatar.big{width:120px;height:120px;font-size:44px}
+.ob-title{font-family:var(--display);font-size:22px;margin:4px 0 2px;text-wrap:balance}
+.req{color:var(--danger);font-size:11px;margin-left:4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:99px;font-size:13px;font-weight:700;z-index:40;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+<style>
+/* login screen (Firebase / Supabase Authentication) */
+.auth-box{display:flex;flex-direction:column;gap:12px}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px}
+.auth-tabs button{border:0;background:none;border-radius:9px;padding:9px;font-weight:700;color:var(--ink-2)}
+.auth-tabs button[aria-selected="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(80,20,32,.12)}
+.auth-err{margin:0;font-size:12.5px;color:var(--danger);min-height:1.2em}
+.auth-alt{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
+.auth-alt::before,.auth-alt::after{content:"";flex:1;height:1px;background:var(--line)}
+.g-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:14px}
+.link-btn{background:none;border:0;color:var(--accent);font-size:12.5px;font-weight:700;padding:4px;align-self:center}
+.cfg-warn{border:1px solid var(--danger);background:#fff7f6;border-radius:14px;padding:14px;font-size:13px;line-height:1.7}
+.cfg-warn code{font-family:var(--mono);font-size:12px}
+.auth-err.ok{color:var(--accent)}
+.auth-note{margin:0;padding:12px 14px;border-radius:12px;background:var(--accent-soft);color:var(--ink);font-size:13px;line-height:1.7}
+.auth-input{width:100%;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
+/* shown while the app is connected to the test Supabase project */
+/* unsaved changes, the "records could not load" screen and the before-login records offer */
+.unsaved-bar{position:fixed;left:8px;right:8px;top:calc(34px + env(safe-area-inset-top));z-index:9998;display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:#fff4e5;color:#6b3600;border:1px solid #f0b46b;font-size:13px;line-height:1.55;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.unsaved-bar[hidden]{display:none}
+.unsaved-bar span{flex:1}
+.unsaved-bar button{flex:none;border:0;border-radius:10px;padding:8px 12px;background:#a85400;color:#fff;font-weight:700;font-size:13px}
+.mig-card{padding:24px 20px;display:grid;gap:12px;font-size:14px;line-height:1.7;color:var(--ink-2)}
+.mig-list{margin:0;padding-left:1.2em;color:var(--ink);line-height:1.9}
+.ghost.warn{border-color:var(--danger);color:var(--danger)}
+.env-badge{position:fixed;right:8px;top:calc(6px + env(safe-area-inset-top));opacity:.92;z-index:9999;padding:4px 10px;border-radius:999px;background:#1f6f43;color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+</style>
+</head>
+<body>
+<section class="onboard" id="authScreen" hidden>
+  <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
+  <div class="cfg-warn" id="cfgWarn" hidden>Firebaseの設定がまだです。<code>firebase-config.js</code> に、Firebaseのコンソールで表示された設定を貼り付けてください（手順は「セットアップ手順.md」）。</div>
+  <form class="card auth-box" id="authForm" novalidate>
+    <div class="auth-tabs" role="tablist"><button type="button" role="tab" data-mode="login" aria-selected="true">ログイン</button><button type="button" role="tab" data-mode="signup" aria-selected="false">新規登録</button></div>
+    <div class="field"><label for="authEmail">メールアドレス</label><input type="text" id="authEmail" inputmode="email" autocomplete="email" placeholder="name@example.com"></div>
+    <div class="field"><label for="authPass">パスワード</label><input type="password" id="authPass" autocomplete="current-password" placeholder="6文字以上" style="width:100%;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px"></div>
+    <p class="auth-err" id="authErr" role="alert"></p>
+    <p class="auth-note" id="authNote" role="status" hidden></p>
+    <button type="submit" class="primary" id="authSubmit">ログイン</button>
+    <button type="button" class="link-btn" id="authResend" hidden>確認メールをもう一度送る</button>
+    <button type="button" class="link-btn" id="authReset">パスワードを忘れた方</button>
+    <div class="auth-alt">または</div>
+    <button type="button" class="g-btn" id="authGoogle"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.5 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.9-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6C6.6 42.6 14.6 48 24 48z"/></svg>Googleでログイン</button>
+  </form>
+  <form class="card auth-box" id="pwForm" novalidate hidden>
+    <b style="font-size:16px">新しいパスワードを決めてください</b>
+    <div class="field"><label for="pwNew">新しいパスワード</label><input type="password" id="pwNew" class="auth-input" autocomplete="new-password" placeholder="8文字以上"></div>
+    <div class="field"><label for="pwNew2">もう一度入力</label><input type="password" id="pwNew2" class="auth-input" autocomplete="new-password" placeholder="同じパスワード"></div>
+    <p class="auth-err" id="pwErr" role="alert"></p>
+    <button type="submit" class="primary" id="pwSubmit">パスワードを変更する</button>
+  </form>
+</section>
+
+<div class="splash" id="splash" role="presentation">
+  <div class="splash-dawn" aria-hidden="true"></div>
+  <div class="splash-in">
+    <p class="iki" lang="ja">志</p>
+    <small>IKIGAI ACADEMY</small>
+  </div>
+</div>
+
+<section class="onboard" id="endScreen" hidden>
+  <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
+  <div class="card empty" style="padding:40px 20px">
+    <b style="color:var(--ink);font-size:18px" id="endTitle">ログアウトしました</b>
+    <span id="endText">またいつでも戻ってきてください。</span>
+    <button type="button" class="primary" id="endBtn" style="width:auto;padding:12px 28px;margin-top:10px">ログインする</button>
+  </div>
+</section>
+
+<!-- signed in, but the account's records could not be read -->
+<section class="onboard" id="loadErr" hidden>
+  <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
+  <div class="card empty" style="padding:40px 20px">
+    <b style="color:var(--ink);font-size:18px">記録を読み込めませんでした</b>
+    <span>通信の状況を確かめてから、もう一度読み込んでください。この画面のあいだは、記録は書き換わりません。</span>
+    <button type="button" class="primary" id="loadRetry" style="width:auto;padding:12px 28px;margin-top:10px">もう一度読み込む</button>
+    <button type="button" class="ghost" id="loadLogout" style="width:auto;padding:10px 24px">ログアウト</button>
+  </div>
+</section>
+
+<!-- a new account on a browser that still holds records from before login -->
+<section class="onboard" id="migrate" hidden>
+  <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
+  <div class="card mig-card">
+    <b style="color:var(--ink);font-size:17px">この端末に、ログインする前の記録があります</b>
+    <ul class="mig-list" id="migList"></ul>
+    <span>あなた自身の記録ですか？ このアカウントに移すことができます。<b>ほかの人の記録なら、移さないでください。</b></span>
+    <p class="auth-err" id="migErr" role="alert"></p>
+    <button type="button" class="primary" id="migMove">このアカウントに移す</button>
+    <button type="button" class="ghost" id="migSkip">今回は移さない（端末に残す）</button>
+    <button type="button" class="ghost warn" id="migDelete">この端末から消す</button>
+  </div>
+</section>
+
+<!-- shown while a change has not reached the account yet -->
+<div class="unsaved-bar" id="unsavedBar" role="alert" hidden>
+  <span>⚠ 保存できていない変更があります。このまま閉じたり再読み込みしたりすると、<b>その変更は失われます。</b></span>
+  <button type="button" id="unsavedRetry">もう一度保存</button>
+</div>
+
+<section class="onboard" id="onboard" hidden>
+  <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
+  <div class="ob-bar" id="obBar"><span></span><span></span><span></span><span></span></div>
+  <form class="card" id="obForm" style="display:flex;flex-direction:column;gap:14px" novalidate></form>
+</section>
+
+<div class="app" id="app" hidden>
+  <header class="top">
+    <div class="navbtns">
+      <button type="button" id="navBack" aria-label="前の画面に戻る" disabled><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+      <button type="button" id="navFwd" aria-label="次の画面に進む" disabled><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+    <div class="brand"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
+    <button class="bell" aria-label="お知らせ" id="bellBtn"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section class="view" id="v-home">
+      <div class="hero">
+        <canvas id="heroCanvas" aria-hidden="true"></canvas>
+        <div class="seal" aria-hidden="true"><svg viewBox="0 0 200 200"><defs><path id="sealP1" d="M100 14 a86 86 0 1 1 -0.1 0"/></defs>
+          <circle cx="100" cy="100" r="94"/><circle cx="100" cy="100" r="78"/>
+          <g class="out"><text><textPath href="#sealP1" textLength="535" lengthAdjust="spacing">IKIGAI · ACADEMY · IKIGAI · ACADEMY ·</textPath></text></g></svg></div>
+        <div class="who"><div class="avatar" id="heroAvatar" hidden></div><div class="kicker">MY ASPIRATION</div></div>
+        <div class="rule" aria-hidden="true"><i></i></div>
+        <h1 id="shiText"></h1>
+        <div class="meta"><span id="daysLine">志を立てて <b id="daysSince">1</b> 日目<br></span><span id="heroLine">志は、毎日の小さな行動で磨かれる</span></div>
+      </div>
+
+      <div class="split">
+        <div class="card today">
+          <div class="mini-head"><b>行動チェック</b><span class="mono" id="todayStreak"></span></div>
+          <div class="stack">
+            <h2 id="todayTitle">今日、自分が決めたタスクをやり遂げた？</h2>
+            <p id="todaySub">やり遂げたらタップしてチェック</p>
+            <button class="big-check" id="todayCheck" aria-pressed="false"><svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span id="todayCheckLabel">やり遂げた</span></button>
+            <button type="button" class="cal-link" data-goto="check">カレンダーを見る →</button>
+          </div>
+        </div>
+        <div class="card home-rf">
+          <div class="mini-head"><b>振り返り</b><span class="mono" id="hRfCount"></span></div>
+          <div class="stack">
+            <h2 id="hRfTitle">今週の振り返り</h2>
+            <p id="hRfStatus"></p>
+            <div class="mini-week" id="hRfWeek"></div>
+            <button class="rf-go" data-goto="reflect" id="hRfBtn">振り返る</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card zoom" id="zoomCard">
+        <div class="card-head"><span class="pill gold"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/></svg>朝会</span><button type="button" class="small-btn" id="zoomEditBtn" hidden>編集</button></div>
+        <div id="zoomView">
+          <b class="z-when" id="zoomWhen"></b>
+          <p class="muted" id="zoomMemo"></p>
+          <div class="z-actions">
+            <a class="z-join" id="zoomJoin" href="#" target="_blank" rel="noopener noreferrer"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/></svg>Zoomで参加する</a>
+            <button type="button" class="small-btn" id="zoomCopy">リンクをコピー</button>
+          </div>
+          <p class="z-url" id="zoomUrl"></p>
+        </div>
+        <p class="muted" id="zoomEmpty" hidden>朝会のZoomリンクはまだ登録されていません。</p>
+        <form id="zoomForm" class="goal-editor" hidden>
+          <div class="field"><label for="zUrl">ZoomのURL</label><input type="text" id="zUrl" inputmode="url" placeholder="https://us02web.zoom.us/j/..."></div>
+          <div class="field"><label for="zWhen">日時</label><input type="text" id="zWhen" maxlength="60" placeholder="例：10月27日（月）6:00〜6:45"></div>
+          <div class="field"><label for="zMemo">メモ（ミーティングID・パスコードなど）</label><textarea id="zMemo" rows="2" maxlength="200"></textarea></div>
+          <div class="btn-row"><button type="button" class="ghost" id="zCancel">キャンセル</button><button type="submit" class="primary">保存する</button></div>
+        </form>
+      </div>
+
+      <figure class="card quote" id="quoteCard" hidden>
+        <span class="q-date" id="quoteDate">今日の名言</span>
+        <blockquote id="quoteText"></blockquote>
+        <figcaption id="quoteBy"></figcaption>
+      </figure>
+
+      <div class="card" id="goalSection" hidden>
+        <div class="card-head"><span class="pill gold"><svg class="i" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3z"/><path d="M9 3v15M15 6v15"/></svg>ゴールと地点</span></div>
+        <div class="goal" id="goalCard">
+          <span class="hint" id="goalHint">「ゴールを編集」から、達成したときの写真を背景に設定できます</span>
+          <button class="gedit" id="goalEditBtn">ゴールを編集</button>
+          <span class="k" id="goalKicker">GOAL</span>
+          <h3 id="goalTitle"></h3>
+          <span class="left" id="goalLeft"></span>
+        </div>
+        <form class="goal-editor" id="goalEditor" hidden>
+          <div class="field"><label for="gTitle">ゴール</label><input type="text" id="gTitle" placeholder="例：IKIGAIを仕事にする"></div>
+          <div class="field"><span class="lab">達成予定</span><div id="gDateWrap"></div></div>
+          <div class="field"><span class="lab">背景の写真（ゴールを達成したときの写真）</span>
+            <div class="photo-row">
+              <div class="photo-thumb" id="gThumb">なし</div>
+              <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+                <label class="file-btn">写真を選ぶ<input type="file" id="gPhoto" accept="image/*"></label>
+                <button type="button" class="small-btn" id="gPhotoClear">写真を外す</button>
+              </div>
+            </div>
+          </div>
+          <div class="field"><span class="lab">途中の地点</span>
+            <div id="msEdit" class="ms-list"></div>
+          </div>
+          <div class="btn-row"><button type="button" class="ghost" id="goalCancel">キャンセル</button><button type="submit" class="primary">保存する</button></div>
+        </form>
+        <div class="ms-detail" id="msDetail"></div>
+      </div>
+
+      <button class="card ai" id="aiBtn">
+        <span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13v1M15 13v1"/></svg></span>
+        <span><b>AIに壁打ちする</b><span>志や行動の言語化を24時間サポート（β）</span></span>
+        <svg class="i arr" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </button>
+
+      <div class="sec-title"><h3>メニュー</h3><p>志を行動に変えるための道具箱</p></div>
+      <div class="menu">
+        <button id="msgBtn" data-goto="mates"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><b>メッセージ</b><small>トークで仲間と話す</small></button>
+        <button id="noticeBtn"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span><b>運営から</b><small>お願い・アンケート</small></button>
+        <button class="wide" data-goto="timeline"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span><b>なかま</b><small>仲間の成長ログを見る</small></button>
+      </div>
+    </section>
+
+    <!-- CHECK -->
+    <section class="view" id="v-check" hidden>
+      <div class="card">
+        <span class="pill blue">行動チェック</span>
+        <h2 class="view-title">タスクをやり遂げた日にチェック</h2>
+        <p class="muted">日付をタップするとチェック、もう一度タップで外れます。</p>
+        <div class="stats">
+          <div><b id="stRate">0%</b><span>今月の達成率</span></div>
+          <div><b id="stStreak">0</b><span>連続日数</span></div>
+          <div><b id="stDays">0</b><span>今月のチェック</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="cal-head">
+          <button id="prevM" aria-label="前の月"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+          <b id="calTitle"></b>
+          <button id="nextM" aria-label="次の月"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+        <div class="cal" id="cal"></div>
+        <div class="legend"><span><i style="background:var(--gold)"></i>やり遂げた日</span><span><i style="border:1.5px solid var(--accent)"></i>今日</span></div>
+      </div>
+    </section>
+
+    <!-- REFLECT -->
+    <section class="view" id="v-reflect" hidden>
+      <div class="card">
+        <span class="pill blue">振り返り</span>
+        <h2 class="view-title" id="rfTitle"></h2>
+        <p class="rf-lead">毎週の振り返りを、ひと月の成長につなげよう。</p>
+        <p class="muted" id="rfPeriod"></p>
+      </div>
+      <div class="card" id="rfSummary"></div>
+      <form class="card" id="rfForm" style="display:flex;flex-direction:column;gap:18px"></form>
+
+      <div class="card" id="box">
+        <div class="box-head">
+          <span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1zM10 12h4"/></svg></span>
+          <div><b>過去の成長</b><span id="boxCount"></span></div>
+        </div>
+        <div class="box-list" id="boxList"></div>
+      </div>
+    </section>
+
+    <!-- ONE PAST REFLECTION -->
+    <section class="view" id="v-rfview" hidden>
+      <button type="button" class="back-link" data-goto="reflect"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>過去の成長</button>
+      <div class="card rfv-head">
+        <span class="rfv-label">振り返り</span>
+        <div class="rfv-row">
+          <div class="avatar" id="rfvAvatar"></div>
+          <div class="rfv-id"><span class="rfv-name" id="rfvName"></span><h1 id="rfvTitle"></h1><span class="rfv-meta" id="rfvWeekNo"></span></div>
+        </div>
+        <div class="rfv-bar"><div class="rfv-week" id="rfvWeek"></div><div class="rfv-score"><b id="rfvCount"></b><span>やり遂げた日</span></div></div>
+      </div>
+      <div id="rfvSecs" style="display:flex;flex-direction:column;gap:12px"></div>
+      <button type="button" class="ghost" id="rfvEdit">この振り返りを編集する</button>
+    </section>
+
+    <!-- MATES -->
+    <section class="view" id="v-mates" hidden>
+      <div class="card">
+        <span class="pill gold">トーク</span>
+        <h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2>
+        <div class="talk-desc">
+          <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
+          <div class="body">
+            <p><span>与える人ほど、</span><span>チャンスが巡ってくる。</span></p>
+            <p><span>誰かの成功を応援することが、</span><span>自分の成功につながる。</span></p>
+          </div>
+          <p class="cta"><span>GIVEから始まる</span><span>成幸の循環をつくろう！</span></p>
+        </div>
+      </div>
+      <div id="mtChat" class="view">
+        <div class="card" id="buddyCard" style="padding:14px 16px" hidden>
+          <div class="card-head" style="margin-bottom:10px"><b style="font-size:13px">GIVE BUDDY</b><span class="muted" style="font-size:11px">アイコンを押して贈る</span></div>
+          <div class="buddy-strip" id="buddyStrip"></div>
+        </div>
+        <div class="card chat-log" id="chatLog" aria-live="polite"></div>
+        <form class="composer" id="composer">
+          <div class="give-to" id="giveTo" hidden><span>GIVEする相手</span><div class="chips" id="giveChips"></div></div>
+          <div class="comp-row">
+            <button type="button" class="give-btn" id="giveBtn" aria-pressed="false" hidden>GIVE</button>
+            <textarea id="chatInput" rows="1" maxlength="300" placeholder="メッセージを入力" aria-label="メッセージ"></textarea>
+            <button type="submit" class="send-btn" aria-label="送信"><svg class="i" viewBox="0 0 24 24"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button>
+          </div>
+        </form>
+      </div>
+      <div id="mtMembers" class="view" hidden>
+        <div class="card">
+          <div class="stats" style="grid-template-columns:1fr 1fr;margin-top:0">
+            <div><b id="mCount">–</b><span>参加メンバー</span></div>
+            <div><b id="mToday">–</b><span>今日チェックした人</span></div>
+          </div>
+        </div>
+        <div id="members" style="display:flex;flex-direction:column;gap:12px"></div>
+      </div>
+    </section>
+
+    <!-- TIMELINE -->
+    <section class="view" id="v-timeline" hidden>
+      <div class="tl-head">
+        <h2>成長ログ</h2>
+        <p>学びを共有しただけ、学びが深まる。</p>
+        <div class="tl-tools">
+          <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="tlSearch" placeholder="投稿を検索" aria-label="投稿を検索"></label>
+          <button type="button" class="mine-btn" id="tlMine" aria-pressed="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>自分の投稿</button>
+        </div>
+      </div>
+      <button type="button" class="write-btn" id="writeBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>今日の記録を書く…</button>
+      <form class="card post-box" id="postForm" hidden>
+        <div class="post-row"><div class="avatar" id="postAvatar"></div><textarea id="postText" rows="4" maxlength="500" placeholder="今日の学びや気づき、やり遂げたことを書こう" aria-label="投稿内容"></textarea></div>
+        <div class="post-foot"><span class="muted" id="postCount">0 / 500</span><span style="display:flex;gap:8px"><button type="button" class="ghost" id="postCancel" style="width:auto;padding:10px 16px">やめる</button><button type="submit" class="primary" style="width:auto;padding:10px 22px">投稿する</button></span></div>
+      </form>
+      <div id="feed" class="feed"></div>
+    </section>
+
+    <!-- SOON -->
+    <section class="view" id="v-soon" hidden>
+      <div class="card empty" style="padding:48px 20px">
+        <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        <b style="color:var(--ink);font-size:16px">準備中です</b>
+        新しい機能をここに追加する予定です。
+      </div>
+    </section>
+
+    <!-- ACCOUNT -->
+    <section class="view" id="v-account" hidden>
+      <div id="accMenu" class="view">
+        <div class="card acc-head">
+          <div class="avatar big" id="accAvatar">志</div>
+          <div style="min-width:0"><b style="font-size:18px" id="accName">わたしのページ</b><div style="font-size:12px;color:var(--ink-2)" id="accAff"></div></div>
+        </div>
+        <div class="card acc-list">
+          <button type="button" class="acc-row" data-acc="profile"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span><b>プロフィールの変更</b><small>写真・名前・職業・志</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+          <button type="button" class="acc-row" data-acc="settings"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span><b>各種設定</b><small>公開範囲・通知・データ</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+      </div>
+      <div id="accProfile" class="view" hidden>
+        <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
+      <form class="card" id="ikForm" style="display:flex;flex-direction:column;gap:12px">
+        <b style="font-size:18px;font-family:var(--display)">プロフィールの変更</b>
+        <div class="field"><span class="lab">プロフィール写真</span>
+          <div class="photo-row"><div class="avatar big" id="fAvatar"></div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+              <label class="file-btn">写真を選ぶ<input type="file" id="fPhoto" accept="image/*"></label>
+              <button type="button" class="small-btn" id="fPhotoClear">写真を外す</button>
+            </div></div></div>
+        <div class="field"><label for="fNick">名前</label><input type="text" id="fNick" maxlength="20"></div>
+        <div class="field"><label for="fAff">職業</label><input type="text" id="fAff" maxlength="40"></div>
+        <div class="field"><label for="fShi">志言（二字熟語・四字熟語）</label><input type="text" id="fShi" maxlength="4" placeholder="例：挑戦　／　一意専心" autocomplete="off"></div>
+        <div class="field"><label for="fGoal">最終目標（志の下に表示）</label><input type="text" id="fGoal" maxlength="60" placeholder="例：自分の企画で100人を笑顔にする"></div>
+        <button class="primary" type="submit">保存する</button>
+      </form>
+      </div>
+      <div id="accSettings" class="view" hidden>
+        <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
+        <h2 class="view-title" style="margin:0">各種設定</h2>
+      <div class="card">
+        <div class="list-row"><div style="flex:1"><b>データの保存先</b><span id="storeStatus">保存先を確認しています…</span></div></div>
+        <div class="list-row"><div style="flex:1"><b>仲間ページに表示する</b><span>名前・志・連続日数・今日のチェック・ゴールを参加メンバーに公開</span></div><input type="checkbox" id="fShare" checked aria-label="仲間ページに表示する"></div>
+        <div class="list-row"><div style="flex:1"><b>リマインド通知</b><span>毎日 21:00 にチェック、日曜と月末に振り返りを促す</span></div><input type="checkbox" id="fRemind" checked aria-label="リマインド通知"></div>
+        <div class="list-row"><div style="flex:1"><b>ログアウト</b><span>このアプリからログアウトします</span></div><button class="small-btn" id="logoutBtn">ログアウト</button></div>
+        <div class="list-row"><div style="flex:1"><b>アカウントを削除</b><span>登録情報・記録・投稿・トークをすべて削除します</span></div><button class="small-btn warn" id="delOpen">削除</button></div>
+        <div class="del-box" id="delBox" hidden>
+          <p>削除すると、次のデータがすべて消え、元に戻せません。</p>
+          <ul><li>プロフィール・志・入会時の回答</li><li>行動チェック・振り返り</li><li>成長ログの投稿・ファイア・コメント</li><li>トークで送ったメッセージ</li></ul>
+          <label for="delConfirm">確認のため「削除」と入力してください</label>
+          <input type="text" id="delConfirm" autocomplete="off" placeholder="削除">
+          <div class="btn-row"><button type="button" class="ghost" id="delCancel">やめる</button><button type="button" class="primary danger" id="delGo">アカウントを削除する</button></div>
+        </div>
+      </div>
+      <div class="card" id="appCard" hidden>
+        <div class="card-head"><b style="font-size:16px">入会申込の一覧<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b><span class="mono" id="appCount"></span></div>
+        <div class="box-list" id="appList"><p class="muted">読み込んでいます…</p></div>
+      </div>
+      <form class="card" id="quoteForm" style="display:flex;flex-direction:column;gap:10px" hidden>
+        <b style="font-size:16px">今日の名言の登録<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b>
+        <p class="muted">1行に1つずつ書きます。出典を付けるときは「｜」で区切ってください。登録した中から、毎日ランダムに1つがホームに表示されます。</p>
+        <textarea id="quoteInput" rows="10" placeholder="名言の本文｜出典"></textarea>
+        <div class="post-foot"><span class="muted" id="quoteNum">0件</span><button class="primary" type="submit" style="width:auto;padding:10px 22px">保存する</button></div>
+      </form>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="メイン">
+    <div class="inner">
+      <button data-tab="home" aria-current="page"><svg class="i" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>ホーム</button>
+      <button data-tab="timeline"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>成長ログ</button>
+      <button data-tab="mates"><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5c-5 0-9 3.2-9 7.2 0 2.3 1.3 4.3 3.4 5.6l-.6 3.3 3.6-2.1c.8.2 1.7.3 2.6.3 5 0 9-3.2 9-7.1S17 3.5 12 3.5z"/><path d="M8 10.8h.01M12 10.8h.01M16 10.8h.01" stroke-width="2.4"/></svg>トーク</button>
+      <button data-tab="soon"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>準備中</button>
+      <button data-tab="account"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>アカウント</button>
+    </div>
+  </nav>
+</div>
+
+<div class="crop" id="crop" hidden role="dialog" aria-modal="true" aria-labelledby="cropTitle">
+  <div class="crop-box">
+    <b id="cropTitle" style="font-size:16px">写真の範囲を選ぶ</b>
+    <p class="muted">ドラッグで位置を、スライダーで大きさを調整します。枠の中がゴールのカードに表示されます。</p>
+    <div class="crop-view" id="cropView"><img id="cropImg" alt=""></div>
+    <input type="range" id="cropZoom" min="1" max="4" step="0.01" value="1" aria-label="拡大">
+    <div class="btn-row"><button type="button" class="ghost" id="cropCancel">キャンセル</button><button type="button" class="primary" id="cropOk">この範囲にする</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<div class="env-badge" id="envBadge" hidden></div>
+<script type="module">
+  // 通常は Supabase 版（main-supabase.js）。手元（localhost）でだけ、アドレスの最後に ?backend=firebase を付けると以前の版（main.js）を開きます。
+  // パスワード再設定メールのリンクから開いたかどうかを、ログイン処理がリンクを読む前に覚えておく
+  window.__recoveryLink = /type=recovery/.test(location.hash);
+  // メールのリンクから戻ってきたかどうかと、エラーの印だけを覚える（合言葉＝トークンの中身は覚えない）
+  window.__authLink = (() => {
+    const p = new URLSearchParams(location.hash.slice(1) + "&" + location.search.slice(1));
+    return { fromMail: p.has("access_token") || p.has("code") || p.has("error_code") || p.has("error"),
+             type: p.get("type") || "", errorCode: p.get("error_code") || p.get("error") || "", errorText: p.get("error_description") || "" };
+  })();
+  const legacy = ["localhost", "127.0.0.1"].includes(location.hostname)
+    && new URLSearchParams(location.search).get("backend") === "firebase";
+  import(legacy ? "./main.js" : "./main-supabase.js");
+</script>
+</body>
+</html>
