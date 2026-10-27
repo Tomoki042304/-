@@ -217,6 +217,7 @@
     });
   }
   // ---------- timeline (成長ログ): each person keeps posts, reactions and comments in posts/<uid> ----------
+  const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦'];
   let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myCmts=[],postWriting=false,postAgain=false,feedReady=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
   const MAX_POSTS=100,MAX_LIKES=500,MAX_CMTS=300;
@@ -225,7 +226,7 @@
       const all=[],likes=[],cmts=[];
       snap.docs.forEach(d=>{
         const v=d.data()||{};
-        if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id})});
+        if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id,category:POST_CATEGORIES.includes(x.category)?x.category:''})});
         if(Array.isArray(v.likes))v.likes.forEach(k=>{if(typeof k==='string')likes.push({by:d.id,key:k})});
         if(Array.isArray(v.comments))v.comments.forEach(c=>{if(c&&typeof c.text==='string'&&typeof c.key==='string'&&typeof c.at==='string')cmts.push({id:String(c.id||''),key:c.key,text:c.text.slice(0,300),at:c.at,uid:d.id})});
         if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
@@ -252,7 +253,7 @@
     if(pending()){box.innerHTML=PENDING_BOX('成長ログ');return}
     if(!feedReady){box.innerHTML='<div class="card empty">読み込んでいます…</div>';return}
     const q=tlQuery.toLowerCase();
-    const list=feedAll.filter(x=>(!tlMine||x.uid===uid)&&(!q||x.text.toLowerCase().includes(q)||nameOf(x.uid).toLowerCase().includes(q)));
+    const list=feedAll.filter(x=>(!tlMine||x.uid===uid)&&(!q||x.text.toLowerCase().includes(q)||nameOf(x.uid).toLowerCase().includes(q)||(x.category||'').includes(q)));
     if(!list.length){box.innerHTML=feedAll.length
       ?`<div class="card empty"><b style="color:var(--ink)">該当する投稿がありません</b>検索の言葉や「自分の投稿」の切り替えを見直してください。</div>`
       :`<div class="card empty"><svg class="i" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><b style="color:var(--ink)">最初の記録を書いてみよう</b>今日の学びを共有すると、仲間の学びも深まります。</div>`;return}
@@ -267,6 +268,7 @@
       el.querySelector('b').textContent=nameOf(x.uid);
       el.querySelector('.head span').textContent=agoText(x.at);
       el.querySelector('.text').textContent=x.text;
+      if(POST_CATEGORIES.includes(x.category)){const tag=document.createElement('span');tag.className='post-category';tag.textContent=x.category;el.querySelector('.text').before(tag)}
       if(open){
         const wrap=document.createElement('div');wrap.className='comments';
         cs.forEach(c=>{const row=document.createElement('div');row.className='cmt';const d=document.createElement('div');
@@ -291,9 +293,12 @@
     if(pending()){toast('ホストの承認後に投稿できます');return}
     const text=$('#postText').value.trim();
     if(!text){toast('投稿する内容を書いてください');return}
-    const post={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:text.slice(0,500),at:new Date().toISOString()};
+    const category=$('#postCategories input:checked')?.value||'';
+    if(!POST_CATEGORIES.includes(category)){toast('記録の種類を選んでください');$('#postCategories input').focus();return}
+    const post={category,id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:text.slice(0,500),at:new Date().toISOString()};
     myPosts.push(post);if(myPosts.length>MAX_POSTS)myPosts=myPosts.slice(-MAX_POSTS);
     feedAll=[{...post,uid},...feedAll];
+    $('#postCategories input:checked').checked=false;
     $('#postText').value='';$('#postCount').textContent='0 / 500';openComposer(false);
     renderFeed();flushPosts();toast('投稿しました');
   });
@@ -358,7 +363,7 @@
   }
   const hhmm=iso=>{const d=new Date(iso);return isNaN(d)?'':`${d.getHours()}:${pad(d.getMinutes())}`};
   const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return'';const k=iso(d);return k===todayKey?'今日':k===yesterdayKey?'昨日':`${d.getMonth()+1}月${d.getDate()}日`};
-  function mkAvatar(id){const a=document.createElement('div');a.className='avatar';a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
+  function mkAvatar(id){const a=document.createElement('div');a.className='avatar';a.setAttribute('role','img');a.setAttribute('aria-label',nameOf(id)+'のプロフィール');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
   function markRead(){
     if(backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||document.visibilityState!=='visible')return;
     const give=chatMode==='give';
@@ -1045,8 +1050,8 @@
   });
 
   // owner-only list of membership answers
-  // with Supabase the host can also approve, revoke or mark an application as declined
-  // (declined is only a label on the answer sheet; access is decided by the host-only approval list)
+  // Hosts remove only explicitly declined applications. Pending and approved records stay.
+  // Access is still decided by the host-only approval list; Auth and personal records are untouched.
   let appArmed='';
   async function renderApplicants(){
     const box=$('#appList');if(!box||$('#appCard').hidden||!db)return;
@@ -1054,7 +1059,15 @@
       const snap=await db.collection('applications').get();
       const ap=userNs&&userNs.approvals;
       const okIds=ap?new Set((await ap.list()).map(x=>x.user_id)):null;
-      const rows=snap.docs.map(d=>{const v=d.data();return v?{...v,_id:d.id}:null}).filter(Boolean).sort((p,q)=>String(q.at||'').localeCompare(String(p.at||'')));
+      let rows=snap.docs.map(d=>{const v=d.data();return v?{...v,_id:d.id}:null}).filter(Boolean).sort((p,q)=>String(q.at||'').localeCompare(String(p.at||'')));
+      if(okIds&&ap.removeDeclined){
+        const removed=new Set();let failed=false;
+        for(const r of rows.filter(r=>r.status==='declined'&&!okIds.has(r._id))){
+          try{if(await ap.removeDeclined(r._id))removed.add(r._id)}catch(err){failed=true}
+        }
+        rows=rows.filter(r=>!removed.has(r._id));
+        if(failed)toast('見送った申込の削除を再試行してください');
+      }
       $('#appCount').textContent=`${rows.length}件`;
       if(!rows.length){box.innerHTML='<p class="muted">まだ申込はありません。</p>';return}
       box.innerHTML='';
@@ -1074,7 +1087,7 @@
           const row=document.createElement('div');row.className='btn-row';row.style.marginTop='10px';
           const mk=(label,act,warn)=>{const b=document.createElement('button');b.type='button';b.className='small-btn'+(warn?' warn':'');b.textContent=label;b.dataset.appAct=act;b.dataset.appId=r._id;row.append(b)};
           if(okIds.has(r._id))mk('承認を取り消す','revoke',true);
-          else{mk('承認する','approve');if(r.status!=='declined')mk('見送る','decline',true)}
+          else{mk('承認する','approve');mk(r.status==='declined'?'申込記録を削除':'見送る','decline',true)}
           d.append(row);
         }
         box.append(d);
@@ -1089,7 +1102,14 @@
     try{
       if(act==='approve'){await userNs.approvals.approve(id);toast('承認しました')}
       else if(act==='revoke'){await userNs.approvals.revoke(id);toast('承認を取り消しました')}
-      else{const ref=db.doc('applications/'+id),cur=await ref.get();await ref.set({...(cur.exists?cur.data():{}),status:'declined',declinedAt:new Date().toISOString()});toast('見送りにしました')}
+      else{
+        const ref=db.doc('applications/'+id),cur=await ref.get();
+        if(!cur.exists){renderApplicants();return}
+        if((await userNs.approvals.list()).some(x=>x.user_id===id)){toast('承認済みの申込は削除できません');renderApplicants();return}
+        await ref.set({...cur.data(),status:'declined',declinedAt:new Date().toISOString()});
+        if(!userNs.approvals.removeDeclined||!await userNs.approvals.removeDeclined(id))throw Error('application not removed');
+        toast('見送りにして申込記録を削除しました');
+      }
     }catch(err){toast('変更できませんでした。通信状況を確認してください')}
     renderApplicants();
   });

@@ -293,6 +293,15 @@ function start() {
         const { error } = await supabase.from("approved_members").upsert({ user_id: uid }, { onConflict: "user_id", ignoreDuplicates: true });
         fail(error);
       },
+      // Conditional DELETE targets one declined application only; never Auth or private data.
+      removeDeclined: async uid => {
+        fault("write");
+        if (typeof uid !== "string" || !/^[0-9a-f-]{36}$/i.test(uid)) throw new Error("invalid user id");
+        if ((await userApi.approvals.list()).some(row => row.user_id === uid)) return false;
+        const { data, error } = await supabase.from(T).delete()
+          .eq("path", "applications/" + uid).eq("data->>status", "declined").select("path");
+        fail(error); return !!data?.length;
+      },
       revoke: async uid => {
         const { error } = await supabase.from("approved_members").delete().eq("user_id", uid);
         fail(error);
