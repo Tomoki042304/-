@@ -526,7 +526,7 @@
       renderAll();fillForm();
       if(approved)openShared();else watchApproval();
       syncMember();
-      u.isOwner().then(o=>{$('#appCard').hidden=!o;isOwnerView=!!o;renderZoom()}).catch(()=>{});
+      u.isOwner().then(setOwnerView).catch(()=>setOwnerView(false));
     }catch(e){backend='local';db=null;uid=null;if(STRICT){loadFailed=true;return}}
     setStatus();renderMembers();
   }
@@ -1059,16 +1059,72 @@
     showApp();go('home');toast(`ようこそ、${profile.nick}`);
   });
 
+  // Administrator-only account screen. No roster data is kept in browser storage.
+  let adminRows=[],adminLoadToken=0,adminLoaded=false;
+  function setOwnerView(owner){
+    isOwnerView=!!owner;
+    $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
+    if(!isOwnerView){
+      ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
+      $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
+      if(!$('#accAdmin').hidden)showAcc('settings');
+    }
+    renderZoom();
+  }
+  function renderAdminRoster(){
+    if(!isOwnerView||$('#accAdmin').hidden||!adminLoaded)return;
+    const box=$('#adminRoster'),query=$('#adminSearch').value.trim().toLocaleLowerCase('ja-JP'),filter=$('#adminFilter').value;
+    const done=adminRows.filter(r=>r.checked_today===true).length,unknown=adminRows.filter(r=>r.checked_today!==true&&r.checked_today!==false).length;
+    $('#adminSummary').textContent=`在籍 ${adminRows.length}人 ／ チェック済み ${done}人 ／ 未チェック ${adminRows.length-done-unknown}人 ／ 未取得 ${unknown}人`;
+    const rows=adminRows.filter(r=>(!query||String(r.display_name||'').toLocaleLowerCase('ja-JP').includes(query))&&(filter==='all'||(filter==='done'&&r.checked_today===true)||(filter==='pending'&&r.checked_today===false)||(filter==='unknown'&&r.checked_today!==true&&r.checked_today!==false)));
+    box.replaceChildren();
+    if(!rows.length){const p=document.createElement('p');p.className='muted admin-note';p.textContent=adminRows.length?'条件に合うメンバーはいません。':'在籍メンバーはまだいません。';box.append(p);return}
+    rows.forEach(r=>{
+      const row=document.createElement('article');row.className='admin-member';
+      const name=String(r.display_name||'名前未設定'),av=document.createElement('div');av.className='avatar';av.style.backgroundColor=colorOf(String(r.user_id));av.setAttribute('role','img');av.setAttribute('aria-label',name+'のプロフィール');paintAvatar(av,r.avatar,name);
+      const person=document.createElement('div');person.className='admin-person';const title=document.createElement('b');title.textContent=name;const role=document.createElement('small');role.textContent=r.is_admin?'管理者':'メンバー';if(r.user_id===uid)role.textContent+=' ・ あなた';person.append(title,role);
+      const state=document.createElement('span');state.className='admin-check'+(r.checked_today===true?' done':'');state.textContent=r.checked_today===true?'✓ チェック済み':r.checked_today===false?'未チェック':'未取得';
+      if(r.checked_today!==true&&r.checked_today!==false)state.title='行動チェックの記録をまだ取得できていません。未チェックの人数には含めません。';
+      row.append(av,person,state);box.append(row);
+    });
+  }
+  async function loadAdminMembers(){
+    if(!isOwnerView||$('#accAdmin').hidden||!userNs)return;
+    const token=++adminLoadToken,active=()=>token===adminLoadToken&&!$('#accAdmin').hidden&&isOwnerView;
+    $('#adminRefresh').disabled=true;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#adminSummary').textContent='読み込んでいます…';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
+    try{
+      if(!await userNs.isOwner()){if(active())setOwnerView(false);return}
+      if(!active())return;
+      if(!userNs.adminMembers)throw {code:'PGRST202'};
+      const rows=await userNs.adminMembers.list();if(!active())return;
+      if(!Array.isArray(rows))throw Error('Invalid roster');
+      adminRows=rows.filter(r=>r&&typeof r.user_id==='string').sort((a,b)=>String(a.display_name||'').localeCompare(String(b.display_name||''),'ja'));
+      const days=[...new Set(adminRows.map(r=>r.check_day).filter(Boolean))];
+      if(days.length>1)throw Error('Mismatched check dates');
+      $('#adminCheckDay').textContent=days.length?String(days[0]).replace(/-/g,'/')+' の行動チェック（日本時間）':'今日の行動チェック（日本時間）';
+      adminLoaded=true;renderAdminRoster();$('#adminUpdated').textContent='最終取得：'+postTimeText(new Date().toISOString());
+    }catch(err){
+      if(!active())return;
+      adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();
+      if(err&&err.code==='42501'){setOwnerView(false);return}
+      $('#adminSummary').textContent=err&&['PGRST202','42883'].includes(err.code)?'管理者一覧の準備がまだ完了していません。':'一覧を取得できませんでした。「更新」で再試行してください。';
+    }finally{if(token===adminLoadToken)$('#adminRefresh').disabled=false}
+  }
+  $('#adminRefresh').onclick=()=>{loadAdminMembers();renderApplicants()};
+  $('#adminSearch').addEventListener('input',renderAdminRoster);$('#adminFilter').addEventListener('change',renderAdminRoster);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('#accAdmin').hidden)loadAdminMembers()});
+
   // owner-only list of membership answers
   // Hosts remove only explicitly declined applications. Pending and approved records stay.
   // Access is still decided by the host-only approval list; Auth and personal records are untouched.
   let appArmed='';
   async function renderApplicants(){
-    const box=$('#appList');if(!box||$('#appCard').hidden||!db)return;
+    const box=$('#appList');if(!box||$('#appCard').hidden||$('#accAdmin').hidden||!isOwnerView||!db)return;
     try{
       const snap=await db.collection('applications').get();
       const ap=userNs&&userNs.approvals;
       const okIds=ap?new Set((await ap.list()).map(x=>x.user_id)):null;
+      if(!isOwnerView||$('#accAdmin').hidden)return;
       let rows=snap.docs.map(d=>{const v=d.data();return v?{...v,_id:d.id}:null}).filter(Boolean).sort((p,q)=>String(q.at||'').localeCompare(String(p.at||'')));
       if(okIds&&ap.removeDeclined){
         const removed=new Set();let failed=false;
@@ -1078,6 +1134,7 @@
         rows=rows.filter(r=>!removed.has(r._id));
         if(failed)toast('見送った申込の削除を再試行してください');
       }
+      if(!isOwnerView||$('#accAdmin').hidden)return;
       $('#appCount').textContent=`${rows.length}件`;
       if(!rows.length){box.innerHTML='<p class="muted">まだ申込はありません。</p>';return}
       box.innerHTML='';
@@ -1105,7 +1162,7 @@
     }catch(err){box.innerHTML='<p class="muted">一覧を読み込めませんでした。</p>'}
   }
   $('#appList').addEventListener('click',async e=>{
-    const b=e.target.closest('[data-app-act]');if(!b||!userNs||!userNs.approvals)return;
+    const b=e.target.closest('[data-app-act]');if(!b||!isOwnerView||$('#accAdmin').hidden||!userNs||!userNs.approvals)return;
     const act=b.dataset.appAct,id=b.dataset.appId,key=act+':'+id;
     if(act!=='approve'&&appArmed!==key){appArmed=key;b.textContent='もう一度押して確定';setTimeout(()=>{if(appArmed===key){appArmed='';renderApplicants()}},3000);return}
     appArmed='';b.disabled=true;
@@ -1121,7 +1178,7 @@
         toast('見送りにして申込記録を削除しました');
       }
     }catch(err){toast('変更できませんでした。通信状況を確認してください')}
-    renderApplicants();
+    renderApplicants();loadAdminMembers();
   });
   function showApp(){
     $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
@@ -1242,9 +1299,12 @@
   $('#bellBtn').onclick=()=>toast(findR('week',curKey.week)?'新しいお知らせはありません':'今週の振り返りを日曜までに書きましょう');
 
   function showAcc(which){
-    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';
+    if(!['menu','profile','settings','admin'].includes(which))which='menu';
+    if(which==='admin'&&!isOwnerView)which='settings';
+    if(which!=='admin')++adminLoadToken;
+    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accAdmin').hidden=which!=='admin';
     if(which==='profile')fillForm();
-    if(which==='settings')renderApplicants();
+    if(which==='admin'){loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }

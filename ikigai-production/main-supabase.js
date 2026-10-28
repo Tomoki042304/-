@@ -283,6 +283,16 @@ function start() {
     isMember: () => rpcBool("is_member"),       // approved by a host (hosts count as approved)
     canEdit: () => rpcBool("is_host"),
     profiles: async ids => Object.fromEntries(ids.map(id => [id, { name: "" }])),
+    // The RPC checks is_host() on the server and returns only the roster's current check status.
+    adminMembers: {
+      list: async () => {
+        fault("read");
+        const { data, error } = await supabase.rpc("ikigai_admin_member_status_v1");
+        fail(error);
+        if (!Array.isArray(data)) throw new Error("Invalid administrator roster response");
+        return data;
+      }
+    },
     // host-only: RLS refuses these for everyone else
     approvals: {
       list: async () => {
