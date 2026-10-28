@@ -113,6 +113,17 @@ function start() {
   const githubButton = $("#authGitHub");
   const githubIntent = "ikigai.oauth.github";
   let githubBusy = false, githubControls = [];
+  // iOS may give Safari and an installed home-screen app separate login storage.
+  // Guide installation before the first login; never copy sessions between contexts.
+  const appleMobile = /iPad|iPhone|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const homeScreen = navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  const homeGuide = $("#homeLoginGuide"), homeNote = $("#homeLoginNote");
+  if (homeGuide) homeGuide.hidden = !appleMobile || homeScreen;
+  if (homeNote) homeNote.hidden = !appleMobile || !homeScreen;
+  if (appleMobile && !homeScreen) {
+    githubButton.lastChild.textContent = "GitHubでログイン（ブラウザで利用）";
+  }
   githubButton.hidden = false;
   document.querySelectorAll("#authScreen .auth-alt").forEach(x => { x.hidden = false; });
   if (SUPABASE_ENV === "production") {
