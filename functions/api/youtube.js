@@ -8,7 +8,7 @@ export async function onRequest({request,env}){
   if(request.method!=='GET')return reply(405,{code:'method',message:'GETで取得してください。'});
   const topic=new URL(request.url).searchParams.get('topic')||'aspiration';
   if(!Object.hasOwn(TOPICS,topic))return reply(400,{code:'topic',message:'テーマを選び直してください。'});
-  const permission=await requireYoutubeMember(request);if(!permission.ok)return reply(permission.status,{code:'access',message:permission.message});
+  const permission=await requireYoutubeMember(request);if(!permission.ok)return reply(permission.status,{code:permission.code||'access',message:permission.message});
   if(!env.YT_CACHE?.get||!env.YT_CACHE?.put)return reply(503,{code:'setup',message:'おすすめ動画の接続準備中です。'});
   const key='youtube:v1:'+topic;let previous;
   try{previous=await env.YT_CACHE.get(key,'json')}catch{return reply(503,{code:'cache',message:'動画一覧を読み込めませんでした。時間をおいてお試しください。'})}

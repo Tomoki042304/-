@@ -1,18 +1,39 @@
 const URL_ROOT='https://ebozxwiuujrnvmxienat.supabase.co';
 const PUBLIC_KEY='sb_publishable_mJ6vFykk8ykbAmm2LaEEuA_Ea5n4yp8';
+const issue=(stage,suffix,status=503)=>({status,code:'YT_'+stage+'_'+suffix,message:(stage==='AUTH'?'ログイン状態':'承認状態')+'を確認できませんでした。（YT_'+stage+'_'+suffix+'）時間をおいて、もう一度読み込んでください。'});
+async function readCheck(path,init,stage){
+  // Each check has its own deadline. Retry only transient network/5xx failures once.
+  for(let attempt=0;attempt<2;attempt++){
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    try{
+      const response=await fetch(URL_ROOT+path,{...init,signal:controller.signal,redirect:'error'});
+      const body=await response.json().catch(()=>null);
+      if(response.status>=500&&attempt===0)continue;
+      return {status:response.status,ok:response.ok,body};
+    }catch(error){if(attempt===1)return {failure:issue(stage,error?.name==='AbortError'?'TIMEOUT':'NETWORK')};}
+    finally{clearTimeout(timer)}
+  }
+}
 export async function requireYoutubeMember(request){
   const url=new URL(request.url),origin=request.headers.get('Origin');
   if(url.protocol!=='https:'||url.hostname!=='ikigai-shidoroku.pages.dev'||(origin&&origin!==url.origin))return {status:403,message:'本番の公開サイトから利用してください。'};
   const bearer=request.headers.get('Authorization')||'';
   if(!/^Bearer [^\s]+$/.test(bearer)||bearer.length>8192)return {status:401,message:'ログインし直してください。'};
-  const headers={apikey:PUBLIC_KEY,Authorization:bearer},controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
-  try{
-    const who=await fetch(URL_ROOT+'/auth/v1/user',{headers,signal:controller.signal,redirect:'error'});
-    if(!who.ok||!(await who.json())?.id)return {status:401,message:'ログイン状態を確認してください。'};
-    const member=await fetch(URL_ROOT+'/rest/v1/rpc/is_member',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}',signal:controller.signal,redirect:'error'});
-    if(!member.ok)throw Error('membership');
-    if(await member.json()!==true)return {status:403,message:'管理者の承認後に使えます。'};
-    return {ok:true};
-  }catch{return {status:503,message:'利用資格を確認できません。時間をおいてお試しください。'}}
-  finally{clearTimeout(timer)}
+  const headers={apikey:PUBLIC_KEY,Authorization:bearer};
+  // Both services validate the same bearer; neither result alone grants access.
+  const [who,member]=await Promise.all([
+    readCheck('/auth/v1/user',{headers},'AUTH'),
+    readCheck('/rest/v1/rpc/is_member',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}'},'MEMBER')
+  ]);
+  if(who.failure)return who.failure;
+  if(!who.ok){if(who.status===401)return {status:401,message:'ログインし直してから、もう一度お試しください。'};return issue('AUTH',String(who.status));}
+  if(!who.body?.id)return issue('AUTH','FORMAT');
+  if(member.failure)return member.failure;
+  if(!member.ok){
+    if(member.status===401)return {status:401,message:'ログインし直してから、もう一度お試しください。'};
+    const code=typeof member.body?.code==='string'&&/^[A-Z0-9_]{1,24}$/.test(member.body.code)?'_'+member.body.code:'';
+    return issue('MEMBER',String(member.status)+code);
+  }
+  if(member.body!==true){if(member.body===false)return {status:403,message:'管理者の承認後に使えます。'};return issue('MEMBER','FORMAT');}
+  return {ok:true};
 }
