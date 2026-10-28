@@ -1308,6 +1308,7 @@
   // logout: the identity comes from the signed-in account, so this ends the session in this app on this device
   const LOGOUT_KEY='ikigai.loggedOut';
   function showEnd(title,text,btn){
+    if(shinAi)shinAi.reset();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -1396,7 +1397,29 @@
   };
   const talkToggle=$('#talkAboutToggle'),talkAbout=$('#talkAboutText');
   if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'−':'＋';talkToggle.setAttribute('aria-label',expanded?'GIVE BUDDIESの説明を閉じる':'GIVE BUDDIESの説明を開く');talkAbout.hidden=!expanded};
-  $('#aiBtn').onclick=()=>toast('AI壁打ちはプロトタイプでは準備中です');
+  let shinAi=null,shinAiLoading=false;
+  $('#aiBtn').onclick=async()=>{
+    if(backend!=='cloud'||!uid){toast('ログインするとSHIN AIを使えます');return}
+    if(pending()){toast('管理者の承認後にSHIN AIを使えます');return}
+    if(shinAiLoading)return;
+    if(!shinAi){
+      shinAiLoading=true;
+      try{
+        const module=await import('./shin-ai.js');
+        shinAi=module.mountShinAI({
+          request:(payload,options)=>{if(!window.appAuth?.shinAi)throw Error('SHIN AIの接続準備中です。');return window.appAuth.shinAi(payload,options)},
+          getContext:({goal:useGoal,logs:useLogs})=>{
+            const parts=[];
+            if(useGoal){parts.push('自分の志：'+String(profile.shi||'未設定'));const last=profile.milestones?.at(-1);if(last?.t)parts.push('自分の最終目標：'+last.t)}
+            if(useLogs)myPosts.slice().sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,3).forEach(x=>parts.push('自分の成長ログ（'+postTimeText(x.at)+'）：'+String(x.text||'')));
+            return parts.join('\n').slice(0,4000);
+          }
+        });
+      }catch(_){toast('SHIN AIを開けませんでした。再読み込みしてください。');return}
+      finally{shinAiLoading=false}
+    }
+    go('ai');
+  };
   $('#bellBtn').onclick=()=>toast(findR('week',curKey.week)?'新しいお知らせはありません':'今週の振り返りを日曜までに書きましょう');
 
   function showAcc(which){
@@ -1435,11 +1458,12 @@
   addEventListener('focus',resumeDayClock);addEventListener('pageshow',resumeDayClock);
 
   // ---------- navigation ----------
-  const views=['home','check','reflect','rfview','timeline','mates','soon','account'];
+  const views=['home','check','reflect','rfview','timeline','mates','ai','soon','account'];
   function go(tab){
+    if(tab==='ai'&&(!shinAi||backend!=='cloud'||!uid||pending()))tab='home';
     refreshDayClock();
     views.forEach(v=>$('#v-'+v).hidden=v!==tab);
-    const navTab=(tab==='check'||tab==='reflect'||tab==='rfview')?'home':tab;
+    const navTab=(tab==='check'||tab==='reflect'||tab==='rfview'||tab==='ai')?'home':tab;
     document.querySelectorAll('nav.tabs button').forEach(b=>{if(b.dataset.tab===navTab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
     if(tab==='reflect')renderReflect();
     if(tab==='timeline')renderFeed();

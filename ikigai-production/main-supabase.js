@@ -335,6 +335,15 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    shinAi: async (payload,{signal}={}) => {
+      const {data,error}=await auth.getSession();
+      if(error||!data.session?.access_token)throw Error("ログインし直してください。");
+      const response=await fetch("/api/shin-ai",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+data.session.access_token},body:JSON.stringify(payload),signal,cache:"no-store",redirect:"error"});
+      let result;try{result=await response.json()}catch{throw Error("SHIN AIの接続準備中です。")}
+      if(!response.ok)throw Error(typeof result.message==="string"?result.message:"回答を取得できませんでした。");
+      if(typeof result.reply!=="string")throw Error("回答を取得できませんでした。");
+      return result.reply;
+    },
     signOut: () => auth.signOut(),
     // removing the login itself needs a server-side step (Netlify Functions) that is not built yet
     deleteAccount: async () => ({ ok: false, code: "needs-server" })
