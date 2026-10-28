@@ -625,6 +625,7 @@
   function openShared(){
     if(sharedOpen)return;sharedOpen=true;
     subscribeMembers();subscribeChat();subscribeFeed();subscribeQuotes();subscribeMeeting();
+    if(!$('#v-soon').hidden)openYoutube();
   }
   function watchApproval(){
     renderMembers();renderFeed();renderChat();renderBuddies();renderZoom();
@@ -1309,6 +1310,7 @@
   const LOGOUT_KEY='ikigai.loggedOut';
   function showEnd(title,text,btn){
     if(shinAi)shinAi.reset();
+    if(youtubeRecommendations)youtubeRecommendations.stop();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -1397,6 +1399,19 @@
   };
   const talkToggle=$('#talkAboutToggle'),talkAbout=$('#talkAboutText');
   if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'−':'＋';talkToggle.setAttribute('aria-label',expanded?'GIVE BUDDIESの説明を閉じる':'GIVE BUDDIESの説明を開く');talkAbout.hidden=!expanded};
+  let youtubeRecommendations=null,youtubeLoading=false;
+  async function openYoutube(){
+    if(youtubeLoading)return;
+    if(!youtubeRecommendations){
+      youtubeLoading=true;
+      try{const module=await import('./youtube-recommendations.js');youtubeRecommendations=module.mountYoutubeRecommendations({
+        allowed:()=>backend==='cloud'&&!!uid&&!pending(),
+        request:(topic,options)=>{if(!window.appAuth?.youtubeRecommendations)throw Error('おすすめ動画の接続準備中です。');return window.appAuth.youtubeRecommendations(topic,options)}
+      })}catch(_){const status=$('#youtubeStatus');if(status)status.textContent='動画画面を開けませんでした。再読み込みしてください。';else toast('新しい動画画面を表示するには再読み込みしてください。');return}
+      finally{youtubeLoading=false}
+    }
+    if(!$('#v-soon').hidden)youtubeRecommendations.open();
+  }
   let shinAi=null,shinAiLoading=false;
   $('#aiBtn').onclick=async()=>{
     if(backend!=='cloud'||!uid){toast('ログインするとSHIN AIを使えます');return}
@@ -1462,7 +1477,7 @@
   function go(tab){
     if(tab==='ai'&&(!shinAi||backend!=='cloud'||!uid||pending()))tab='home';
     refreshDayClock();
-    views.forEach(v=>$('#v-'+v).hidden=v!==tab);
+    views.forEach(v=>{const view=$('#v-'+v);if(view)view.hidden=v!==tab});
     const navTab=(tab==='check'||tab==='reflect'||tab==='rfview'||tab==='ai')?'home':tab;
     document.querySelectorAll('nav.tabs button').forEach(b=>{if(b.dataset.tab===navTab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
     if(tab==='reflect')renderReflect();
@@ -1471,6 +1486,7 @@
     if(tab==='account'){fillForm();showAcc('menu')}
     if(tab==='mates'){renderChat.stick=true;renderChat()}
     if(tab==='home')renderHomeLog();
+    if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();
     syncHomeLogTimer(true);
     window.scrollTo(0,0);
     if(tab!=='account')pushNav({v:tab,a:tab==='rfview'?rfOpenId:undefined});

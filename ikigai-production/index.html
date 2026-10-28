@@ -492,6 +492,28 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 #shinAiStatus{font-size:12px;color:var(--ink-2);min-height:1.7em}
 #shinAiError{font-size:13px;color:var(--danger);margin:0}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.youtube-heading h1{font-size:22px;margin:0;color:var(--accent)}
+.youtube-heading p{font-size:13px;color:var(--ink-2);margin:6px 0 0;line-height:1.7}
+.youtube-topics{display:flex;gap:8px;flex-wrap:wrap}
+.youtube-topics button{padding:8px 12px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
+.youtube-topics button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.youtube-list{display:flex;flex-direction:column;gap:16px}
+.youtube-card{padding:0;overflow:hidden}
+.youtube-video{display:flex;flex-direction:column;gap:12px;padding:0 0 0;width:100%;border:0;background:none;text-align:left;color:var(--ink);font:inherit}
+.youtube-video b{padding:0 14px;font-size:16px;line-height:1.55;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.youtube-thumb{position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;background:var(--surface-2)}
+.youtube-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.youtube-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:52px;height:38px;background:rgba(0,0,0,.75);color:#fff;border-radius:12px;font-size:19px}
+.youtube-channel{font-size:12px;color:var(--ink-2);padding:0 14px;margin:8px 0 14px}
+.youtube-player{padding:12px;scroll-margin-top:80px}
+.youtube-player-title{font-size:15px;line-height:1.5;margin:0 0 12px;overflow-wrap:anywhere}
+.youtube-frame{aspect-ratio:16/9;background:#111;border-radius:10px;overflow:hidden}
+.youtube-frame iframe{width:100%;height:100%;border:0;display:block}
+.youtube-player .btn-row{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-top:12px}
+.youtube-player a{font-size:12px;color:var(--accent)}
+.youtube-status{margin:0;font-size:13px;color:var(--ink-2);line-height:1.6}
+.youtube-note{margin:0;font-size:11px;color:var(--ink-2);line-height:1.7}
+.youtube-note a{color:var(--ink-2)}
 /* buddy chat */
 .buddy-strip{display:flex;gap:14px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none}
 .buddy-strip::-webkit-scrollbar{display:none}
@@ -1094,13 +1116,15 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
       <div id="feed" class="feed"></div>
     </section>
 
-    <!-- SOON -->
+    <!-- YouTube recommendations -->
     <section class="view" id="v-soon" hidden>
-      <div class="card empty" style="padding:48px 20px">
-        <svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
-        <b style="color:var(--ink);font-size:16px">準備中です</b>
-        新しい機能をここに追加する予定です。
-      </div>
+      <div class="youtube-heading"><h1>おすすめ動画</h1><p>志を深める。仕事に生かす。新しい一歩を踏み出す。</p></div>
+      <div class="youtube-topics" role="group" aria-label="動画のテーマ"><button type="button" data-youtube-topic="aspiration" aria-pressed="true">志</button><button type="button" data-youtube-topic="work" aria-pressed="false">仕事</button><button type="button" data-youtube-topic="challenge" aria-pressed="false">挑戦</button><button type="button" data-youtube-topic="training" aria-pressed="false">トレーニング</button></div>
+      <section class="card youtube-player" id="youtubePlayer" hidden aria-label="YouTube動画プレーヤー"><h2 class="youtube-player-title" id="youtubePlayerTitle" tabindex="-1"></h2><div class="youtube-frame" id="youtubeFrame"></div><div class="btn-row"><a id="youtubeExternal" target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a><button type="button" class="small-btn" id="youtubeClose">閉じる</button></div></section>
+      <p class="youtube-status" id="youtubeStatus" role="status">テーマに合う動画を表示します。</p><small class="youtube-note" id="youtubeUpdated"></small><button type="button" class="ghost" id="youtubeRetry" hidden>もう一度読み込む</button>
+      <div class="youtube-list" id="youtubeList"></div>
+      <p class="youtube-note">動画はYouTubeの検索結果からテーマに合わせて選びます。候補は約24時間ごとに更新されます。再生するとYouTubeに接続します。再生できない動画は「YouTubeで開く」からご覧ください。</p>
+      <p class="youtube-note"><a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube 利用規約</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google プライバシーポリシー</a></p>
     </section>
 
     <!-- ACCOUNT -->
@@ -1187,7 +1211,7 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
       <button data-tab="home" aria-current="page"><svg class="i" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>ホーム</button>
       <button data-tab="timeline"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>成長ログ</button>
       <button data-tab="mates"><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5c-5 0-9 3.2-9 7.2 0 2.3 1.3 4.3 3.4 5.6l-.6 3.3 3.6-2.1c.8.2 1.7.3 2.6.3 5 0 9-3.2 9-7.1S17 3.5 12 3.5z"/><path d="M8 10.8h.01M12 10.8h.01M16 10.8h.01" stroke-width="2.4"/></svg>トーク</button>
-      <button data-tab="soon"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>準備中</button>
+      <button data-tab="soon"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/></svg>おすすめ</button>
       <button data-tab="account"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>アカウント</button>
     </div>
   </nav>

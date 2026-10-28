@@ -335,6 +335,14 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    youtubeRecommendations: async (topic,{signal}={}) => {
+      const {data,error}=await auth.getSession();
+      if(error||!data.session?.access_token)throw Error("ログインし直してください。");
+      const response=await fetch("/api/youtube?topic="+encodeURIComponent(topic),{headers:{Authorization:"Bearer "+data.session.access_token},signal,cache:"no-store",redirect:"error"});
+      let result;try{result=await response.json()}catch{throw Error("おすすめ動画の接続準備中です。")}
+      if(!response.ok)throw Error(typeof result.message==="string"?result.message:"動画を取得できませんでした。");
+      return result;
+    },
     shinAi: async (payload,{signal}={}) => {
       const {data,error}=await auth.getSession();
       if(error||!data.session?.access_token)throw Error("ログインし直してください。");
