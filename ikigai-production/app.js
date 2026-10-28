@@ -1,10 +1,12 @@
 // IKIGAI app — screens and features. Data access goes through window.claude (see main.js).
 (function(){
-  const TODAY=new Date();TODAY.setHours(0,0,0,0);
   const pad=n=>String(n).padStart(2,'0');
   const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const parseIso=k=>{const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d||1)};
-  const todayKey=iso(TODAY);
+  const dayFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
+  const japanDayKey=()=>{const p=Object.fromEntries(dayFormatter.formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.year}-${p.month}-${p.day}`};
+  const TODAY=parseIso(japanDayKey());
+  let todayKey=iso(TODAY);
   const WD=['日','月','火','水','木','金','土'];
   const CHECK='<svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
   const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
@@ -177,7 +179,7 @@
   }
   const COLORS=['#7a1f33','#9c3348','#5c1a2a','#b4596b','#8a3a2e','#6b2c47','#a0455a','#4e2430'];
   const colorOf=id=>{let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))>>>0;return COLORS[h%COLORS.length]};
-  const yesterdayKey=iso(addDays(TODAY,-1));
+  let yesterdayKey=iso(addDays(TODAY,-1));
   const liveStreak=m=>(m.lastCheck===todayKey||m.lastCheck===yesterdayKey)?(m.streak||0):0;
   async function renderMembers(){
     const box=$('#members');
@@ -556,7 +558,15 @@
 
   // ---------- check stats ----------
   const isOn=k=>!!profile.checks[k];
-  function toggleDay(k){if(profile.checks[k])delete profile.checks[k];else profile.checks[k]=true;saveProfile()}
+  let checkSaving=false;
+  async function completeDay(key){
+    refreshDayClock();
+    const day=key||todayKey;
+    if(day!==todayKey||checkSaving||isOn(day)||loadFailed)return false;
+    checkSaving=true;profile.checks[day]=true;renderHome();renderCheck();
+    try{const ok=await saveProfile();if(ok)toast('チェックしました');return ok}
+    finally{checkSaving=false;renderHome();renderCheck()}
+  }
   function monthStats(y,m){
     let on=0,days=0;const last=new Date(y,m+1,0).getDate();
     for(let d=1;d<=last;d++){const dt=new Date(y,m,d);if(dt>TODAY)break;days++;if(isOn(iso(dt)))on++}
@@ -589,9 +599,10 @@
     $('#daysSince').textContent=Math.max(1,Math.round((TODAY-parseIso(profile.shiSince))/864e5)+1);
     const on=isOn(todayKey);
     $('#todayCheck').setAttribute('aria-pressed',on);
+    $('#todayCheck').disabled=on||checkSaving||loadFailed;
     $('#todayTitle').textContent=on?'今日のタスク、やり遂げた！':'今日、自分が決めたタスクをやり遂げた？';
-    $('#todaySub').textContent=on?'チェック済み。明日も自分との約束を守ろう':'やり遂げたらタップしてチェック';
-    $('#todayCheckLabel').textContent='やり遂げた';
+    $('#todaySub').textContent=on?'次は明日0:00（日本時間）から':'1日1回。やり遂げたらタップしてチェック';
+    $('#todayCheckLabel').textContent=checkSaving?'保存中…':on?'チェック済み':'やり遂げた';
     $('#todayStreak').textContent=`連続 ${streak()} 日`;
     const wDone=!!findR('week',curKey.week),mon=parseIso(curKey.week);
     $('#hRfStatus').textContent=wDone?'今週分は記入済み':'未記入・日曜までに書こう';
@@ -601,7 +612,7 @@
     $('#hRfBtn').textContent=wDone?'見直す':'振り返る';$('#hRfBtn').classList.toggle('done',wDone);
     renderGoal();renderMap();
   }
-  $('#todayCheck').onclick=()=>{toggleDay(todayKey);renderHome();renderCheck();if(isOn(todayKey))toast('チェックしました')};
+  $('#todayCheck').onclick=()=>completeDay();
 
 
 
@@ -848,7 +859,7 @@
     for(let i=0;i<first;i++)h+='<div></div>';
     for(let d=1;d<=last;d++){
       const dt=new Date(y,m,d),k=iso(dt),fut=dt>TODAY,on=isOn(k);
-      h+=`<button class="${on?'on':''} ${k===todayKey?'today':''}" data-day="${k}" ${fut?'disabled':''} aria-pressed="${on}" aria-label="${m+1}月${d}日">${d}${on?CHECK:''}</button>`;
+      h+=`<button class="${on?'on':''} ${k===todayKey?'today':''} ${fut?'future':''}" data-day="${k}" ${(k!==todayKey||on||checkSaving||loadFailed)?'disabled':''} aria-pressed="${on}" aria-label="${m+1}月${d}日">${d}${on?CHECK:''}</button>`;
     }
     return h;
   }
@@ -859,7 +870,7 @@
     $('#cal').innerHTML=calCells(viewY,viewM);
     $('#nextM').disabled=viewY===TODAY.getFullYear()&&viewM===TODAY.getMonth();
   }
-  $('#cal').addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(b&&!b.disabled){toggleDay(b.dataset.day);renderCheck();renderHome()}});
+  $('#cal').addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(b&&!b.disabled)completeDay(b.dataset.day)});
   $('#prevM').onclick=()=>{viewM--;if(viewM<0){viewM=11;viewY--}renderCheck()};
   $('#nextM').onclick=()=>{viewM++;if(viewM>11){viewM=0;viewY++}renderCheck()};
 
@@ -1310,9 +1321,33 @@
   }
   document.addEventListener('click',e=>{const b=e.target.closest('[data-acc]');if(b)showAcc(b.dataset.acc)});
 
+  // Day keys follow Japan time, matching the administrator's server-side status date.
+  // Refresh display only: never erase history or rebuild a reflection/comment draft at midnight.
+  let dayTimer=0;
+  function refreshDayClock(){
+    const next=japanDayKey();if(next===todayKey)return false;
+    const oldWeek=curKey.week,oldMonth=curKey.month,currentMonth=viewY===TODAY.getFullYear()&&viewM===TODAY.getMonth();
+    TODAY.setTime(parseIso(next).getTime());todayKey=next;yesterdayKey=iso(addDays(TODAY,-1));
+    curKey.week=iso(mondayOf(TODAY));curKey.month=`${TODAY.getFullYear()}-${pad(TODAY.getMonth()+1)}`;
+    if($('#v-reflect').hidden){if(editKey.week===oldWeek)editKey.week=curKey.week;if(editKey.month===oldMonth)editKey.month=curKey.month}
+    if(currentMonth){viewY=TODAY.getFullYear();viewM=TODAY.getMonth()}
+    renderHome();renderCheck();renderMembers();renderChat();renderQuote();
+    if(isOwnerView&&!$('#accAdmin').hidden)loadAdminMembers();
+    return true;
+  }
+  function scheduleDayClock(){
+    clearTimeout(dayTimer);
+    const nextMidnight=Date.parse(japanDayKey()+'T00:00:00+09:00')+86400000;
+    dayTimer=setTimeout(()=>{refreshDayClock();scheduleDayClock()},Math.max(50,nextMidnight-Date.now()+30));
+  }
+  function resumeDayClock(){refreshDayClock();scheduleDayClock()}
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeDayClock()});
+  addEventListener('focus',resumeDayClock);addEventListener('pageshow',resumeDayClock);
+
   // ---------- navigation ----------
   const views=['home','check','reflect','rfview','timeline','mates','soon','account'];
   function go(tab){
+    refreshDayClock();
     views.forEach(v=>$('#v-'+v).hidden=v!==tab);
     const navTab=(tab==='check'||tab==='reflect'||tab==='rfview')?'home':tab;
     document.querySelectorAll('nav.tabs button').forEach(b=>{if(b.dataset.tab===navTab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
@@ -1365,5 +1400,6 @@
   renderAll();renderMembers();fillForm();
   const h=location.hash.slice(1);if(views.includes(h))go(h);
   addEventListener('resize',size);requestAnimationFrame(loop);
+  scheduleDayClock();
   initCloud().then(boot,boot);
 })();
