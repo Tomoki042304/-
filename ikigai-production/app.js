@@ -253,12 +253,12 @@
   // A two-second preview rotates existing feed data only, never a second network feed.
   const homeLogCard=$('#homeLogCard'),homeLogMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const HOME_LOG_INTERVAL=2000;
-  let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogInView=!('IntersectionObserver' in window);
+  let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogTouching=false,homeLogInView=!('IntersectionObserver' in window);
   const homeLogKey=x=>x?x.uid+':'+x.id:'';
   function homeLogCanRun(){
     return !!homeLogCard&&!homeLogCard.hidden&&!$('#app').hidden&&!$('#v-home').hidden
       &&document.visibilityState==='visible'&&backend==='cloud'&&!pending()&&!homeLogError
-      &&homeLogItems.length>1&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&homeLogInView;
+      &&homeLogItems.length>1&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&!homeLogTouching&&homeLogInView;
   }
   function stopHomeLogTimer(){clearTimeout(homeLogTimer);homeLogTimer=0}
   function syncHomeLogTimer(reset=false){
@@ -266,34 +266,43 @@
     if(!homeLogCanRun()||homeLogTimer)return;
     homeLogTimer=setTimeout(()=>{homeLogTimer=0;if(homeLogCanRun()){homeLogIndex=(homeLogIndex+1)%homeLogItems.length;paintHomeLog(true);syncHomeLogTimer()}},HOME_LOG_INTERVAL);
   }
-  function paintHomeLog(animate=false){
+  function paintHomeLog(animate=false,direction=1){
     if(!homeLogCard)return;
     const x=homeLogItems[homeLogIndex];if(!x)return;
+    const preview=$('#homeLogPreview'),viewport=$('#homeLogViewport');
+    if(preview.getAnimations)preview.getAnimations().forEach(a=>a.cancel());
+    if(viewport)viewport.querySelectorAll('.home-log-ghost').forEach(x=>x.remove());
+    const old=animate&&!homeLogMotion.matches&&viewport&&preview.dataset.postKey?preview.cloneNode(true):null;
     const name=nameOf(x.uid),av=$('#homeLogAvatar');av.style.backgroundColor=colorOf(x.uid);av.setAttribute('role','img');av.setAttribute('aria-label',name+'のプロフィール');paintAvatar(av,avatarOf(x.uid),name);
     $('#homeLogName').textContent=name;$('#homeLogTime').textContent=postTimeText(x.at);$('#homeLogTime').dateTime=x.at;
     $('#homeLogText').textContent=x.text;
     const tags=$('#homeLogTags');tags.replaceChildren();postCategoriesOf(x).forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
-    $('#homeLogPosition').textContent=`${homeLogIndex+1} / ${homeLogItems.length}`;
-    $('#homeLogPrev').disabled=$('#homeLogNext').disabled=homeLogItems.length<2;
-    $('#homeLogPause').hidden=$('#homeLogSpeed').hidden=homeLogItems.length<2;
-    $('#homeLogPause').textContent=homeLogPaused?'自動再生':'一時停止';$('#homeLogPause').setAttribute('aria-label',homeLogPaused?'投稿の自動切り替えを再生':'投稿の自動切り替えを一時停止');
-    const preview=$('#homeLogPreview');preview.dataset.postKey=homeLogKey(x);
-    if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function')preview.animate([{opacity:.35,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'ease-out'});
+    preview.dataset.postKey=homeLogKey(x);preview.setAttribute('aria-label',name+'の成長ログを開く');
+    if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function'){
+      const options={duration:280,easing:'ease-out',fill:'both'};
+      if(old){
+        old.removeAttribute('id');old.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));old.removeAttribute('href');old.tabIndex=-1;old.inert=true;old.setAttribute('aria-hidden','true');old.classList.add('home-log-ghost');viewport.append(old);
+        old.animate([{transform:'translateX(0)'},{transform:`translateX(${-direction*100}%)`}],options);
+      }
+      const animation=preview.animate([{transform:`translateX(${direction*100}%)`},{transform:'translateX(0)'}],options);
+      const done=()=>{if(old)old.remove()};animation.onfinish=done;animation.oncancel=done;
+    }
+
   }
   function renderHomeLog(){
     if(!homeLogCard)return;
     const allowed=backend==='cloud'&&!!uid&&!pending();homeLogCard.hidden=!allowed;
     const previous=homeLogItems[homeLogIndex],first=homeLogKey(homeLogItems[0]);
     if(!allowed||!feedReady||homeLogError||!feedAll.length){
-      homeLogItems=[];homeLogIndex=0;stopHomeLogTimer();$('#homeLogPreview').hidden=true;$('#homeLogControls').hidden=true;
+      homeLogItems=[];homeLogIndex=0;stopHomeLogTimer();$('#homeLogPreview').hidden=true;
       $('#homeLogText').textContent='';$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
       $('#homeLogEmpty').hidden=!allowed;$('#homeLogEmpty').textContent=!feedReady?'読み込んでいます…':homeLogError?'投稿を取得できませんでした。通信状況を確認してください。':'まだ成長ログの投稿はありません。';return;
     }
     homeLogItems=feedAll.slice(0,10);
     const selected=homeLogItems.findIndex(x=>homeLogKey(x)===homeLogKey(previous));
-    const fresh=first!==homeLogKey(homeLogItems[0])&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused;
+    const fresh=first!==homeLogKey(homeLogItems[0])&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&!homeLogTouching;
     homeLogIndex=selected<0||fresh?0:selected;
-    $('#homeLogEmpty').hidden=true;$('#homeLogPreview').hidden=false;$('#homeLogControls').hidden=false;
+    $('#homeLogEmpty').hidden=true;$('#homeLogPreview').hidden=false;
     paintHomeLog();syncHomeLogTimer(homeLogKey(previous)!==homeLogKey(homeLogItems[homeLogIndex])||previous?.text!==homeLogItems[homeLogIndex].text);
   }
   function openHomeLog(key){
@@ -302,17 +311,30 @@
     if(key){const post=[...document.querySelectorAll('#feed [data-post-key]')].find(x=>x.dataset.postKey===key);if(post){post.tabIndex=-1;post.focus({preventScroll:true});post.scrollIntoView({behavior:homeLogMotion.matches?'auto':'smooth',block:'start'})}}
   }
   if(homeLogCard){
-    $('#homeLogAll').onclick=()=>openHomeLog();$('#homeLogOpen').onclick=()=>openHomeLog(homeLogKey(homeLogItems[homeLogIndex]));
-    $('#homeLogPause').onclick=()=>{homeLogPaused=!homeLogPaused;if(!homeLogPaused){homeLogFocusPaused=false;homeLogHover=false}paintHomeLog();syncHomeLogTimer(true)};
-    const step=n=>{if(homeLogItems.length<2)return;homeLogPaused=true;homeLogIndex=(homeLogIndex+n+homeLogItems.length)%homeLogItems.length;paintHomeLog();syncHomeLogTimer(true)};
-    $('#homeLogPrev').onclick=()=>step(-1);$('#homeLogNext').onclick=()=>step(1);
+    const preview=$('#homeLogPreview');let swipe=null,suppressClickUntil=0;
+    // Gracefully hide the previous toolbar if an older HTML shell is cached.
+    if($('#homeLogControls'))$('#homeLogControls').hidden=true;if($('#homeLogOpen'))$('#homeLogOpen').hidden=true;
+    if(preview.tagName!=='A'){preview.tabIndex=0;preview.setAttribute('role','link')}
+    $('#homeLogAll').onclick=()=>openHomeLog();
+    preview.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(Date.now()<suppressClickUntil)return;openHomeLog(homeLogKey(homeLogItems[homeLogIndex]))});
+    preview.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&!e.repeat){e.preventDefault();openHomeLog(homeLogKey(homeLogItems[homeLogIndex]))}});
+    const step=n=>{if(homeLogItems.length<2)return;homeLogIndex=(homeLogIndex+n+homeLogItems.length)%homeLogItems.length;paintHomeLog(true,n);syncHomeLogTimer(true)};
+    preview.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;swipe={id:e.pointerId,x:e.clientX,y:e.clientY};homeLogTouching=true;syncHomeLogTimer();try{preview.setPointerCapture(e.pointerId)}catch(_){}});
+    const release=(e,cancelled=false)=>{
+      if(!swipe||swipe.id!==e.pointerId)return;
+      const dx=e.clientX-swipe.x,dy=e.clientY-swipe.y;swipe=null;homeLogTouching=false;
+      if(!cancelled&&Math.abs(dx)>=45&&Math.abs(dx)>Math.abs(dy)*1.2){e.preventDefault();suppressClickUntil=Date.now()+500;homeLogFocusPaused=false;if(document.activeElement===preview)preview.blur();step(dx<0?1:-1)}
+      else if(cancelled||Math.abs(dx)>10||Math.abs(dy)>10)suppressClickUntil=Date.now()+500;
+      syncHomeLogTimer(true);
+    };
+    preview.addEventListener('pointerup',e=>release(e));preview.addEventListener('pointercancel',e=>release(e,true));
     homeLogCard.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){homeLogHover=true;syncHomeLogTimer()}});
     homeLogCard.addEventListener('pointerleave',()=>{homeLogHover=false;syncHomeLogTimer(true)});
     homeLogCard.addEventListener('focusin',()=>{homeLogFocusPaused=true;syncHomeLogTimer()});homeLogCard.addEventListener('focusout',()=>setTimeout(()=>{if(!homeLogCard.contains(document.activeElement))homeLogFocusPaused=false;syncHomeLogTimer(true)},0));
     if('IntersectionObserver' in window)new IntersectionObserver(entries=>{homeLogInView=entries[0].isIntersecting&&entries[0].intersectionRatio>=.1;syncHomeLogTimer(true)},{threshold:.1}).observe(homeLogCard);
-    const motionChanged=e=>{if(e.matches)homeLogPaused=true;paintHomeLog();syncHomeLogTimer(true)};
+    const motionChanged=e=>{homeLogPaused=e.matches;paintHomeLog();syncHomeLogTimer(true)};
     if(homeLogMotion.addEventListener)homeLogMotion.addEventListener('change',motionChanged);else if(homeLogMotion.addListener)homeLogMotion.addListener(motionChanged);
-    document.addEventListener('visibilitychange',()=>syncHomeLogTimer(true));addEventListener('pagehide',stopHomeLogTimer);addEventListener('pageshow',()=>syncHomeLogTimer(true));
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'){swipe=null;homeLogTouching=false}syncHomeLogTimer(true)});addEventListener('pagehide',()=>{swipe=null;homeLogTouching=false;stopHomeLogTimer()});addEventListener('pageshow',()=>syncHomeLogTimer(true));
   }
 
   function renderFeed(){
@@ -1372,8 +1394,9 @@
     }
     showEnd(failed?'一部のデータを削除できませんでした':'アカウントを削除しました',failed?'通信状況を確認して、もう一度お試しください。':'ご利用ありがとうございました。','最初から登録する');
   };
+  const talkToggle=$('#talkAboutToggle'),talkAbout=$('#talkAboutText');
+  if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'−':'＋';talkToggle.setAttribute('aria-label',expanded?'GIVE BUDDIESの説明を閉じる':'GIVE BUDDIESの説明を開く');talkAbout.hidden=!expanded};
   $('#aiBtn').onclick=()=>toast('AI壁打ちはプロトタイプでは準備中です');
-  $('#noticeBtn').onclick=()=>toast('運営からのお知らせはありません');
   $('#bellBtn').onclick=()=>toast(findR('week',curKey.week)?'新しいお知らせはありません':'今週の振り返りを日曜までに書きましょう');
 
   function showAcc(which){

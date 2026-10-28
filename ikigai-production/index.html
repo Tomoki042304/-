@@ -114,23 +114,36 @@ svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .hero .meta b{font-family:var(--mono);font-size:15px;color:#E9C46A;font-weight:500}
 
 /* Home preview uses the already-authorized growth feed; rotation adds no polling. */
-.home-log-card{display:flex;flex-direction:column;gap:12px;padding:16px 18px}
-.home-log-preview{display:flex;flex-direction:column;gap:10px;min-height:176px}
+.home-log-card{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+.home-log-viewport{position:relative;overflow:hidden;min-width:0}
+.home-log-preview{display:flex;flex-direction:column;gap:10px;min-height:172px;text-decoration:none;color:inherit;touch-action:pan-y;cursor:pointer}
+.home-log-preview:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:8px}
+.home-log-ghost{position:absolute;inset:0;width:100%;pointer-events:none}
 .home-log-author{display:flex;align-items:center;gap:10px;min-width:0}
 .home-log-author .avatar{width:32px;height:32px;font-size:14px}
 .home-log-author > div:last-child{min-width:0;flex:1}
 .home-log-author b{display:block;font-size:14px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-log-author time{display:block;font-size:11px;line-height:1.4;color:var(--ink-2)}
 .home-log-text{margin:0;font-size:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-height:3.3em;overflow:hidden}
-.home-log-open{align-self:flex-start;margin:0;margin-top:auto;padding:4px 0;line-height:1.4}
 .home-log-empty{margin:0;font-size:14px;line-height:1.7}
-.home-log-controls{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:10px}
-.home-log-position,.home-log-speed{font-size:11px;white-space:nowrap}
-.home-log-position{margin-right:auto}
-.home-log-controls button{min-height:40px;padding:6px 10px}
-.home-log-controls button:disabled{opacity:.4;cursor:default}
-.home-log-controls #homeLogPrev,.home-log-controls #homeLogNext{min-width:40px;font-size:20px;line-height:1}
 .post[data-post-key]{scroll-margin-top:84px}
+
+.home-check{padding:14px 16px}
+.home-check .stack{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin-top:8px}
+.home-check h2{font-size:15px;line-height:1.5}
+.home-check p{font-size:12px;line-height:1.6}
+.home-check .big-check{grid-column:2;grid-row:1 / span 2;width:auto;align-self:center;padding:12px;font-size:14px}
+.home-check .big-check svg{width:18px;height:18px}
+.home-check .cal-link{grid-column:1 / -1;justify-self:start;margin-top:2px}
+.home-ai{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:10px;text-align:left;color:var(--ink)}
+.home-ai .mini-head{align-self:stretch;margin:0}
+.home-ai .mini-head b{font-size:16px}
+.home-ai .icon-tile{width:40px;height:40px}
+.home-ai-copy{font-size:14px;line-height:1.6;color:var(--ink-2)}
+.home-ai small{font-size:12px}
+.talk-about-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.talk-about-head .view-title{margin:0;min-width:0}
+.talk-about-head button{flex:none;width:40px;height:40px;padding:0;font-size:24px;line-height:1}
 
 /* today check */
 .today .stack{display:flex;flex-direction:column;gap:12px;margin-top:14px}
@@ -770,26 +783,7 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
         <div class="meta"><span id="daysLine">志を立てて <b id="daysSince">1</b> 日目<br></span><span id="heroLine">志は、毎日の小さな行動で磨かれる</span></div>
       </div>
 
-      <section class="card home-log-card" id="homeLogCard" aria-roledescription="カルーセル" aria-labelledby="homeLogTitle" hidden>
-        <div class="card-head"><b id="homeLogTitle">成長ログ</b><button type="button" class="small-btn" id="homeLogAll">すべて見る</button></div>
-        <p class="muted home-log-empty" id="homeLogEmpty">読み込んでいます…</p>
-        <article class="home-log-preview" id="homeLogPreview" aria-live="off" hidden>
-          <div class="home-log-author"><div class="avatar" id="homeLogAvatar"></div><div><b id="homeLogName"></b><time id="homeLogTime"></time></div></div>
-          <div class="post-tags" id="homeLogTags"></div>
-          <p class="home-log-text" id="homeLogText"></p>
-          <button type="button" class="link-btn home-log-open" id="homeLogOpen">この投稿を見る →</button>
-        </article>
-        <div class="home-log-controls" id="homeLogControls" hidden>
-          <span class="muted home-log-position" id="homeLogPosition" aria-live="off"></span>
-          <span class="muted home-log-speed" id="homeLogSpeed">2秒ごと</span>
-          <button type="button" class="small-btn" id="homeLogPrev" aria-label="前の投稿">‹</button>
-          <button type="button" class="small-btn" id="homeLogPause">一時停止</button>
-          <button type="button" class="small-btn" id="homeLogNext" aria-label="次の投稿">›</button>
-        </div>
-      </section>
-
-      <div class="split">
-        <div class="card today">
+        <div class="card today home-check" id="homeCheckCard">
           <div class="mini-head"><b>行動チェック</b><span class="mono" id="todayStreak"></span></div>
           <div class="stack">
             <h2 id="todayTitle">今日、自分が決めたタスクをやり遂げた？</h2>
@@ -798,6 +792,28 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
             <button type="button" class="cal-link" data-goto="check">カレンダーを見る →</button>
           </div>
         </div>
+
+      <section class="card home-log-card" id="homeLogCard" aria-roledescription="カルーセル" aria-labelledby="homeLogTitle" hidden>
+        <div class="card-head"><b id="homeLogTitle">成長ログ</b><button type="button" class="small-btn" id="homeLogAll">すべて見る</button></div>
+        <p class="muted home-log-empty" id="homeLogEmpty">読み込んでいます…</p>
+        <div class="home-log-viewport" id="homeLogViewport">
+        <a class="home-log-preview" id="homeLogPreview" href="#timeline" aria-live="off" hidden>
+          <div class="home-log-author"><div class="avatar" id="homeLogAvatar"></div><div><b id="homeLogName"></b><time id="homeLogTime"></time></div></div>
+          <div class="post-tags" id="homeLogTags"></div>
+          <p class="home-log-text" id="homeLogText"></p>
+        </a>
+        </div>
+
+      </section>
+
+      <div class="split">
+
+        <button type="button" class="card home-ai" id="aiBtn">
+          <span class="mini-head"><b>SHIN AI</b></span>
+          <span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13v1M15 13v1"/></svg></span>
+          <span class="home-ai-copy">志や行動を整理する</span>
+          <small class="muted">準備中</small>
+        </button>
         <div class="card home-rf">
           <div class="mini-head"><b>振り返り</b><span class="mono" id="hRfCount"></span></div>
           <div class="stack">
@@ -864,18 +880,8 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
         <div class="ms-detail" id="msDetail"></div>
       </div>
 
-      <button class="card ai" id="aiBtn">
-        <span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 13v1M15 13v1"/></svg></span>
-        <span><b>AIに壁打ちする</b><span>志や行動の言語化を24時間サポート（β）</span></span>
-        <svg class="i arr" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-      </button>
 
-      <div class="sec-title"><h3>メニュー</h3><p>志を行動に変えるための道具箱</p></div>
-      <div class="menu">
-        <button id="msgBtn" data-goto="mates"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><b>メッセージ</b><small>トークで仲間と話す</small></button>
-        <button id="noticeBtn"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span><b>運営から</b><small>お願い・アンケート</small></button>
-        <button class="wide" data-goto="timeline"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg></span><b>なかま</b><small>仲間の成長ログを見る</small></button>
-      </div>
+
     </section>
 
     <!-- CHECK -->
@@ -941,8 +947,8 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
     <section class="view" id="v-mates" hidden>
       <div class="card">
         <span class="pill gold">トーク</span>
-        <h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2>
-        <div class="talk-desc">
+        <div class="talk-about-head"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">＋</button></div>
+        <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
           <div class="body">
             <p><span>与える人ほど、</span><span>チャンスが巡ってくる。</span></p>
