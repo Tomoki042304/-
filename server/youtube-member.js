@@ -6,7 +6,7 @@ async function readCheck(path,init,stage){
   for(let attempt=0;attempt<2;attempt++){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
     try{
-      const response=await fetch(URL_ROOT+path,{...init,signal:controller.signal,redirect:'error'});
+      const response=await fetch(URL_ROOT+path,{...init,signal:controller.signal,redirect:'manual'});
       const body=await response.json().catch(()=>null);
       if(response.status>=500&&attempt===0)continue;
       return {status:response.status,ok:response.ok,body};

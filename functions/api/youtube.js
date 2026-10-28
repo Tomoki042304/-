@@ -20,7 +20,7 @@ export async function onRequest({request,env}){
   url.searchParams.set('key',env.YOUTUBE_API_KEY);
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
   try{
-    const response=await fetch(url,{headers:{Accept:'application/json'},signal:controller.signal,redirect:'error'});
+    const response=await fetch(url,{headers:{Accept:'application/json'},signal:controller.signal,redirect:'manual'});
     if(!response.ok){if(valid)return reply(200,{...previous,stale:true});return reply(503,{code:'provider',message:'動画を取得できませんでした。接続設定やAPIの利用上限を確認し、時間をおいてお試しください。'})}
     const result=await response.json();if(!Array.isArray(result.items))throw Error('invalid response');
     const seen=new Set(),videos=[];

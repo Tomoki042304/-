@@ -12,7 +12,7 @@ const INSTRUCTIONS = `あなたはIKIGAIの「SHIN AI」。日本語で、志・
 const answer = (status, code, text) => Response.json({code, message:text}, {status, headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 async function checkedFetch(url, headers) {
   const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),8000);
-  try { return await fetch(url,{method:'GET',headers,signal:controller.signal,redirect:'error'}); }
+  try { return await fetch(url,{method:'GET',headers,signal:controller.signal,redirect:'manual'}); }
   finally { clearTimeout(timer); }
 }
 export async function onRequest({request, env}) {
@@ -36,7 +36,7 @@ export async function onRequest({request, env}) {
     if(!who.ok)return answer(who.status>=500?503:401,'login','ログイン状態を確認できません。もう一度お試しください。');
     const user=await who.json();if(!user?.id)return answer(401,'login','ログインし直してください。');
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);let membership;
-    try { membership=await fetch(PROJECT_URL+'/rest/v1/rpc/is_member',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}',signal:controller.signal,redirect:'error'}); }
+    try { membership=await fetch(PROJECT_URL+'/rest/v1/rpc/is_member',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}',signal:controller.signal,redirect:'manual'}); }
     finally {clearTimeout(timer)}
     if(!membership.ok)return answer(503,'membership','利用資格を確認できません。もう一度お試しください。');
     if(await membership.json()!==true)return answer(403,'approval','管理者の承認後に使えます。');
