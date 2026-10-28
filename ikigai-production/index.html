@@ -596,6 +596,32 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 #mtChat .composer{background:#111;box-shadow:0 -1px 0 #303030}
 #mtChat .comp-row textarea{background:#222;color:#fff;border-color:#383838;caret-color:#fff;color-scheme:dark}
 #mtChat .comp-row textarea::placeholder{color:#999;opacity:1}
+/* One restrained palette while the talk screen is visible. */
+body:has(#app:not([hidden]) #v-mates:not([hidden])){--bg:#1a1a1a;--surface:#1a1a1a;--surface-2:#262626;--ink:#f4f4f4;--ink-2:#aaa;--line:#353535;--accent-soft:#302329;--gold:#c9c9c9;--gold-soft:#292929;color-scheme:dark}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) header.top{background:#1a1a1a;border-bottom-color:#303030}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .brand .mark{color:#eee}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .brand .sub{color:#aaa}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .navbtns button,body:has(#app:not([hidden]) #v-mates:not([hidden])) .bell{color:#ddd}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .navbtns button:disabled{color:#626262}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) main{padding-top:12px;padding-bottom:90px}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs{background:#1a1a1a;border-top-color:#353535}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button{color:#aaa}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button[aria-current="page"]{color:#fff}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button[aria-current="page"]::before{background:#a7435e}
+#v-mates .talk-about-head .view-title{font-family:var(--font-sans);font-size:17px;font-weight:600;letter-spacing:.02em}
+#v-mates #talkAboutToggle{width:36px;height:36px;font-size:22px;background:#262626;border-color:#444;color:#ddd}
+#v-mates .talk-desc::before{background:#555}
+#v-mates .talk-desc p,#v-mates .talk-desc .cta{color:#bbb}
+#v-mates .talk-desc .lead{color:#eee}
+#chatLog .bubble .gto{color:#ccc}
+#chatLog .msg .avatar{background-color:#454545!important;color:#eee}
+#chatLog .chat-day,#chatLog .chat-sys{background:#292929;color:#bcbcbc}
+#chatLog .unsend-menu button{background:#292929;border-color:#555;color:#eee}
+#chatLog .unsend-menu button[data-unsend]{color:#efb8c6;border-color:#895366}
+#mtChat .composer{background:#1a1a1a;box-shadow:0 -1px 0 #303030;padding-block:12px}
+#mtChat .comp-row textarea{background:#292929;border-color:#3a3a3a}
+#mtChat .send-btn{background:#7a1f33;color:#fff}
+#mtChat .give-to{color:#bbb}
 .seg3{grid-template-columns:repeat(3,1fr)}
 .seg3 button{font-size:13px;padding:8px 4px}
 .give-to{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-2)}
