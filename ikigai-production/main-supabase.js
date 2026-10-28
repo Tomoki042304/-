@@ -80,7 +80,7 @@ const appUrl = () => location.origin + location.pathname;
 
 function showAuth(which) {
   const sp = $("#splash");
-  setTimeout(() => { if (sp) sp.hidden = true; $("#authScreen").hidden = false; }, 800);
+  setTimeout(() => { if (sp) sp.hidden = true; $("#authScreen").hidden = false; }, 300);
   $("#authForm").hidden = which !== "login";
   $("#pwForm").hidden = which !== "password";
 }

@@ -1284,14 +1284,14 @@
     $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
     renderAll();fillForm();size();
   }
-  // Brief opening curtain: leaves after 0.9s once data is ready; a tap skips it
+  // Brief opening curtain: leaves after 0.3s once data is ready; a tap skips it
   const curtain=(()=>{
     const sp=$('#splash');let minDone=false,ready=false,gone=false;
     const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const leave=cls=>{if(gone)return;gone=true;if(reduce)sp.hidden=true;else sp.classList.add(cls)};
     sp.addEventListener('animationend',e=>{if(e.animationName==='spOut')sp.hidden=true});
     sp.addEventListener('click',()=>{if(ready)leave('skip');else minDone=true});
-    setTimeout(()=>{minDone=true;if(ready)leave('out')},reduce?300:900);
+    setTimeout(()=>{minDone=true;if(ready)leave('out')},reduce?0:300);
     return{ready(){ready=true;if(minDone)leave('out')}};
   })();
   function boot(){curtain.ready();proceed()}
