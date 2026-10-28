@@ -338,7 +338,7 @@ function start() {
     youtubeRecommendations: async (topic,{signal}={}) => {
       const {data,error}=await auth.getSession();
       if(error||!data.session?.access_token)throw Error("ログインし直してください。");
-      const response=await fetch("/api/youtube?topic="+encodeURIComponent(topic),{headers:{Authorization:"Bearer "+data.session.access_token},signal,cache:"no-store",redirect:"error"});
+      const response=await fetch("/api/youtube?v=20261029-auth2&topic="+encodeURIComponent(topic),{headers:{Authorization:"Bearer "+data.session.access_token},signal,cache:"no-store",redirect:"error"});
       let result;try{result=await response.json()}catch{throw Error("おすすめ動画の接続準備中です。")}
       if(!response.ok)throw Error(typeof result.message==="string"?result.message:"動画を取得できませんでした。");
       return result;
