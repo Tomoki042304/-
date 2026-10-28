@@ -1067,7 +1067,7 @@
     if(!isOwnerView){
       ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
-      if(!$('#accAdmin').hidden)showAcc('settings');
+      if(!$('#accAdmin').hidden)showAcc('menu');
     }
     renderZoom();
   }
@@ -1300,7 +1300,7 @@
 
   function showAcc(which){
     if(!['menu','profile','settings','admin'].includes(which))which='menu';
-    if(which==='admin'&&!isOwnerView)which='settings';
+    if(which==='admin'&&!isOwnerView)which='menu';
     if(which!=='admin')++adminLoadToken;
     $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accAdmin').hidden=which!=='admin';
     if(which==='profile')fillForm();

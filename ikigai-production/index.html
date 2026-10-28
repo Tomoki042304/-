@@ -975,6 +975,9 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
           <button type="button" class="acc-row" data-acc="profile"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span><b>プロフィールの変更</b><small>写真・名前・職業・志</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
           <button type="button" class="acc-row" data-acc="settings"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span><b>各種設定</b><small>公開範囲・通知・データ</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
+      <div class="card acc-list" id="adminEntry" hidden>
+        <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利</b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
       </div>
       <div id="accProfile" class="view" hidden>
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
@@ -1010,9 +1013,6 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
           <div class="btn-row"><button type="button" class="ghost" id="delCancel">やめる</button><button type="button" class="primary danger" id="delGo">アカウントを削除する</button></div>
         </div>
       </div>
-      <div class="card acc-list" id="adminEntry" hidden>
-        <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利</b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-      </div>
       <form class="card" id="quoteForm" style="display:flex;flex-direction:column;gap:10px" hidden>
         <b style="font-size:16px">今日の名言の登録<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b>
         <p class="muted">1行に1つずつ書きます。出典を付けるときは「｜」で区切ってください。登録した中から、毎日ランダムに1つがホームに表示されます。</p>
@@ -1021,7 +1021,7 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
       </form>
       </div>
       <div id="accAdmin" class="view" hidden>
-        <button type="button" class="back-link" data-acc="settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>各種設定</button>
+        <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
         <div class="card admin-panel">
           <div class="card-head"><b>在籍メンバー</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
