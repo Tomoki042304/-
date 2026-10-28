@@ -87,7 +87,7 @@ svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .mono{font-family:var(--mono);color:var(--accent);font-size:14px;font-variant-numeric:tabular-nums}
 
 /* hero: the person's aspiration framed by a slowly turning seal ring */
-.hero{position:relative;border-radius:24px;overflow:hidden;color:#F3ECE0;padding:26px 22px 22px;min-height:330px;
+.hero{position:relative;border-radius:24px;overflow:hidden;color:#F3ECE0;padding:26px 22px 22px;min-height:288.75px;
   display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
   background:radial-gradient(80% 70% at 50% 45%,#5A1424 0%,#3A0B17 60%,#22060D 100%)}
 .hero canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -112,6 +112,25 @@ svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stro
   background:linear-gradient(170deg,#FFF3D0 0%,#F0CF7A 45%,#D3A447 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero .meta{font-size:12px;line-height:1.8;color:rgba(243,236,224,.85);letter-spacing:.06em}
 .hero .meta b{font-family:var(--mono);font-size:15px;color:#E9C46A;font-weight:500}
+
+/* Home preview uses the already-authorized growth feed; rotation adds no polling. */
+.home-log-card{display:flex;flex-direction:column;gap:12px;padding:16px 18px}
+.home-log-preview{display:flex;flex-direction:column;gap:10px;min-height:176px}
+.home-log-author{display:flex;align-items:center;gap:10px;min-width:0}
+.home-log-author .avatar{width:32px;height:32px;font-size:14px}
+.home-log-author > div:last-child{min-width:0;flex:1}
+.home-log-author b{display:block;font-size:14px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-log-author time{display:block;font-size:11px;line-height:1.4;color:var(--ink-2)}
+.home-log-text{margin:0;font-size:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-height:3.3em;overflow:hidden}
+.home-log-open{align-self:flex-start;margin:0;margin-top:auto;padding:4px 0;line-height:1.4}
+.home-log-empty{margin:0;font-size:14px;line-height:1.7}
+.home-log-controls{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.home-log-position,.home-log-speed{font-size:11px;white-space:nowrap}
+.home-log-position{margin-right:auto}
+.home-log-controls button{min-height:40px;padding:6px 10px}
+.home-log-controls button:disabled{opacity:.4;cursor:default}
+.home-log-controls #homeLogPrev,.home-log-controls #homeLogNext{min-width:40px;font-size:20px;line-height:1}
+.post[data-post-key]{scroll-margin-top:84px}
 
 /* today check */
 .today .stack{display:flex;flex-direction:column;gap:12px;margin-top:14px}
@@ -750,6 +769,24 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
         <h1 id="shiText"></h1>
         <div class="meta"><span id="daysLine">志を立てて <b id="daysSince">1</b> 日目<br></span><span id="heroLine">志は、毎日の小さな行動で磨かれる</span></div>
       </div>
+
+      <section class="card home-log-card" id="homeLogCard" aria-roledescription="カルーセル" aria-labelledby="homeLogTitle" hidden>
+        <div class="card-head"><b id="homeLogTitle">成長ログ</b><button type="button" class="small-btn" id="homeLogAll">すべて見る</button></div>
+        <p class="muted home-log-empty" id="homeLogEmpty">読み込んでいます…</p>
+        <article class="home-log-preview" id="homeLogPreview" aria-live="off" hidden>
+          <div class="home-log-author"><div class="avatar" id="homeLogAvatar"></div><div><b id="homeLogName"></b><time id="homeLogTime"></time></div></div>
+          <div class="post-tags" id="homeLogTags"></div>
+          <p class="home-log-text" id="homeLogText"></p>
+          <button type="button" class="link-btn home-log-open" id="homeLogOpen">この投稿を見る →</button>
+        </article>
+        <div class="home-log-controls" id="homeLogControls" hidden>
+          <span class="muted home-log-position" id="homeLogPosition" aria-live="off"></span>
+          <span class="muted home-log-speed" id="homeLogSpeed">2秒ごと</span>
+          <button type="button" class="small-btn" id="homeLogPrev" aria-label="前の投稿">‹</button>
+          <button type="button" class="small-btn" id="homeLogPause">一時停止</button>
+          <button type="button" class="small-btn" id="homeLogNext" aria-label="次の投稿">›</button>
+        </div>
+      </section>
 
       <div class="split">
         <div class="card today">

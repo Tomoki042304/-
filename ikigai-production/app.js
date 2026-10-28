@@ -221,7 +221,7 @@
   // ---------- timeline (成長ログ): each person keeps posts, reactions and comments in posts/<uid> ----------
   const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦'];
   const postCategoriesOf=x=>[...new Set((Array.isArray(x.categories)?x.categories:[x.category]).filter(c=>POST_CATEGORIES.includes(c)))].slice(0,3);
-  let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myCmts=[],postWriting=false,postAgain=false,feedReady=false;
+  let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myCmts=[],postWriting=false,postAgain=false,feedReady=false,homeLogError=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
   const MAX_POSTS=100,MAX_LIKES=500,MAX_CMTS=300;
   function subscribeFeed(){
@@ -235,8 +235,8 @@
         if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
       });
       all.sort((p,q)=>q.at.localeCompare(p.at));cmts.sort((p,q)=>p.at.localeCompare(q.at));
-      feedAll=all;likesAll=likes;cmtsAll=cmts;feedReady=true;renderFeed();
-    },()=>{feedReady=true;renderFeed()});
+      feedAll=all;likesAll=likes;cmtsAll=cmts;feedReady=true;homeLogError=false;renderFeed();
+    },()=>{feedReady=true;homeLogError=true;renderFeed()});
   }
   async function flushPosts(){
     if(postWriting){postAgain=true;return}
@@ -250,7 +250,73 @@
   const FIRE='<svg class="i" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.8 7-7 0-3.5-2.4-6.2-4.2-8.2-.4 2-1.6 3.4-2.8 3.4 0-3-1-6-3.6-8.2C8.6 5.6 5 9 5 14.5 5 18.9 8 22 12 22z"/><path d="M12 22c-1.7 0-3-1.3-3-3.1 0-1.9 1.6-3.3 3-4.9 1.4 1.6 3 3 3 4.9 0 1.8-1.3 3.1-3 3.1z"/></svg>';
   const BUBBLE='<svg class="i" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1 1 21 12z"/></svg>';
   function avatarEl(id,cls){const a=document.createElement('div');a.className='avatar'+(cls?' '+cls:'');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
+  // A two-second preview rotates existing feed data only, never a second network feed.
+  const homeLogCard=$('#homeLogCard'),homeLogMotion=matchMedia('(prefers-reduced-motion: reduce)');
+  const HOME_LOG_INTERVAL=2000;
+  let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogInView=!('IntersectionObserver' in window);
+  const homeLogKey=x=>x?x.uid+':'+x.id:'';
+  function homeLogCanRun(){
+    return !!homeLogCard&&!homeLogCard.hidden&&!$('#app').hidden&&!$('#v-home').hidden
+      &&document.visibilityState==='visible'&&backend==='cloud'&&!pending()&&!homeLogError
+      &&homeLogItems.length>1&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&homeLogInView;
+  }
+  function stopHomeLogTimer(){clearTimeout(homeLogTimer);homeLogTimer=0}
+  function syncHomeLogTimer(reset=false){
+    if(reset||!homeLogCanRun())stopHomeLogTimer();
+    if(!homeLogCanRun()||homeLogTimer)return;
+    homeLogTimer=setTimeout(()=>{homeLogTimer=0;if(homeLogCanRun()){homeLogIndex=(homeLogIndex+1)%homeLogItems.length;paintHomeLog(true);syncHomeLogTimer()}},HOME_LOG_INTERVAL);
+  }
+  function paintHomeLog(animate=false){
+    if(!homeLogCard)return;
+    const x=homeLogItems[homeLogIndex];if(!x)return;
+    const name=nameOf(x.uid),av=$('#homeLogAvatar');av.style.backgroundColor=colorOf(x.uid);av.setAttribute('role','img');av.setAttribute('aria-label',name+'のプロフィール');paintAvatar(av,avatarOf(x.uid),name);
+    $('#homeLogName').textContent=name;$('#homeLogTime').textContent=postTimeText(x.at);$('#homeLogTime').dateTime=x.at;
+    $('#homeLogText').textContent=x.text;
+    const tags=$('#homeLogTags');tags.replaceChildren();postCategoriesOf(x).forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
+    $('#homeLogPosition').textContent=`${homeLogIndex+1} / ${homeLogItems.length}`;
+    $('#homeLogPrev').disabled=$('#homeLogNext').disabled=homeLogItems.length<2;
+    $('#homeLogPause').hidden=$('#homeLogSpeed').hidden=homeLogItems.length<2;
+    $('#homeLogPause').textContent=homeLogPaused?'自動再生':'一時停止';$('#homeLogPause').setAttribute('aria-label',homeLogPaused?'投稿の自動切り替えを再生':'投稿の自動切り替えを一時停止');
+    const preview=$('#homeLogPreview');preview.dataset.postKey=homeLogKey(x);
+    if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function')preview.animate([{opacity:.35,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],{duration:180,easing:'ease-out'});
+  }
+  function renderHomeLog(){
+    if(!homeLogCard)return;
+    const allowed=backend==='cloud'&&!!uid&&!pending();homeLogCard.hidden=!allowed;
+    const previous=homeLogItems[homeLogIndex],first=homeLogKey(homeLogItems[0]);
+    if(!allowed||!feedReady||homeLogError||!feedAll.length){
+      homeLogItems=[];homeLogIndex=0;stopHomeLogTimer();$('#homeLogPreview').hidden=true;$('#homeLogControls').hidden=true;
+      $('#homeLogText').textContent='';$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
+      $('#homeLogEmpty').hidden=!allowed;$('#homeLogEmpty').textContent=!feedReady?'読み込んでいます…':homeLogError?'投稿を取得できませんでした。通信状況を確認してください。':'まだ成長ログの投稿はありません。';return;
+    }
+    homeLogItems=feedAll.slice(0,10);
+    const selected=homeLogItems.findIndex(x=>homeLogKey(x)===homeLogKey(previous));
+    const fresh=first!==homeLogKey(homeLogItems[0])&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused;
+    homeLogIndex=selected<0||fresh?0:selected;
+    $('#homeLogEmpty').hidden=true;$('#homeLogPreview').hidden=false;$('#homeLogControls').hidden=false;
+    paintHomeLog();syncHomeLogTimer(homeLogKey(previous)!==homeLogKey(homeLogItems[homeLogIndex])||previous?.text!==homeLogItems[homeLogIndex].text);
+  }
+  function openHomeLog(key){
+    if(backend!=='cloud'||pending())return;
+    tlQuery='';tlMine=false;$('#tlSearch').value='';$('#tlMine').setAttribute('aria-pressed','false');go('timeline');
+    if(key){const post=[...document.querySelectorAll('#feed [data-post-key]')].find(x=>x.dataset.postKey===key);if(post){post.tabIndex=-1;post.focus({preventScroll:true});post.scrollIntoView({behavior:homeLogMotion.matches?'auto':'smooth',block:'start'})}}
+  }
+  if(homeLogCard){
+    $('#homeLogAll').onclick=()=>openHomeLog();$('#homeLogOpen').onclick=()=>openHomeLog(homeLogKey(homeLogItems[homeLogIndex]));
+    $('#homeLogPause').onclick=()=>{homeLogPaused=!homeLogPaused;if(!homeLogPaused){homeLogFocusPaused=false;homeLogHover=false}paintHomeLog();syncHomeLogTimer(true)};
+    const step=n=>{if(homeLogItems.length<2)return;homeLogPaused=true;homeLogIndex=(homeLogIndex+n+homeLogItems.length)%homeLogItems.length;paintHomeLog();syncHomeLogTimer(true)};
+    $('#homeLogPrev').onclick=()=>step(-1);$('#homeLogNext').onclick=()=>step(1);
+    homeLogCard.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){homeLogHover=true;syncHomeLogTimer()}});
+    homeLogCard.addEventListener('pointerleave',()=>{homeLogHover=false;syncHomeLogTimer(true)});
+    homeLogCard.addEventListener('focusin',()=>{homeLogFocusPaused=true;syncHomeLogTimer()});homeLogCard.addEventListener('focusout',()=>setTimeout(()=>{if(!homeLogCard.contains(document.activeElement))homeLogFocusPaused=false;syncHomeLogTimer(true)},0));
+    if('IntersectionObserver' in window)new IntersectionObserver(entries=>{homeLogInView=entries[0].isIntersecting&&entries[0].intersectionRatio>=.1;syncHomeLogTimer(true)},{threshold:.1}).observe(homeLogCard);
+    const motionChanged=e=>{if(e.matches)homeLogPaused=true;paintHomeLog();syncHomeLogTimer(true)};
+    if(homeLogMotion.addEventListener)homeLogMotion.addEventListener('change',motionChanged);else if(homeLogMotion.addListener)homeLogMotion.addListener(motionChanged);
+    document.addEventListener('visibilitychange',()=>syncHomeLogTimer(true));addEventListener('pagehide',stopHomeLogTimer);addEventListener('pageshow',()=>syncHomeLogTimer(true));
+  }
+
   function renderFeed(){
+    renderHomeLog();
     const box=$('#feed');
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
     if(backend!=='cloud'){box.innerHTML=`<div class="card empty"><b style="color:var(--ink)">成長ログはまだ使えません</b>ログインすると、仲間の投稿が見られます。</div>`;return}
@@ -265,7 +331,7 @@
     list.slice(0,100).forEach(x=>{
       const key=x.uid+':'+x.id,fires=likesAll.filter(l=>l.key===key).length,mine=myLikes.includes(key);
       const cs=cmtsAll.filter(c=>c.key===key),open=openCmts.has(key);
-      const el=document.createElement('article');el.className='card post';
+      const el=document.createElement('article');el.className='card post';el.dataset.postKey=key;
       el.innerHTML=`<div class="head"><div><b></b><span></span></div></div><p class="text"></p>
         <div class="acts"><button type="button" class="react cheer" data-like="${esc(key)}" aria-pressed="${mine}" aria-label="応援する"><span class="emo" aria-hidden="true">💪</span><span>${fires}</span></button><button type="button" class="react" data-cmt="${esc(key)}" aria-pressed="${open}" aria-label="コメント">${BUBBLE}<span>${cs.length}</span></button>${x.uid===uid?`<button type="button" class="del-post" data-del-post="${esc(x.id)}">削除</button>`:''}</div>`;
       el.querySelector('.head').prepend(avatarEl(x.uid));
@@ -587,6 +653,7 @@
   // 365 short lines under the aspiration, one for each day of the year (same for everyone on that date)
   const HERO_LINES=["志は、毎日の小さな行動で磨かれる", "今日の一歩が、未来の自分をつくる", "昨日の自分を、ほんの少し越えていこう", "続けた日々が、いちばんの自信になる", "迷ったら、志に立ち返ればいい", "小さな約束を守ることから、始めよう", "仲間がいるから、もう一歩進める", "朝の過ごし方が、一日を決める", "できなかった日も、また今日から", "想いは、行動にしてはじめて伝わる", "今日できることを、今日のうちに", "志を語れる人は、強くなれる", "感謝を伝えると、自分も前に進める", "積み重ねは、裏切らない", "始めるのに、遅すぎることはない", "完璧より、まず一歩", "一日一歩、三日で三歩", "失敗は、挑戦した人だけの勲章", "焦らず、腐らず、諦めず", "笑顔は、いちばん近くの人を明るくする", "自分との約束を、いちばん大切に", "未来は、今日の選択の先にある", "やると決めたら、もう半分できている", "「ありがとう」は、何度言ってもいい", "早起きは、自分への最初の贈り物", "深呼吸ひとつで、心は整う", "誰かの挑戦を、全力で応援しよう", "今日の自分に、花丸をあげよう", "小さな勝ちを、積み上げていこう", "夢は、言葉にすると近づいてくる", "目の前の一人を、大切にしよう", "悩んだ時間も、ちゃんと力になっている", "変われるのは、いつだって今日から", "行動は、不安を小さくする", "朝日を浴びて、心をリセット", "目標は、紙に書くと動き出す", "できる理由を、探してみよう", "自分の機嫌は、自分でとる", "一流は、準備で決まる", "迷うなら、ワクワクする方へ", "人の良いところを、ひとつ見つけよう", "今日は、昨日の続きじゃない", "小さな習慣が、大きな人生をつくる", "一度決めたら、まず七日続けよう", "ゆっくりでも、止まらなければいい", "挑戦する人は、いつも美しい", "「できた」を数えて、眠りにつこう", "言い訳より、工夫をひとつ", "自分を信じる力は、行動から生まれる", "今日会う人に、元気を届けよう", "限界は、思い込みのことが多い", "志が、迷いを晴らしてくれる", "小さな親切が、世界を変える", "学ぶことを、楽しもう", "疲れたら、休むことも前進", "本気の人に、本気の仲間が集まる", "やりたいことを、ひとつ口に出そう", "朝の静けさは、考える時間", "今日の努力は、明日の余裕になる", "背伸びした分だけ、背は伸びる", "誰かのために動くと、力が湧く", "できないことより、できることを", "今日一日を、丁寧に生きよう", "自分のペースで、自分の道を", "思い立った日が、吉日", "大切なことは、いつもシンプル", "苦手なことにも、一度向き合ってみよう", "言葉を変えると、行動が変わる", "いい一日は、いい朝から", "人と比べず、昨日と比べる", "挑んだ分だけ、景色は変わる", "続ける人が、最後に笑う", "一歩を小さくすれば、必ず進める", "気づいたら、すぐやってみよう", "仲間の成功を、自分のことのように喜ぼう", "感情に名前をつけると、心が落ち着く", "やる気は、動いてから湧いてくる", "今日を、誰かの記念日にしよう", "信頼は、小さな約束の積み重ね", "失敗から学べば、それは経験になる", "心が動いたら、それが答え", "朝の一杯の水から、始めよう", "自分に優しく、目標には厳しく", "変化を、楽しんでみよう", "感謝できることを、三つ数えよう", "誰かの「ありがとう」を、集めにいこう", "小さな成功体験が、自信を育てる", "目標を、仲間に宣言しよう", "迷った時は、原点を思い出そう", "今日の自分が、一番若い", "できることを、できるだけ", "本気で生きると、毎日が楽しい", "人を笑顔にした数が、豊かさになる", "休む勇気も、持っていよう", "変わらない毎日に、小さな変化を", "今日の積み重ねが、一年後の自分", "話すより、まず聴いてみよう", "好きなことに、夢中になろう", "決断は、早いほど身軽になる", "まずやってみて、あとで整える", "自分の言葉で、志を語ろう", "小さな挑戦を、ひとつ選ぼう", "誰かと比べるより、昨日より一歩", "困った時ほど、笑ってみよう", "今日の学びを、ひとつ持ち帰ろう", "時間は、未来の自分への投資", "一緒に頑張れる仲間は、宝物", "人の話に、最後まで耳を傾けよう", "やり切った日は、よく眠れる", "あきらめなければ、それは途中", "朝の宣言で、一日のスイッチを入れよう", "前を向けば、道は見えてくる", "自分の可能性に、ふたをしない", "今日も、自分を応援しよう", "目標までの距離より、進んだ距離を見よう", "気持ちのいい挨拶から、始めよう", "誰かの一歩を、そっと後押ししよう", "悔しさは、伸びしろのサイン", "集中する時間を、ひとつ作ろう", "心に余白を、つくっておこう", "周りの人は、自分を映す鏡", "感謝は、心を強くする", "できない日があっても、大丈夫", "自分らしさは、続けた先に見つかる", "今日の一言が、誰かを救うかもしれない", "未来の自分に、胸を張れる選択を", "挑戦の数だけ、物語が生まれる", "小さな「やった」を、大切に", "人を信じることから、始めよう", "迷いながらでも、進めばいい", "自分の決めたことを、やり抜こう", "朝の時間は、自分だけのもの", "知ることは、楽しい", "動けば、何かが変わる", "今日は、新しい自分に出会う日", "誰かの頑張りに、気づける人に", "一日の終わりに、自分をほめよう", "まっすぐな想いは、必ず届く", "困難は、成長の入口", "今日の汗が、明日の笑顔になる", "ひとりで抱えず、仲間に頼ろう", "ゴールを思い描いて、今日を始めよう", "言葉にした目標は、もう動き出している", "やさしさは、強さのひとつ", "新しいことを、ひとつ試してみよう", "人の役に立てた日は、心が温かい", "自分の成長を、楽しもう", "目の前のことに、全力で", "今日の自分を、信じてみよう", "笑顔で過ごせば、運も味方する", "転んでも、起き上がればいい", "大事なのは、続けること", "朝のひと工夫が、一日を軽くする", "挑戦しない後悔より、挑戦した経験を", "今日も、志とともに", "人とのご縁を、大切に", "「どうせ」を「せっかく」に変えよう", "やってみたら、意外とできる", "今日の小さな前進を、祝おう", "未来は、自分の手でつくれる", "迷わず、まず手を動かそう", "仲間の言葉に、背中を押してもらおう", "深く考えるより、一歩踏み出そう", "自分の強みを、ひとつ活かそう", "誰かの役に立つことが、生きがいになる", "朝の空気を、胸いっぱいに", "継続は、才能を超えていく", "自分の心の声を、聴いてみよう", "大きな夢も、小さな一歩から", "今日は、昨日よりいい日にしよう", "人生は、選択の積み重ね", "相手の立場で、考えてみよう", "自分の時間を、大切に使おう", "仲間と分かち合うと、喜びは倍になる", "目標は、高くていい", "できたことを、仲間に伝えよう", "悩みは、言葉にすると軽くなる", "今この瞬間を、大切に", "朝の決意を、夜まで持ち続けよう", "誰かのお手本になる一日を", "苦しい時こそ、志を思い出そう", "今日の挑戦が、明日の当たり前になる", "人は、何度でもやり直せる", "いい言葉を、口ぐせにしよう", "ていねいな仕事は、人の心に残る", "自分を大切にできる人は、人も大切にできる", "一日をふり返る時間を、持とう", "小さな改善を、毎日続けよう", "感動したことを、誰かに話そう", "今日の自分を、未来の自分が見ている", "迷ったら、誠実な方を選ぼう", "やりたいことを、後回しにしない", "仲間の存在が、続ける力になる", "自分の機嫌が、周りの空気をつくる", "どんな日も、学びがある", "朝の一歩が、人生の一歩", "勇気は、使うほど大きくなる", "周りに感謝できる人は、伸び続ける", "まずは、五分だけやってみよう", "自分の言葉に、責任を持とう", "今日の目標を、ひとつに絞ろう", "人の喜ぶ顔を、思い浮かべよう", "積み重ねた日々が、志を形にする", "自分にできる最善を、今日も", "過去は変えられない、未来はつくれる", "休んだら、また歩き出せばいい", "人の挑戦を、笑わない人でいよう", "今日は、何に挑戦しよう", "うまくいかない日も、意味がある", "目標を、毎朝見直そう", "感謝の気持ちを、行動で示そう", "自分を変えたいなら、習慣を変えよう", "笑顔の多い人に、人は集まる", "本気で向き合えば、必ず伝わる", "今日の一日に、意味を見つけよう", "新しい朝に、新しい気持ちで", "やると決めた自分を、誇りに思おう", "相手を認めると、自分も認められる", "小さな約束を、今日も守ろう", "朝の宣言は、未来への約束", "迷う時間を、動く時間に", "今日のがんばりは、誰かが見ている", "ひとつの行動が、流れを変える", "仲間と共に、昨日の自分を越えよう", "自分の人生の、主人公になろう", "ゆずれない想いを、持ち続けよう", "できるまで、やってみよう", "今日も、誰かの力になろう", "朝の一言で、チームの空気は変わる", "自分を信じて、もう一歩", "大切な人に、想いを伝えよう", "楽しむ人が、いちばん強い", "一歩踏み出せば、景色が変わる", "自分の成長は、自分で決められる", "今日の選択に、誇りを持とう", "誰かのために、時間を使ってみよう", "目標を、声に出して読んでみよう", "小さなことにも、全力で", "困っている人に、声をかけよう", "朝の光は、新しい始まりの合図", "心が折れそうな日は、仲間を頼ろう", "すぐにできることから、始めよう", "自分の弱さも、受け入れよう", "今日の出会いに、感謝しよう", "続けていれば、道は開ける", "人を責めるより、仕組みを見直そう", "言葉は、未来をつくる種", "今日できた小さな成長を、喜ぼう", "自分の想いに、正直に生きよう", "ひとつずつ、着実に", "今日も、志を胸に一日を", "人の話から、学べることは多い", "迷ったら、未来の自分に聞いてみよう", "朝の時間を、味方につけよう", "期待されるより、期待を超えよう", "失敗を恐れず、まず試そう", "誰かを応援すると、自分も元気になる", "今日の行動が、信頼をつくる", "心を込めて、仕事をしよう", "自分の可能性は、まだまだある", "仲間がいるから、続けられる", "目標に向かう毎日が、楽しい", "今日の「ありがとう」を、増やそう", "変わる勇気を、持とう", "朝の静かな時間に、志を確かめよう", "一つの成功は、多くの挑戦の上にある", "人のせいにしない強さを", "今日の課題に、正面から向き合おう", "自分の言葉で、誰かを励まそう", "できることを増やす喜びを", "今日の一日を、楽しみきろう", "困難も、仲間となら乗り越えられる", "朝の決断が、一日の質を決める", "目の前のことを、ていねいに", "挑戦し続ける自分で、いよう", "人の成長を、喜べる人に", "今日も、あなたらしく", "小さな気づきを、大切にしよう", "目標がある毎日は、輝いている", "感謝を忘れない人で、いよう", "やらない理由より、やる理由を", "朝の一歩を、軽やかに", "自分を磨く時間を、つくろう", "人とのつながりが、力になる", "今日のひと手間が、未来を変える", "迷いは、真剣に生きている証", "誰かの夢を、笑わずに聴こう", "自分で決めた道を、歩こう", "今日の自分に、できる限りを", "朝の約束を、守り抜こう", "悔いのない一日を、送ろう", "仲間と見る景色は、格別", "自分の心に、火をともそう", "一歩ずつでも、確かに前へ", "今日も、新しい自分を楽しもう", "人の想いを、受け取れる人に", "目標までの道のりを、楽しもう", "朝の空を、見上げてみよう", "小さな勇気を、出してみよう", "自分の役割に、誇りを持とう", "今日学んだことを、誰かに伝えよう", "周りを明るくする一言を", "挑戦を、楽しめる人に", "今日の自分に、ありがとう", "未来の仲間のために、今日を生きよう", "志ある一日を、今日も", "朝が来るたび、人は生まれ変われる", "続けてきた自分を、信じよう", "人を思いやる気持ちを、行動に", "今日も、一歩ずつ", "大きな一歩より、確かな一歩", "自分の可能性を、広げていこう", "仲間とともに、最高の朝を", "今日という日は、二度と来ない", "想いを、ひとつ形にしよう", "迷ったら、仲間に相談しよう", "朝の時間に、未来を描こう", "できた自分を、ちゃんと認めよう", "人の良さを、言葉にして伝えよう", "今日の挑戦を、楽しもう", "志を持つ人は、何度でも立ち上がれる", "一年後の自分に、恥じない今日を", "小さな積み重ねが、大きな自信に", "今日も、最高の朝を", "根っこが育つ時期は、外からは見えない", "今日の自分に、ひとつだけ宿題を", "良い習慣は、良い仲間から", "声をかけた分だけ、つながりは深まる", "昨日の反省は、今日の作戦", "自分の「好き」を、大切に育てよう", "やる前の不安は、やった後の自信に変わる", "朝の五分が、夜の満足をつくる", "ひとつの学びを、明日に活かそう", "誰かの背中が、誰かの勇気になる", "いまの頑張りに、未来がうなずいている", "目標は、分ければ届く", "大切な人の顔を、思い浮かべて動こう", "今日のテーマを、ひとつ決めよう", "喜びは、分けると増えていく", "本当にやりたいことに、時間を使おう", "できない自分も、伸びていく途中", "たまには、遠回りも悪くない", "明るい言葉は、明るい未来を呼ぶ", "自分の歩幅で、歩いていこう", "手を動かすと、心もついてくる", "誰かを想う朝は、力が湧く", "あの日の決意を、思い出そう", "今日の一日に、小さな冒険を", "信じて待つことも、ひとつの強さ", "自分との対話を、大切に", "目標を思うだけで、胸が高鳴る日を", "小さな一歩も、続ければ旅になる", "頼ることは、弱さじゃない", "今日も、心のこもった挨拶を", "夢中になれることが、ある幸せ", "悩んだら、紙に書き出してみよう", "一緒に笑える仲間に、感謝を", "自分の約束が、自分をつくる", "今日の選択が、明日の自分を連れてくる", "少しの勇気で、世界は広がる", "誰かのひと言を、宝物にしよう", "今日は、どんな自分でいたいだろう", "磨いた分だけ、志は光る", "ひと区切りついたら、自分をねぎらおう", "明日の朝が、楽しみになる夜を"];
   function renderHome(){
+    renderHomeLog();
     { // day of the year (0–364; Dec 31 of a leap year wraps to the first line) → a different line every day
       const doy=Math.round((TODAY-new Date(TODAY.getFullYear(),0,1))/864e5);
       void doy;   // the daily lines are kept in HERO_LINES; this spot now shows the final goal
@@ -1199,7 +1266,7 @@
   const curtain=(()=>{
     const sp=$('#splash');let minDone=false,ready=false,gone=false;
     const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const leave=cls=>{if(gone)return;gone=true;sp.classList.add(cls)};
+    const leave=cls=>{if(gone)return;gone=true;if(reduce)sp.hidden=true;else sp.classList.add(cls)};
     sp.addEventListener('animationend',e=>{if(e.animationName==='spOut')sp.hidden=true});
     sp.addEventListener('click',()=>{if(ready)leave('skip');else minDone=true});
     setTimeout(()=>{minDone=true;if(ready)leave('out')},reduce?1200:2600);
@@ -1356,6 +1423,8 @@
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
     if(tab==='mates'){renderChat.stick=true;renderChat()}
+    if(tab==='home')renderHomeLog();
+    syncHomeLogTimer(true);
     window.scrollTo(0,0);
     if(tab!=='account')pushNav({v:tab,a:tab==='rfview'?rfOpenId:undefined});
   }
