@@ -55,8 +55,18 @@ export async function onRequest({request, env}) {
     try{result=await env.AI.run(MODEL,{messages:[{role:'system',content:system},...messages],max_tokens:600,temperature:0.6})}
     catch(error){
       const status=Number(error?.status||error?.statusCode),detail=String(error?.message||'');
+      // Record only the provider error, with submitted content and credentials removed.
+      let diagnostic=detail;
+      const privateValues=[auth,auth.slice(7),PUBLIC_KEY,input.context,system,...messages.map(m=>m.content)].filter(v=>typeof v==='string'&&v);
+      for(const value of privateValues.sort((a,b)=>b.length-a.length)){
+        diagnostic=diagnostic.split(value).join('[redacted]');
+        diagnostic=diagnostic.split(JSON.stringify(value).slice(1,-1)).join('[redacted]');
+      }
+      diagnostic=diagnostic.replace(/Bearer\s+[^\s"']+/gi,'Bearer [redacted]').replace(/https?:\/\/[^\s"']+/gi,'[url]').replace(/[\r\n\t]+/g,' ').slice(0,700);
+      const numericCode=String(error?.code||'').match(/^\d{3,6}$/)?.[0]||detail.match(/(?:^|\b)(\d{4,5})\s*:/)?.[1]||'';
+      console.error('SHIN_AI_DIAGNOSTIC',JSON.stringify({stage:'provider',model:MODEL,status:Number.isFinite(status)?status:null,code:numericCode,message:diagnostic}));
       const limited=status===429||/quota|daily.*limit|neurons.*limit|too many requests|rate.?limit/i.test(detail);
-      const rawCode=String(error?.code||''),providerCode=/^[0-9]{3,6}$/.test(rawCode)?' / '+rawCode:'';
+      const providerCode=numericCode?' / '+numericCode:'';
       return answer(limited?429:503,limited?'SHIN_AI_LIMIT':'SHIN_AI_PROVIDER',limited?'AIの利用上限に達しています。（SHIN_AI_LIMIT）時間を置いてお試しください。':'AIの応答でエラーが発生しました。（SHIN_AI_PROVIDER'+providerCode+'）管理者にこのコードをお知らせください。');
     }
     const text=result?.response;
