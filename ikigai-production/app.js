@@ -1607,7 +1607,7 @@
   function scheduleDayClock(){
     clearTimeout(dayTimer);
     const nextMidnight=Date.parse(japanDayKey()+'T00:00:00+09:00')+86400000;
-    dayTimer=setTimeout(()=>{refreshDayClock();scheduleDayClock()},Math.max(50,nextMidnight-Date.now()+30));
+    dayTimer=setTimeout(()=>{refreshDayClock();scheduleDayClock()},Math.max(1,nextMidnight-Date.now()));
   }
   function resumeDayClock(){refreshDayClock();scheduleDayClock()}
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resumeDayClock()});
