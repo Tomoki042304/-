@@ -519,7 +519,7 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 .buddy[aria-pressed="true"] .avatar{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--gold)}
 .buddy span{font-size:11px;color:var(--ink);max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .buddy b{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--gold);letter-spacing:.08em}
-.chat-log{display:flex;flex-direction:column;gap:8px;height:clamp(320px,calc(100svh - 274px),720px);min-height:320px;overflow-y:auto;overscroll-behavior-y:contain;padding:12px 9px;background:#1a1a1a;border:0;border-radius:0;box-shadow:none}
+.chat-log{display:flex;flex-direction:column;gap:8px;height:clamp(320px,calc(100svh - 274px),720px);min-height:320px;overflow-y:auto;overscroll-behavior-y:contain;padding:12px 9px;background:#F3E6E9;border:0;border-radius:0;box-shadow:none}
 .chat-day{align-self:center;font-size:11px;color:#fff;background:rgba(95,21,38,.28);border-radius:99px;padding:2px 12px;margin:4px 0}
 .msg{display:flex;gap:6px;align-items:flex-start;flex:none}
 .msg.cont{margin-top:-2px}
@@ -621,44 +621,9 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 .give-btn[aria-pressed="true"]{background:var(--gold);color:#fff}
 .send-btn{width:40px;height:40px;border-radius:50%;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none}
 .send-btn svg{width:18px;height:18px}
-/* Dark conversation palette; the rest of the app keeps its academy colors. */
-#chatLog .msg .bubble{background:#2a2a2a;color:#fff}
-#chatLog .msg.first:not(.me) .bubble::before{background:#2a2a2a}
-#chatLog .msg.me .bubble,#chatLog .msg.first.me .bubble::before{background:#7a1f33;color:#fff}
-#chatLog .msg .from,#chatLog .msg .line time,#chatLog .msg .line .read{color:#a0a0a0}
-#chatLog .chat-day,#chatLog .chat-sys{background:#333;color:#ddd}
-#chatLog .msg .bubble.give{border-color:#555}
-#chatLog .bubble .gto{color:#e6cc8f}
-#chatLog .empty,#chatLog .empty b{color:#ccc!important}
-#mtChat .composer{background:#111;box-shadow:0 -1px 0 #303030}
-#mtChat .comp-row textarea{background:#222;color:#fff;border-color:#383838;caret-color:#fff;color-scheme:dark}
-#mtChat .comp-row textarea::placeholder{color:#999;opacity:1}
-/* One restrained palette while the talk screen is visible. */
-body:has(#app:not([hidden]) #v-mates:not([hidden])){--bg:#1a1a1a;--surface:#1a1a1a;--surface-2:#262626;--ink:#f4f4f4;--ink-2:#aaa;--line:#353535;--accent-soft:#302329;--gold:#c9c9c9;--gold-soft:#292929;color-scheme:dark}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) header.top{background:#1a1a1a;border-bottom-color:#303030}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) .brand .mark{color:#eee}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) .brand .sub{color:#aaa}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) .navbtns button,body:has(#app:not([hidden]) #v-mates:not([hidden])) .bell{color:#ddd}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) .navbtns button:disabled{color:#626262}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) main{padding-top:12px;padding-bottom:90px}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs{background:#1a1a1a;border-top-color:#353535}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button{color:#aaa}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button[aria-current="page"]{color:#fff}
-body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button[aria-current="page"]::before{background:#a7435e}
+/* Keep the current conversation sizing while using the original light colors. */
 #v-mates .talk-about-head .view-title{font-family:var(--font-sans);font-size:17px;font-weight:600;letter-spacing:.02em}
-#v-mates #talkAboutToggle{width:36px;height:36px;font-size:22px;background:#262626;border-color:#444;color:#ddd}
-#v-mates .talk-desc::before{background:#555}
-#v-mates .talk-desc p,#v-mates .talk-desc .cta{color:#bbb}
-#v-mates .talk-desc .lead{color:#eee}
-#chatLog .bubble .gto{color:#ccc}
-#chatLog .msg .avatar{background-color:#454545!important;color:#eee}
-#chatLog .chat-day,#chatLog .chat-sys{background:#292929;color:#bcbcbc}
-#chatLog .unsend-menu button{background:#292929;border-color:#555;color:#eee}
-#chatLog .unsend-menu button[data-unsend]{color:#efb8c6;border-color:#895366}
-#mtChat .composer{background:#1a1a1a;box-shadow:0 -1px 0 #303030;padding-block:12px}
-#mtChat .comp-row textarea{background:#292929;border-color:#3a3a3a}
-#mtChat .send-btn{background:#7a1f33;color:#fff}
-#mtChat .give-to{color:#bbb}
+#v-mates #talkAboutToggle{width:36px;height:36px;font-size:22px}
 .seg3{grid-template-columns:repeat(3,1fr)}
 .seg3 button{font-size:13px;padding:8px 4px}
 .give-to{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink-2)}
@@ -775,8 +740,6 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 .view > .view-title,.youtube-heading h1{color:#f4f4f4}
 .view > .back-link{color:#e8bbc6}
 .youtube-heading p,.youtube-status,.youtube-note,.youtube-note a{color:#bcbcbc}
-/* Keep conversation surfaces dark, including its enclosing card. */
-#v-mates > .card:first-child{--surface:#1a1a1a;--surface-2:#262626;--ink:#f4f4f4;--ink-2:#aaa;--line:#353535;--gold:#c9c9c9;--gold-soft:#292929;--accent-soft:#302329;background:#1a1a1a;color:#f4f4f4;color-scheme:dark}
 </style>
 
 <style>
@@ -787,6 +750,22 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
 .registered-channels{display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto}
 .registered-channel{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:10px;min-width:0}
 .registered-channel a{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--ink);font-size:14px}
+</style>
+
+<style id="original-light-talk">
+/* Only the talk view returns to the original academy palette. */
+body:has(#app:not([hidden]) #v-mates:not([hidden])){--bg:#fff;--surface:#fff;--surface-2:#faf3f4;--ink:#2b1418;--ink-2:#7a6266;--line:#ecdfe1;--gold:#9c3348;--gold-soft:#f8e8eb;--accent-soft:#f5e4e7;background:#fff;color:#2b1418;color-scheme:light}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) header.top,body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs{background:#fff;border-color:#ecdfe1}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .brand .mark,body:has(#app:not([hidden]) #v-mates:not([hidden])) .brand .sub{color:#9c3348}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .navbtns button,body:has(#app:not([hidden]) #v-mates:not([hidden])) .bell{color:#7a1f33}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) .navbtns button:disabled{color:#cbbdc0}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button{color:#7a6266}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button[aria-current="page"]{color:#7a1f33}
+body:has(#app:not([hidden]) #v-mates:not([hidden])) nav.tabs button[aria-current="page"]::before{background:#7a1f33}
+#v-mates > .card:first-child{--line:#ecdfe1}
+#chatLog{background:#F3E6E9}
+#v-mates .view-title{color:#2b1418}
+#v-mates #talkAboutToggle{background:#fff;border-color:#ecdfe1;color:#7a1f33}
 </style>
 </head>
 <body>
