@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>IKIGAI</title>
 <meta name="description" content="志ある仲間と、最高な朝を。IKIGAIアカデミーのメンバーアプリ">
-<meta name="theme-color" content="#5F1526">
+<meta name="theme-color" content="#1a1a1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="IKIGAI">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
@@ -755,6 +755,32 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
 .mig-list{margin:0;padding-left:1.2em;color:var(--ink);line-height:1.9}
 .ghost.warn{border-color:var(--danger);color:var(--danger)}
 .env-badge{position:fixed;right:8px;top:calc(6px + env(safe-area-inset-top));opacity:.92;z-index:9999;padding:4px 10px;border-radius:999px;background:#1f6f43;color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+</style>
+
+<style id="charcoal-shell-theme">
+/* Charcoal shell with white, softly outlined content cards. */
+:root{--bg:#1a1a1a;--surface:#1a1a1a;--surface-2:#262626;--ink:#f4f4f4;--ink-2:#bcbcbc;--line:#383838;--gold:#eee;--gold-soft:#292929;--accent-soft:#302329;color-scheme:dark}
+body{background:#1a1a1a}
+body::before,header.top,nav.tabs{background:#1a1a1a}
+header.top,nav.tabs{border-color:#383838}
+.brand .mark{color:#f4f4f4}.brand .sub{color:#bcbcbc}
+.navbtns button,.bell{color:#eee}.navbtns button:disabled{color:#666}
+nav.tabs button{color:#bcbcbc}
+nav.tabs button[aria-current="page"]{color:#b54462}
+nav.tabs button[aria-current="page"]::before{background:#b54462}
+/* Reset inherited colors inside every white content surface. */
+.card,.tile,.menu button,.write-btn,.youtube-card{
+ --surface:#fff;--surface-2:#faf3f4;--ink:#2b1418;--ink-2:#7a6266;--line:#dedede;
+ --gold:#9c3348;--gold-soft:#f8e8eb;--accent-soft:#f5e4e7;
+ background:#fff;color:var(--ink);border-color:#d7d7d7;box-shadow:none;color-scheme:light
+}
+.hero{border:1px solid #383838;box-shadow:none}
+.view > .view-title,.youtube-heading h1{color:#f4f4f4}
+.view > .back-link{color:#e8bbc6}
+.youtube-heading p,.youtube-status,.youtube-note,.youtube-note a{color:#bcbcbc}
+.youtube-topics button[aria-pressed="true"]{color:#fff}
+/* Keep conversation surfaces dark, including its enclosing card. */
+#v-mates > .card:first-child{--surface:#1a1a1a;--surface-2:#262626;--ink:#f4f4f4;--ink-2:#aaa;--line:#353535;--gold:#c9c9c9;--gold-soft:#292929;--accent-soft:#302329;background:#1a1a1a;color:#f4f4f4;color-scheme:dark}
 </style>
 </head>
 <body>
