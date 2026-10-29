@@ -1,6 +1,6 @@
 // Offline shell for the installed app. Pages and scripts: network first (so updates show up),
 // falling back to the cached copy when offline. Firebase / Supabase traffic is never cached here.
-const CACHE = "ikigai-v28-private-receipts";
+const CACHE = "ikigai-v29-admin-members";
 const SHELL = ["./", "index.html", "main-supabase.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 // local test settings and the test-only panel: always fetched fresh and never stored

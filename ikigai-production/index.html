@@ -50,6 +50,10 @@ img{max-width:100%}
 #adminMembersDetails > summary .channel-expand::before{content:"↓"}
 #adminMembersDetails[open] > summary .channel-expand::before{content:"↑"}
 #adminMembersDetails .admin-filters{grid-template-columns:1fr}
+.admin-roster-switches{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.admin-roster-switches button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:56px;padding:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;font-size:14px;text-align:left}
+.admin-roster-switches button span{font-size:24px;line-height:1}.admin-roster-switches button[aria-expanded=true]{border-color:var(--accent);color:var(--accent)}
+#adminMembersDetails:not([open]){display:none}#adminMembersDetails > summary[hidden]{display:none}
 </style>
 <style>
 /* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */
@@ -1332,8 +1336,12 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           </details>
         </form>
 
-        <details class="card" id="adminMembersDetails"><summary class="channel-summary"><b>メンバー一覧</b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px">
-          <div class="card-head"><b>在籍メンバー</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
+        <div class="admin-roster-switches">
+          <button type="button" id="adminChecksToggle" data-admin-mode="checks" aria-expanded="false" aria-controls="adminMembersDetails"><b>行動チェック</b><span aria-hidden="true">＋</span></button>
+          <button type="button" id="adminPeopleToggle" data-admin-mode="members" aria-expanded="false" aria-controls="adminMembersDetails"><b>メンバー情報</b><span aria-hidden="true">＋</span></button>
+        </div>
+        <details class="card" id="adminMembersDetails"><summary hidden>管理者一覧</summary><div class="admin-panel" style="margin-top:14px">
+          <div class="card-head"><b id="adminRosterTitle">行動チェック</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
           <p class="muted" id="adminCheckDay"></p>
           <p id="adminSummary" role="status" aria-live="polite">読み込んでいます…</p>
           <div class="admin-filters">
