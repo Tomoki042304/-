@@ -440,7 +440,7 @@
   $('#feed').addEventListener('submit',e=>{
     const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();
     const input=f.querySelector('input'),text=input.value.trim();if(!text)return;
-    const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text,at:new Date().toISOString()};
+    const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
     myCmts.push(c);if(myCmts.length>MAX_CMTS)myCmts=myCmts.slice(-MAX_CMTS);
     cmtsAll=[...cmtsAll,{...c,uid}];queueReactionPush({kind:'comment',postKey:c.key,eventId:c.id});renderFeed();flushPosts();
   });
@@ -615,7 +615,6 @@
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
     if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
-    const input=$('#chatInput');
     const missing=templateFields.find(id=>!$(id).value.trim());
     if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・内容をすべて入力してください');return}
     const text=templateMessage();
