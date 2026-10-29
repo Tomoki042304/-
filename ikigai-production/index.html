@@ -1212,6 +1212,17 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
       <div id="accAdmin" class="view" hidden>
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
+        <form class="card admin-panel" id="youtubeChannelsForm">
+          <b>おすすめ動画のチャンネル</b>
+          <p class="muted admin-note">テーマごとに1つ指定できます。チャンネルURL・@ユーザー名・チャンネルIDを入力してください。空欄は自動選定です。保存すると全メンバーに反映されます（反映まで約1分）。</p>
+          <label>志<input type="text" data-channel-topic="aspiration" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
+          <label>仕事<input type="text" data-channel-topic="work" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
+          <label>挑戦<input type="text" data-channel-topic="challenge" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
+          <label>トレーニング<input type="text" data-channel-topic="training" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
+          <p id="youtubeChannelsStatus" class="muted admin-note" role="status" aria-live="polite"></p>
+          <div class="btn-row"><button type="submit" class="primary" id="youtubeChannelsSave" disabled>保存</button><button type="button" class="small-btn" id="youtubeChannelsReload">設定を読み込む</button></div>
+        </form>
+
         <div class="card admin-panel">
           <div class="card-head"><b>在籍メンバー</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
           <p class="muted" id="adminCheckDay"></p>

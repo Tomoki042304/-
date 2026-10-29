@@ -37,3 +37,11 @@ export async function requireYoutubeMember(request){
   if(member.body!==true){if(member.body===false)return {status:403,message:'管理者の承認後に使えます。'};return issue('MEMBER','FORMAT');}
   return {ok:true};
 }
+
+export async function requireYoutubeHost(request){
+  const member=await requireYoutubeMember(request);if(!member.ok)return member;
+  const host=await readCheck('/rest/v1/rpc/is_host',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'HOST');
+  if(host.failure)return host.failure;
+  if(!host.ok)return issue('HOST',String(host.status));
+  return host.body===true?{ok:true}:{status:403,message:'チャンネル設定は管理者のみ変更できます。'};
+}

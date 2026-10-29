@@ -481,9 +481,19 @@
     chatAll=chatAll.map(v=>v.uid===uid&&v.id===id?{...v,unsent:true,text:''}:v);
     renderChat();renderBuddies();flushChat();toast('送信を取り消しました');
   }
+  const chatHideKey=x=>JSON.stringify([x.uid,x.id,x.at]);
+  async function deleteMyChat(id){
+    const message=chatAll.find(x=>x.uid===uid&&x.id===id);if(!message||pending())return;
+    const hidden=Array.isArray(profile.hiddenChatMessages)?profile.hiddenChatMessages:[];
+    profile.hiddenChatMessages=[...new Set([...hidden,chatHideKey(message)])].slice(-2000);
+    unsendOpen='';renderChat();
+    if(await saveProfile())toast('自分の画面から削除しました');
+  }
+  document.addEventListener('click',e=>{if(unsendOpen&&!e.composedPath().includes($('#chatLog'))){unsendOpen='';renderChat()}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&unsendOpen){unsendOpen='';renderChat()}});
   $('#chatLog').addEventListener('click',e=>{
     const u=e.target.closest('[data-unsend]');if(u){unsendMsg(u.dataset.unsend);return}
-    if(e.target.closest('[data-unsend-close]')){unsendOpen='';renderChat();return}
+    const del=e.target.closest('[data-chat-delete]');if(del){deleteMyChat(del.dataset.chatDelete);return}
     const b=e.target.closest('[data-mine]');if(b){unsendOpen=unsendOpen===b.dataset.mine?'':b.dataset.mine;renderChat()}
   });
   // LINE-style long press (and right click) on your own bubble also opens the menu
@@ -498,7 +508,8 @@
     if(pending()){log.innerHTML=PENDING_BOX('トーク');return}
     if(!chatReady){log.innerHTML='<div class="empty">読み込んでいます…</div>';return}
     const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
-    const list=chatAll.slice(-150);
+    const hiddenMessages=new Set(Array.isArray(profile.hiddenChatMessages)?profile.hiddenChatMessages:[]);
+    const list=chatAll.filter(x=>!hiddenMessages.has(chatHideKey(x))).slice(-150);
     if(!list.length){log.innerHTML=chatMode==='give'
       ?`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><b style="color:var(--ink)">最初のGIVEを贈ろう</b>仲間への感謝や称賛を、ひとこと送ってみましょう。</div>`
       :`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><b style="color:var(--ink)">最初のひとことを送ろう</b>今日の宣言や、仲間への応援を書いてみましょう。</div>`;return}
@@ -514,7 +525,7 @@
       if(!me&&first){const f=document.createElement('span');f.className='from';f.textContent=nameOf(x.uid);body.append(f)}
       const line=document.createElement('div');line.className='line';
       const bub=document.createElement('div');bub.className='bubble'+(x.type==='give'?' give':'');
-      if(me){bub.dataset.mine=x.id;bub.tabIndex=0;bub.setAttribute('aria-label','メッセージ（タップで送信取消メニュー）')}
+      if(me){bub.dataset.mine=x.id;bub.tabIndex=0;bub.setAttribute('aria-label','メッセージ（タップで送信取り消し・削除メニュー）')}
       if(x.type==='give'&&x.to){const g=document.createElement('span');g.className='gto';g.textContent=`→ ${nameOf(x.to)}へ`;bub.append(g,document.createTextNode(x.text))}
       else bub.textContent=x.text;
       const meta=document.createElement('div');meta.className='meta';
@@ -523,7 +534,7 @@
       line.append(bub,meta);body.append(line);
       if(!me){if(first)row.append(mkAvatar(x.uid));else{const sp=document.createElement('span');sp.className='av-sp';row.append(sp)}}
       row.append(body);log.append(row);
-      if(me&&unsendOpen===x.id){const m=document.createElement('div');m.className='unsend-menu';m.innerHTML='<button type="button" data-unsend="'+esc(x.id)+'">送信取消</button><button type="button" data-unsend-close>閉じる</button>';body.append(m)}
+      if(me&&unsendOpen===x.id){const m=document.createElement('div');m.className='unsend-menu';m.innerHTML='<button type="button" data-unsend="'+esc(x.id)+'">送信取り消し</button><button type="button" data-chat-delete="'+esc(x.id)+'">削除</button>';body.append(m)}
     });
     if(nearBottom||renderChat.stick){log.scrollTop=log.scrollHeight;renderChat.stick=false}
     markRead();
@@ -1166,6 +1177,7 @@
     isOwnerView=!!owner;
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
+      ++channelSettingsToken;channelSettingsLoaded=false;document.querySelectorAll("[data-channel-topic]").forEach(e=>{e.value="";e.disabled=true});
       ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
       if(!$('#accAdmin').hidden)showAcc('menu');
@@ -1437,13 +1449,33 @@
   };
   $('#bellBtn').onclick=()=>toast(findR('week',curKey.week)?'新しいお知らせはありません':'今週の振り返りを日曜までに書きましょう');
 
+  let channelSettingsBusy=false,channelSettingsLoaded=false,channelSettingsToken=0;
+  async function youtubeChannelSettings(save=false){
+    const form=$('#youtubeChannelsForm');if(!form||!isOwnerView||channelSettingsBusy)return;
+    const fields=[...form.querySelectorAll('[data-channel-topic]')],status=$('#youtubeChannelsStatus'),token=++channelSettingsToken;
+    const channels=Object.fromEntries(fields.map(e=>[e.dataset.channelTopic,e.value.trim()]));
+    channelSettingsBusy=true;fields.forEach(e=>e.disabled=true);$('#youtubeChannelsSave').disabled=true;$('#youtubeChannelsReload').disabled=true;
+    status.textContent=save?'チャンネルを確認して保存しています…':'設定を読み込んでいます…';
+    try{
+      if(!window.appAuth?.youtubeChannels)throw Error('設定画面を更新するには再読み込みしてください。');
+      const data=await window.appAuth.youtubeChannels(save?channels:undefined);
+      if(token!==channelSettingsToken||!isOwnerView)return;
+      fields.forEach(e=>e.value=data.channels[e.dataset.channelTopic]?.id||'');channelSettingsLoaded=true;
+      status.textContent=(save?'保存しました。':'')+Object.entries(data.channels).map(([t,c])=>({aspiration:'志',work:'仕事',challenge:'挑戦',training:'トレーニング'}[t])+'：'+c.title).join(' ／ ')+(Object.keys(data.channels).length?'':'全テーマを自動選定します。');
+      if(save&&youtubeRecommendations){youtubeRecommendations.invalidate();}
+    }catch(e){if(token===channelSettingsToken)status.textContent=e.name==='AbortError'?'時間がかかっています。設定を読み込み直して保存結果を確認してください。':e.message||'設定を読み込めませんでした。';}
+    finally{channelSettingsBusy=false;if(token===channelSettingsToken&&isOwnerView){fields.forEach(e=>e.disabled=!channelSettingsLoaded);$('#youtubeChannelsSave').disabled=!channelSettingsLoaded;$('#youtubeChannelsReload').disabled=false}}
+  }
+  const channelForm=$('#youtubeChannelsForm');
+  if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings(true)};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();}
+
   function showAcc(which){
     if(!['menu','profile','settings','admin'].includes(which))which='menu';
     if(which==='admin'&&!isOwnerView)which='menu';
     if(which!=='admin')++adminLoadToken;
     $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accAdmin').hidden=which!=='admin';
     if(which==='profile')fillForm();
-    if(which==='admin'){loadAdminMembers();renderApplicants()}
+    if(which==='admin'){loadAdminMembers();renderApplicants();if(!channelSettingsLoaded)youtubeChannelSettings()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }

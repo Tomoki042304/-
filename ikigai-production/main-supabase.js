@@ -335,6 +335,15 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    youtubeChannels: async (channels) => {
+      const {data,error}=await auth.getSession();
+      if(error||!data.session?.access_token)throw Error("ログインし直してください。");
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),65000);
+      try{
+        const response=await fetch("/api/youtube?action=channels",{method:channels?"POST":"GET",headers:{Authorization:"Bearer "+data.session.access_token,...(channels?{"Content-Type":"application/json"}:{})},...(channels?{body:JSON.stringify({channels})}:{}),signal:controller.signal,cache:"no-store",redirect:"error"});
+        const result=await response.json();if(!response.ok)throw Error(result.message||"チャンネル設定を保存できませんでした。");return result;
+      }finally{clearTimeout(timer)}
+    },
     youtubeRecommendations: async (topic,{signal}={}) => {
       const {data,error}=await auth.getSession();
       if(error||!data.session?.access_token)throw Error("ログインし直してください。");
