@@ -74,3 +74,9 @@ export async function readNotificationDocument(request,path){
   const result=await readCheck('/rest/v1/documents?'+query,{headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization')}},'DOCUMENT');
   if(result.failure||!result.ok||!Array.isArray(result.body))throw Error('document unavailable');return result.body[0]?.data||null;
 }
+
+export async function readChatAccessSince(request){
+  const result=await readCheck('/rest/v1/rpc/ikigai_chat_access_since_v1',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'CHAT');
+  if(result.failure||!result.ok||typeof result.body!=='string'||!Number.isFinite(Date.parse(result.body)))throw Error('admission unavailable');
+  return Date.parse(result.body);
+}

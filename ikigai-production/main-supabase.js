@@ -234,24 +234,42 @@ function start() {
     return { docs, size: docs.length, empty: !docs.length, metadata: {} };
   };
   const fail = error => { if (error) throw error; };
+  async function readChatRows(){
+    const {data,error}=await supabase.rpc('ikigai_chat_room_v1');fail(error);
+    if(!Array.isArray(data))throw Error('トークを読み込めませんでした。');return data;
+  }
   async function readDoc(path) {
     fault("read");
+    if(path.startsWith("chats/"))return (await readChatRows()).find(row=>row.path===path)||null;
     const { data, error } = await supabase.from(T).select("path,data").eq("path", path).maybeSingle();
     fail(error); return data;
   }
   async function writeDoc(path, data) {
     fault("write");
+    if(path.startsWith('chats/')){
+      if(!currentUser||path!=='chats/'+currentUser.id)throw Error('自分のメッセージだけ保存できます。');
+      const {error}=await supabase.rpc('ikigai_chat_write_v1',{p_messages:Array.isArray(data.msgs)?data.msgs:[],p_read_at:data.readAt||null,p_give_read_at:data.giveReadAt||null});fail(error);return;
+    }
     const { error } = await supabase.from(T).upsert({ path, data, updated_at: new Date().toISOString() }, { onConflict: "path" });
     fail(error);
   }
   async function readCol(path) {
     fault("read");
+    if(path==="chats")return readChatRows();
     const { data, error } = await supabase.from(T).select("path,data").eq("coll", path).order("path");
     fail(error); return data || [];
   }
   // live updates: on any change, read again (the payload itself is not trusted or used)
   let chan = 0;
   function watch(filter, reload, error) {
+    if(filter==='coll=eq.chats'||filter.startsWith('path=eq.chats/')){
+      // Raw document realtime payloads can contain history. Only poll the guarded RPC.
+      let alive=true;const run=()=>{if(alive)reload().catch(e=>error&&error(e))};
+      const signal=supabase.channel('chat-access-'+(++chan)).on('postgres_changes',{event:'*',schema:'public',table:'ikigai_chat_activity_v1'},()=>{if(document.visibilityState==='visible')run()}).subscribe();
+      const timer=setInterval(()=>{if(document.visibilityState==='visible'&&!document.querySelector('#v-mates')?.hidden)run()},15000);
+      const resume=()=>{if(document.visibilityState==='visible')run()};document.addEventListener('visibilitychange',resume);run();
+      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);supabase.removeChannel(signal)};
+    }
     let timer = 0, alive = true;
     const run = () => { clearTimeout(timer); timer = setTimeout(() => alive && reload().catch(e => error && error(e)), 250); };
     const ch = supabase.channel("docs-" + (++chan))
@@ -268,7 +286,9 @@ function start() {
       get: async () => wrapDoc(path, await readDoc(path)),
       set: data => writeDoc(path, data),
       update: async data => { const cur = await readDoc(path); await writeDoc(path, Object.assign({}, cur ? cur.data : {}, data)); },
-      delete: async () => { fault("write"); const { error } = await supabase.from(T).delete().eq("path", path); fail(error); },
+      delete: async () => {
+        fault("write");
+        if(path.startsWith('chats/')){if(!currentUser||path!=='chats/'+currentUser.id)throw Error('自分のメッセージだけ削除できます。');const {error}=await supabase.rpc('ikigai_chat_delete_own_v1');fail(error);return;} const { error } = await supabase.from(T).delete().eq("path", path); fail(error); },
       onSnapshot: (next, error) => watch(`path=eq.${path}`, async () => next(wrapDoc(path, await readDoc(path))), error),
       collection: sub => colRef(path + "/" + sub)
     };
@@ -343,7 +363,7 @@ function start() {
     directMessages: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
-      try{const response=await fetch('/api/direct-messages',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('個別トークに接続できませんでした。')}if(!response.ok)throw Error(result.message||'個別トークを保存できませんでした。');return result;}finally{clearTimeout(timer)}
+      try{const response=await fetch('/api/direct-messages',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('個別トークに接続できませんでした。')}if(!response.ok){const error=Error(result.message||'個別トークを保存できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
     },
     inquiry: async (scope='self',payload,cursor,type='note') => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');

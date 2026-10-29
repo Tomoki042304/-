@@ -467,7 +467,7 @@
   });
 
   // ---------- buddy chat: each person keeps their own messages in chats/<uid> ----------
-  let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false;
+  let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false;
   const MAX_MY_MSGS=200;
   const memberOf=id=>members.find(m=>m.uid===id);
   const nameOf=id=>{const m=memberOf(id);return(m&&m.nick)||(id===uid?(profile.nick||'あなた'):'メンバー')};
@@ -485,9 +485,9 @@
         if(d.id===uid)myMsgs=clone(arr);
       });
       all.sort((p,q)=>p.at.localeCompare(q.at));
-      chatAll=all;chatReads=reads;giveReads=greads;chatReady=true;
+      chatAll=all;chatReads=reads;giveReads=greads;chatReady=true;chatLoadFailed=false;
       renderChat();renderBuddies();renderMembers();
-    },()=>{chatReady=true;renderChat()});
+    },()=>{chatReady=true;chatLoadFailed=true;renderChat()});
   }
   async function flushChat(){
     if(chatWriting){chatAgain=true;return}
@@ -542,6 +542,7 @@
     if(backend!=='cloud'){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">チャットはまだ使えません</b>ログインすると、仲間とチャットできます。</div>`;return}
     if(pending()){log.innerHTML=PENDING_BOX('トーク');return}
     if(!chatReady){log.innerHTML='<div class="empty">読み込んでいます…</div>';return}
+    if(chatLoadFailed){log.innerHTML='<div class="empty">トークを読み込めませんでした。時間をおいて再読み込みしてください。</div>';return}
     const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
     const hiddenMessages=new Set(Array.isArray(profile.hiddenChatMessages)?profile.hiddenChatMessages:[]);
     const list=chatAll.filter(x=>!hiddenMessages.has(chatHideKey(x))).slice(-150);
@@ -605,6 +606,7 @@
     e.preventDefault();
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
+    if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
     const input=$('#chatInput'),text=input.value.trim();
     if(!text){toast(giveMode?'贈る言葉を書いてください':'メッセージを入力してください');return}
     const msg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:giveMode?'give':'msg',to:giveMode?giveTo:'',text:text.slice(0,300),at:new Date().toISOString()};
