@@ -1143,11 +1143,12 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
         <form class="composer" id="composer">
           <details id="giveTemplate">
             <summary>テンプレートで投稿する <span aria-hidden="true">＋</span></summary>
-            <p class="template-note">3つの項目を入力し、文章を確認して送信してください。</p>
+            <p class="template-note">4つの項目を入力し、文章を確認して送信してください。完成した文章は300文字まで送信できます。</p>
             <div class="template-fields">
               <label>職業 <span>必須</span><input id="giveOccupation" maxlength="40" required placeholder="例：人材育成の仕事" autocomplete="organization-title"></label>
               <label>名前 <span>必須</span><input id="giveName" maxlength="30" required placeholder="例：岡村伸之佑" autocomplete="name"></label>
-              <label>つながりたい方の内容 <span>必須</span><textarea id="giveContent" rows="3" maxlength="120" required placeholder="例：新しく事業に挑戦"></textarea></label>
+              <label>新たな試み <span>必須</span><textarea id="giveChallenge" rows="2" maxlength="60" required placeholder="例：若手向けの人材育成事業を立ち上げる"></textarea></label>
+              <label>事業内容 <span>必須</span><textarea id="giveContent" rows="2" maxlength="60" required placeholder="例：企業研修やキャリア支援"></textarea></label>
             </div>
             <label class="template-preview-label" for="chatInput">送信する文章</label>
             <textarea id="chatInput" rows="8" readonly aria-label="送信する文章"></textarea>

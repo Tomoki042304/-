@@ -598,10 +598,10 @@
   $('#giveBtn').onclick=()=>setGive(!giveMode);
   $('#buddyStrip').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;setGive(true,b.dataset.give);$('#chatInput').focus()});
   $('#giveChips').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;setGive(true,b.dataset.give);$('#chatInput').focus()});
-  const templateFields=['#giveOccupation','#giveName','#giveContent'];
+  const templateFields=['#giveOccupation','#giveName','#giveChallenge','#giveContent'];
   function templateMessage(placeholders=false){
-    const [occupation,name,content]=templateFields.map((id,i)=>$(id).value.trim()||(placeholders?['［職業］','［名前］','［内容］'][i]:''));
-    return `お疲れ様です！\n\n${occupation}をしております、${name}と申します！\n\nこの度、${content}している方とご縁をいただきたいと考えているのですが、どなたかお繋ぎいただける方はいらっしゃいますか？\n\nよろしくお願いいたします！`;
+    const [occupation,name,challenge,content]=templateFields.map((id,i)=>$(id).value.trim()||(placeholders?['［職業］','［名前］','［新たな試み］','［事業内容］'][i]:''));
+    return `お疲れ様です！\n\n${occupation}をしております、\n${name}と申します！\n\n現在、${challenge}という超戦をしていこうと考えております！\n\nそれに伴い、${content}に取り組まれている方とのご縁を広めていきたいと思っております。\nお繋ぎいただける方いらっしゃいますか？✨\n\n私の志に賛同し、\nご縁GIVEしてくださる方、\nよろしくお願いいたします！🪭`;
   }
   function fitChatInput(){
     $('#chatInput').value=templateMessage(true);
@@ -616,13 +616,13 @@
     if(pending()){toast('ホストの承認後にトークできます');return}
     if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
     const missing=templateFields.find(id=>!$(id).value.trim());
-    if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・内容をすべて入力してください');return}
+    if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・新たな試み・事業内容をすべて入力してください');return}
     const text=templateMessage();
     if(text.length>300){toast('文章を300文字以内にしてください');return}
     const msg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:giveMode?'give':'msg',to:giveMode?giveTo:'',text:text.slice(0,300),at:new Date().toISOString()};
     myMsgs.push(msg);if(myMsgs.length>MAX_MY_MSGS)myMsgs=myMsgs.slice(-MAX_MY_MSGS);
     chatAll=[...chatAll,{...msg,uid}];
-    $('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;renderChat.stick=true;
+    $('#giveChallenge').value='';$('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;renderChat.stick=true;
     if(giveMode)setGive(chatMode==='give','');
     renderChat();renderBuddies();flushChat();
   });
@@ -740,7 +740,7 @@
       const doy=Math.round((TODAY-new Date(TODAY.getFullYear(),0,1))/864e5);
       void doy;   // the daily lines are kept in HERO_LINES; this spot now shows the final goal
       const fg=goal().t;
-      $('#heroLine').textContent=fg?`最終目標：${fg}`:'最終目標は、プロフィールの変更から設定できます'; }
+      $('#heroLine').textContent=fg?`THE GOAL👑：${fg}`:'THE GOAL👑は、プロフィールの変更から設定できます'; }
     $('#shiText').innerHTML=profile.shi?esc(profile.shi).replace(/\n/g,'<br>'):'<span style="opacity:.7">アカウントから志を書いてみよう</span>';
     document.querySelector('.hero .kicker').textContent=profile.nick?`${profile.nick}の志`:'MY ASPIRATION';
     const ha=$('#heroAvatar');ha.hidden=!profile.nick&&!profile.avatar;paintAvatar(ha,profile.avatar,profile.nick);
