@@ -35,7 +35,7 @@ export async function requireYoutubeMember(request){
     return issue('MEMBER',String(member.status)+code);
   }
   if(member.body!==true){if(member.body===false)return {status:403,message:'管理者の承認後に使えます。'};return issue('MEMBER','FORMAT');}
-  return {ok:true};
+  return {ok:true,uid:who.body.id,email:typeof who.body.email==='string'?who.body.email:''};
 }
 
 export async function requireYoutubeHost(request){
@@ -43,5 +43,17 @@ export async function requireYoutubeHost(request){
   const host=await readCheck('/rest/v1/rpc/is_host',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'HOST');
   if(host.failure)return host.failure;
   if(!host.ok)return issue('HOST',String(host.status));
-  return host.body===true?{ok:true}:{status:403,message:'チャンネル設定は管理者のみ変更できます。'};
+  return host.body===true?member:{status:403,message:'チャンネル設定は管理者のみ変更できます。'};
+}
+
+// Account settings remain available to signed-in users awaiting membership approval.
+export async function requireAccountUser(request){
+  const url=new URL(request.url),origin=request.headers.get('Origin');
+  if(url.protocol!=='https:'||url.hostname!=='ikigai-shidoroku.pages.dev'||(origin&&origin!==url.origin))return {status:403,message:'本番の公開サイトから利用してください。'};
+  const bearer=request.headers.get('Authorization')||'';
+  if(!/^Bearer [^\s]+$/.test(bearer)||bearer.length>8192)return {status:401,message:'ログインし直してください。'};
+  const who=await readCheck('/auth/v1/user',{headers:{apikey:PUBLIC_KEY,Authorization:bearer}},'AUTH');
+  if(who.failure)return who.failure;
+  if(!who.ok||typeof who.body?.id!=='string')return {status:who.status===401?401:503,message:'ログイン状態を確認できませんでした。'};
+  return {ok:true,uid:who.body.id,email:typeof who.body.email==='string'?who.body.email:''};
 }

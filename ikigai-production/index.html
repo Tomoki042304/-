@@ -124,7 +124,7 @@ svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .home-log-author > div:last-child{min-width:0;flex:1}
 .home-log-author b{display:block;font-size:14px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .home-log-author time{display:block;font-size:11px;line-height:1.4;color:var(--ink-2)}
-.home-log-text{margin:0;font-size:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-height:3.3em;overflow:hidden}
+.home-log-text{margin:0;font-size:17px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;max-height:3.4em;overflow:hidden}
 .home-log-empty{margin:0;font-size:14px;line-height:1.7}
 .post[data-post-key]{scroll-margin-top:84px}
 
@@ -446,7 +446,7 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 .post .head > div:not(.avatar){flex:1;min-width:0}
 .post .head b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .post .head span{display:block;font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.post .text{margin:0;font-size:16px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
+.post .text{margin:0;font-size:17px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
 .post .acts{display:flex;align-items:center;gap:22px;border-top:1px solid var(--line);padding-top:12px}
 .react{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:4px 0;color:var(--ink-2);font-family:var(--mono);font-size:14px}
 .react svg{width:22px;height:22px}
@@ -777,6 +777,17 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
 #mtChat .comp-row textarea::placeholder{color:#7a6266;opacity:1}
 #mtChat .send-btn{background:#7a1f33;color:#fff}
 </style>
+<style>
+.home-log-heading{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.new-log-badge{display:inline-flex;align-items:center;border-radius:99px;background:#f5e4e7;color:#7a1f33;padding:3px 8px;font-size:11px;font-weight:700;line-height:1.4;white-space:nowrap}
+.new-log-badge[hidden]{display:none}
+.withdraw-check{display:flex;align-items:center;gap:8px;font-weight:700}
+#inquiryReason{font-size:16px}
+#inquiryType{font:inherit;font-size:16px;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+.inquiry-item{border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:8px;overflow-wrap:anywhere}
+.inquiry-item p{margin:0;white-space:pre-wrap;font-size:15px;line-height:1.7}
+.inquiry-item small{color:var(--ink-2);font-size:12px}
+</style>
 </head>
 <body>
 <section class="onboard" id="authScreen" hidden>
@@ -904,7 +915,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
         </div>
 
       <section class="card home-log-card" id="homeLogCard" aria-roledescription="カルーセル" aria-labelledby="homeLogTitle" hidden>
-        <div class="card-head"><b id="homeLogTitle">成長ログ</b><button type="button" class="small-btn" id="homeLogAll">すべて見る</button></div>
+        <div class="card-head"><div class="home-log-heading"><b id="homeLogTitle">成長ログ</b><span id="homeLogNew" class="new-log-badge" role="status" aria-live="polite" hidden></span></div><button type="button" class="small-btn" id="homeLogAll">すべて見る</button></div>
         <p class="muted home-log-empty" id="homeLogEmpty">読み込んでいます…</p>
         <div class="home-log-viewport" id="homeLogViewport">
         <a class="home-log-preview" id="homeLogPreview" href="#timeline" aria-live="off" hidden>
@@ -1207,6 +1218,18 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <div class="btn-row"><button type="button" class="ghost" id="delCancel">やめる</button><button type="button" class="primary danger" id="delGo">アカウントを削除する</button></div>
         </div>
       </div>
+      <form class="card admin-panel" id="inquiryForm">
+        <b>問い合わせ</b>
+        <p class="muted admin-note">内容は本人と管理者のみ確認できます。退会に関する送信でも、自動で退会・アカウント削除は行われません。</p>
+        <label for="inquiryType">お問い合わせ項目</label>
+        <select id="inquiryType"><option value="note">志動録ノート購入</option><option value="training">企業研修について</option><option value="withdrawal">退会について</option></select>
+        <label class="withdraw-check" id="inquiryConfirmRow" hidden><input type="checkbox" id="inquiryConfirm">退会希望</label>
+        <label for="inquiryReason" id="inquiryReasonLabel">お問い合わせ内容（必須）</label>
+        <textarea id="inquiryReason" rows="4" maxlength="2000" required placeholder="お問い合わせ内容をご記入ください"></textarea>
+        <button type="submit" class="primary" id="inquirySubmit" disabled>管理者へ送信する</button>
+        <p class="muted admin-note" id="inquiryStatus" role="status" aria-live="polite"></p>
+        <button type="button" class="small-btn" id="inquiryReload">送信状況を確認</button>
+      </form>
       <form class="card" id="quoteForm" style="display:flex;flex-direction:column;gap:10px" hidden>
         <b style="font-size:16px">今日の名言の登録<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b>
         <p class="muted">1行に1つずつ書きます。出典を付けるときは「｜」で区切ってください。登録した中から、毎日ランダムに1つがホームに表示されます。</p>
@@ -1217,6 +1240,13 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
       <div id="accAdmin" class="view" hidden>
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
+        <section class="card admin-panel" id="inquiryAdmin">
+          <div class="card-head"><b>問い合わせ連絡</b><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button></div>
+          <p class="muted admin-note">購入・研修・退会についての連絡欄です。「確認済み」にしても退会処理やデータ削除は行いません。反映まで約1分かかる場合があります。</p>
+          <p id="inquiryAdminStatus" class="muted admin-note" role="status" aria-live="polite"></p>
+          <div id="inquiryAdminList" class="admin-roster"></div>
+          <button type="button" class="small-btn" id="inquiryAdminMore" hidden>さらに読み込む</button>
+        </section>
         <form class="card admin-panel" id="youtubeChannelsForm">
           <details id="youtubeChannelsDetails">
             <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span></b><span class="channel-expand" aria-hidden="true"></span></summary>

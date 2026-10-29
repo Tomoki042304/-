@@ -335,6 +335,11 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    inquiry: async (scope='self',payload,cursor,type='note') => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+      try{const response=await fetch('/api/inquiry?scope='+encodeURIComponent(scope)+'&type='+encodeURIComponent(type)+(!payload?'&read=1':'')+(cursor?'&cursor='+encodeURIComponent(cursor):''),{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,...(payload?{'Content-Type':'application/json'}:{})},...(payload?{body:JSON.stringify(payload)}:{}),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('連絡機能に接続できませんでした。再読み込みしてください。')}if(!response.ok)throw Error(result.message||'連絡を保存できませんでした。');return result;}finally{clearTimeout(timer)}
+    },
     youtubeChannels: async (change) => {
       const {data,error}=await auth.getSession();
       if(error||!data.session?.access_token)throw Error("ログインし直してください。");

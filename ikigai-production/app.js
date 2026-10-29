@@ -289,7 +289,20 @@
     }
 
   }
+  function updateNewLogBadge(){
+    const badge=$('#homeLogNew');if(!badge)return;
+    const seen=Date.parse(profile.growthLogSeenAt||'')||0;
+    const count=backend==='cloud'&&!pending()&&feedReady&&!homeLogError?feedAll.filter(x=>x.uid!==uid&&Number.isFinite(Date.parse(x.at))&&Date.parse(x.at)>seen&&Date.parse(x.at)<=Date.now()).length:0;
+    const label=count?'新着 '+count+'件':'';if(badge.textContent!==label)badge.textContent=label;badge.hidden=!count;
+  }
+  function markGrowthLogsSeen(){
+    if(backend!=='cloud'||pending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
+    const now=Date.now(),seen=Date.parse(profile.growthLogSeenAt||'')||0;
+    if(!feedAll.some(x=>x.uid!==uid&&Date.parse(x.at)>seen&&Date.parse(x.at)<=now))return;
+    profile.growthLogSeenAt=new Date(now).toISOString();saveProfile(true);updateNewLogBadge();
+  }
   function renderHomeLog(){
+    updateNewLogBadge();
     if(!homeLogCard)return;
     const allowed=backend==='cloud'&&!!uid&&!pending();homeLogCard.hidden=!allowed;
     const previous=homeLogItems[homeLogIndex],first=homeLogKey(homeLogItems[0]);
@@ -338,7 +351,7 @@
   }
 
   function renderFeed(){
-    renderHomeLog();
+    markGrowthLogsSeen();renderHomeLog();
     const box=$('#feed');
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
     if(backend!=='cloud'){box.innerHTML=`<div class="card empty"><b style="color:var(--ink)">成長ログはまだ使えません</b>ログインすると、仲間の投稿が見られます。</div>`;return}
@@ -472,7 +485,7 @@
     if(give)myGiveReadAt=newest;else myReadAt=newest;
     clearTimeout(readTimer);readTimer=setTimeout(flushChat,1500);
   }
-  document.addEventListener('visibilitychange',()=>markRead());
+  document.addEventListener('visibilitychange',()=>{markRead();markGrowthLogsSeen()});
   const readCount=(at,give)=>Object.entries(give?giveReads:chatReads).filter(([id,r])=>id!==uid&&r>=at).length;
   let unsendOpen='';
   function unsendMsg(id){
@@ -1175,6 +1188,7 @@
   let adminRows=[],adminLoadToken=0,adminLoaded=false;
   function setOwnerView(owner){
     isOwnerView=!!owner;
+    if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
       ++channelSettingsToken;channelSettingsLoaded=false;channelSettingsRevision='';if($('#youtubeChannelInput')){$('#youtubeChannelInput').value='';$('#youtubeChannelInput').disabled=true;$('#youtubeRegisteredChannels').replaceChildren();$('#youtubeChannelCount').textContent='';$('#youtubeChannelsDetails').open=false;}
@@ -1323,6 +1337,7 @@
   function showEnd(title,text,btn){
     if(shinAi)shinAi.reset();
     if(youtubeRecommendations)youtubeRecommendations.stop();
+    if(inquiryUi)inquiryUi.stop();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -1476,12 +1491,22 @@
   const channelForm=$('#youtubeChannelsForm');
   if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings({op:'add',channel:$('#youtubeChannelInput').value.trim()})};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();$('#youtubeChannelsDetails').addEventListener('toggle',()=>{if($('#youtubeChannelsDetails').open&&!channelSettingsLoaded)youtubeChannelSettings()});}
 
+  let inquiryUi=null,inquiryLoading=null;
+  async function openInquiry(which){
+    if(!['settings','admin'].includes(which))return;
+    try{
+      if(!inquiryUi){if(!inquiryLoading)inquiryLoading=import('./inquiry.js');const module=await inquiryLoading;
+        if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||''});}
+      if((which==='settings'&&!$('#accSettings').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
+    }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
+  }
   function showAcc(which){
     if(!['menu','profile','settings','admin'].includes(which))which='menu';
     if(which==='admin'&&!isOwnerView)which='menu';
     if(which!=='admin')++adminLoadToken;
     $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accAdmin').hidden=which!=='admin';
     if(which==='profile')fillForm();
+    if(which==='settings'||which==='admin')openInquiry(which);
     if(which==='admin'){loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
