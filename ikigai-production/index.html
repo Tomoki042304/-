@@ -788,6 +788,26 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
 .inquiry-item p{margin:0;white-space:pre-wrap;font-size:15px;line-height:1.7}
 .inquiry-item small{color:var(--ink-2);font-size:12px}
 </style>
+<style>
+.talk-title-wrap{display:flex;align-items:center;gap:8px;min-width:0}
+#dmToggle{position:relative;width:32px;height:32px;min-width:32px;border:1px solid #444;border-radius:50%;background:#262626;color:#fff;font-size:24px;padding:0;line-height:1}
+.notice-dot{position:absolute;width:9px;height:9px;border-radius:50%;background:#ed414f;border:2px solid #1a1a1a;right:0;top:0}.notice-dot[hidden]{display:none}
+#dmTabDot{top:7px;right:calc(50% - 19px)}
+#v-mates #talkAboutToggle{font-size:12px;width:auto;min-width:46px;height:32px;padding:0 8px}
+.dm-heading{display:flex;align-items:center;gap:12px;color:#f4f4f4;overflow-wrap:anywhere}
+.dm-note{color:#bcbcbc;font-size:12px;line-height:1.6}
+.dm-log{display:flex;flex-direction:column;gap:12px;min-height:240px;max-height:55svh;overflow-y:auto;padding:12px 0}
+.dm-row{min-width:0;display:flex;flex-direction:column;align-items:flex-start;max-width:85%;align-self:flex-start;gap:3px}
+.dm-row.mine{align-self:flex-end;align-items:flex-end}
+.dm-bubble{max-width:100%;background:#2a2a2a;color:#fff;border-radius:20px;padding:8px 14px;font-size:16px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.dm-row.mine .dm-bubble{max-width:100%;background:#65e576;color:#111}
+.dm-row time{font-size:11px;color:#bcbcbc}
+#dmInput{background:#fff;color:#2b1418;caret-color:#7a1f33}
+.dm-thread{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#2b1418;text-align:left}
+.dm-thread .unread{width:9px;height:9px;border-radius:50%;background:#ed414f;flex:none}
+.dm-start-btn{margin-top:6px;min-height:32px}
+</style>
+<style>#reactionDot{right:3px;top:3px}#notificationsDialog{width:calc(100% - 32px);max-width:440px;max-height:75svh;overflow-y:auto}#notificationsDialog::backdrop{background:rgba(0,0,0,.55)}.reaction-notice{padding:12px;text-align:left;border:1px solid var(--line);background:#fff;color:#2b1418;border-radius:12px;font:inherit;font-size:14px;line-height:1.6;overflow-wrap:anywhere}.reaction-notice small{display:block;color:#7a6266}</style>
 </head>
 <body>
 <section class="onboard" id="authScreen" hidden>
@@ -887,7 +907,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
       <button type="button" id="navFwd" aria-label="次の画面に進む" disabled><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
     </div>
     <div class="brand"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
-    <button class="bell" aria-label="お知らせ" id="bellBtn"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button>
+    <button class="bell" aria-label="お知らせ" id="bellBtn"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="reactionDot" class="notice-dot" hidden></span></button>
   </header>
 
   <main>
@@ -1083,7 +1103,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
     <section class="view" id="v-mates" hidden>
       <div class="card">
         <span class="pill gold">トーク</span>
-        <div class="talk-about-head"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">＋</button></div>
+        <div class="talk-about-head"><div class="talk-title-wrap"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" id="dmToggle" aria-expanded="false" aria-controls="dmPanel" aria-label="個別トーク一覧を開く">＋<span id="dmUnreadDot" class="notice-dot" hidden></span></button></div><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">説明</button></div>
         <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
           <div class="body">
@@ -1093,6 +1113,14 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <p class="cta"><span>GIVEから始まる</span><span>成幸の循環をつくろう！</span></p>
         </div>
       </div>
+      <section id="dmPanel" class="card admin-panel" hidden><div class="card-head"><b>個別トーク</b><button type="button" class="small-btn" id="dmRefresh">更新</button></div><p class="muted admin-note" id="dmInboxStatus" role="status"></p><div id="dmInbox" class="admin-roster"></div></section>
+      <section id="dmConversation" hidden>
+        <div class="dm-heading"><button type="button" id="dmBack" class="small-btn">‹ 全体トークへ</button><b id="dmPeer"></b></div>
+        <p class="dm-note">この個別トークは、相手とあなたのみ閲覧できます。</p>
+        <button type="button" id="dmOlder" class="small-btn" hidden>前のメッセージを見る</button>
+        <div id="dmMessages" class="dm-log" aria-live="polite"></div><p id="dmStatus" role="status" class="dm-note"></p>
+        <form id="dmForm" class="comp-row"><textarea id="dmInput" rows="2" maxlength="2000" placeholder="個別メッセージを入力" aria-label="個別メッセージ"></textarea><button type="submit" id="dmSend" class="send-btn" aria-label="個別メッセージを送信">↑</button></form>
+      </section>
       <div id="mtChat" class="view">
         <div class="card" id="buddyCard" style="padding:14px 16px" hidden>
           <div class="card-head" style="margin-bottom:10px"><b style="font-size:13px">GIVE BUDDY</b><span class="muted" style="font-size:11px">アイコンを押して贈る</span></div>
@@ -1178,11 +1206,26 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
         </div>
         <div class="card acc-list">
           <button type="button" class="acc-row" data-acc="profile"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span><b>プロフィールの変更</b><small>写真・名前・職業・志</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+          <button type="button" class="acc-row" data-acc="inquiry"><span class="icon-tile">✉</span><span><b>問い合わせ</b><small>ノート購入・企業研修・退会について</small></span><span class="chev">›</span></button>
           <button type="button" class="acc-row" data-acc="settings"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span><b>各種設定</b><small>公開範囲・通知・データ</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
       <div class="card acc-list" id="adminEntry" hidden>
         <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利</b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
       </div>
+      </div>
+      <div id="accInquiry" class="view" hidden><button type="button" class="back-link" data-acc="menu">‹ アカウント</button><h2 class="view-title">問い合わせ</h2>
+      <form class="card admin-panel" id="inquiryForm">
+        <b>問い合わせ</b>
+        <p class="muted admin-note">内容は本人と管理者のみ確認できます。退会に関する送信でも、自動で退会・アカウント削除は行われません。</p>
+        <label for="inquiryType">お問い合わせ項目</label>
+        <select id="inquiryType"><option value="note">志動録ノート購入</option><option value="training">企業研修について</option><option value="withdrawal">退会について</option></select>
+        <label class="withdraw-check" id="inquiryConfirmRow" hidden><input type="checkbox" id="inquiryConfirm">退会希望</label>
+        <label for="inquiryReason" id="inquiryReasonLabel">お問い合わせ内容（必須）</label>
+        <textarea id="inquiryReason" rows="4" maxlength="2000" required placeholder="お問い合わせ内容をご記入ください"></textarea>
+        <button type="submit" class="primary" id="inquirySubmit" disabled>管理者へ送信する</button>
+        <p class="muted admin-note" id="inquiryStatus" role="status" aria-live="polite"></p>
+        <button type="button" class="small-btn" id="inquiryReload">送信状況を確認</button>
+      </form>
       </div>
       <div id="accProfile" class="view" hidden>
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
@@ -1209,27 +1252,18 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
         <div class="list-row"><div style="flex:1"><b>仲間ページに表示する</b><span>名前・志・連続日数・今日のチェック・ゴールを参加メンバーに公開</span></div><input type="checkbox" id="fShare" checked aria-label="仲間ページに表示する"></div>
         <div class="list-row"><div style="flex:1"><b>リマインド通知</b><span>毎日 21:00 にチェック、日曜と月末に振り返りを促す</span></div><input type="checkbox" id="fRemind" checked aria-label="リマインド通知"></div>
         <div class="list-row"><div style="flex:1"><b>ログアウト</b><span>このアプリからログアウトします</span></div><button class="small-btn" id="logoutBtn">ログアウト</button></div>
-        <div class="list-row"><div style="flex:1"><b>アカウントを削除</b><span>登録情報・記録・投稿・トークをすべて削除します</span></div><button class="small-btn warn" id="delOpen">削除</button></div>
+        <div class="list-row"><div style="flex:1"><b>アカウントを削除</b><span>登録情報・記録・投稿・全体トークを削除します</span></div><button class="small-btn warn" id="delOpen">削除</button></div>
         <div class="del-box" id="delBox" hidden>
           <p>削除すると、次のデータがすべて消え、元に戻せません。</p>
-          <ul><li>プロフィール・志・入会時の回答</li><li>行動チェック・振り返り</li><li>成長ログの投稿・ファイア・コメント</li><li>トークで送ったメッセージ</li></ul>
+          <ul><li>プロフィール・志・入会時の回答</li><li>行動チェック・振り返り</li><li>成長ログの投稿・ファイア・コメント</li><li>全体トークで送ったメッセージ</li></ul>
+          <p>個別トーク・問い合わせ履歴の削除は、「問い合わせ」から運営へご連絡ください。</p>
           <label for="delConfirm">確認のため「削除」と入力してください</label>
           <input type="text" id="delConfirm" autocomplete="off" placeholder="削除">
           <div class="btn-row"><button type="button" class="ghost" id="delCancel">やめる</button><button type="button" class="primary danger" id="delGo">アカウントを削除する</button></div>
         </div>
       </div>
-      <form class="card admin-panel" id="inquiryForm">
-        <b>問い合わせ</b>
-        <p class="muted admin-note">内容は本人と管理者のみ確認できます。退会に関する送信でも、自動で退会・アカウント削除は行われません。</p>
-        <label for="inquiryType">お問い合わせ項目</label>
-        <select id="inquiryType"><option value="note">志動録ノート購入</option><option value="training">企業研修について</option><option value="withdrawal">退会について</option></select>
-        <label class="withdraw-check" id="inquiryConfirmRow" hidden><input type="checkbox" id="inquiryConfirm">退会希望</label>
-        <label for="inquiryReason" id="inquiryReasonLabel">お問い合わせ内容（必須）</label>
-        <textarea id="inquiryReason" rows="4" maxlength="2000" required placeholder="お問い合わせ内容をご記入ください"></textarea>
-        <button type="submit" class="primary" id="inquirySubmit" disabled>管理者へ送信する</button>
-        <p class="muted admin-note" id="inquiryStatus" role="status" aria-live="polite"></p>
-        <button type="button" class="small-btn" id="inquiryReload">送信状況を確認</button>
-      </form>
+
+      <section class="card admin-panel" id="pushSettings"><b>プッシュ通知</b><p class="muted admin-note">いいね・コメント・個別トークをこの端末に通知します。通知の許可は、下のボタンを押したときに確認します。</p><button type="button" class="primary" id="pushEnable">プッシュ通知を有効にする</button><button type="button" class="small-btn" id="pushDisable" disabled>この端末の通知を停止</button><p class="muted admin-note" id="pushStatus" role="status"></p></section>
       <form class="card" id="quoteForm" style="display:flex;flex-direction:column;gap:10px" hidden>
         <b style="font-size:16px">今日の名言の登録<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b>
         <p class="muted">1行に1つずつ書きます。出典を付けるときは「｜」で区切ってください。登録した中から、毎日ランダムに1つがホームに表示されます。</p>
@@ -1260,7 +1294,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           </details>
         </form>
 
-        <div class="card admin-panel">
+        <details class="card" id="adminMembersDetails"><summary class="channel-summary"><b>メンバー一覧</b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px">
           <div class="card-head"><b>在籍メンバー</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
           <p class="muted" id="adminCheckDay"></p>
           <p id="adminSummary" role="status" aria-live="polite">読み込んでいます…</p>
@@ -1271,7 +1305,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <p class="muted admin-note">承認済みメンバーと管理者を表示します。「更新」で最新の状況を確認できます。</p>
           <div id="adminRoster" class="admin-roster"></div>
           <p class="muted admin-note" id="adminUpdated"></p>
-        </div>
+        </div></details>
       <div class="card" id="appCard" hidden>
         <div class="card-head"><b style="font-size:16px">入会申込の一覧<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b><span class="mono" id="appCount"></span></div>
         <div class="box-list" id="appList"><p class="muted">読み込んでいます…</p></div>
@@ -1284,7 +1318,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
     <div class="inner">
       <button data-tab="home" aria-current="page"><svg class="i" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>ホーム</button>
       <button data-tab="timeline"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>成長ログ</button>
-      <button data-tab="mates"><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5c-5 0-9 3.2-9 7.2 0 2.3 1.3 4.3 3.4 5.6l-.6 3.3 3.6-2.1c.8.2 1.7.3 2.6.3 5 0 9-3.2 9-7.1S17 3.5 12 3.5z"/><path d="M8 10.8h.01M12 10.8h.01M16 10.8h.01" stroke-width="2.4"/></svg>トーク</button>
+      <button data-tab="mates"><span id="dmTabDot" class="notice-dot" hidden></span><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5c-5 0-9 3.2-9 7.2 0 2.3 1.3 4.3 3.4 5.6l-.6 3.3 3.6-2.1c.8.2 1.7.3 2.6.3 5 0 9-3.2 9-7.1S17 3.5 12 3.5z"/><path d="M8 10.8h.01M12 10.8h.01M16 10.8h.01" stroke-width="2.4"/></svg>トーク</button>
       <button data-tab="soon"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/></svg>おすすめ</button>
       <button data-tab="account"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>アカウント</button>
     </div>
@@ -1317,5 +1351,6 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
     && new URLSearchParams(location.search).get("backend") === "firebase";
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
+<dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><div id="reactionNotifications" class="admin-roster" style="margin-top:14px"></div></dialog>
 </body>
 </html>

@@ -335,6 +335,16 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    push: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),payload.action==='unsubscribe'?5000:45000);
+      try{const response=await fetch('/api/push',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('通知に接続できませんでした。')}if(!response.ok){const error=Error(result.message||'通知を設定できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
+    },
+    directMessages: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+      try{const response=await fetch('/api/direct-messages',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('個別トークに接続できませんでした。')}if(!response.ok)throw Error(result.message||'個別トークを保存できませんでした。');return result;}finally{clearTimeout(timer)}
+    },
     inquiry: async (scope='self',payload,cursor,type='note') => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);

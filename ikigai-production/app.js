@@ -215,13 +215,14 @@
       el.querySelector('.streak').textContent=`連続 ${liveStreak(m)} 日　GIVE ${giveCount(m.uid)}`;
       el.querySelector('.shi').textContent=m.shi||'';
       el.querySelector('.g').textContent='ゴール：'+(m.goal||'—');
+      if(isOwnerView&&!me){const button=document.createElement('button');button.type='button';button.className='small-btn dm-start-btn';button.textContent='チャット';button.onclick=()=>startDirectMessage(m.uid);el.append(button)}
       box.append(el);
     });
   }
   // ---------- timeline (成長ログ): each person keeps posts, reactions and comments in posts/<uid> ----------
   const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦','成長','努力','継続','学び','達成','気づき','感謝','交流','健康','その他'];
   const postCategoriesOf=x=>[...new Set((Array.isArray(x.categories)?x.categories:[x.category]).filter(c=>POST_CATEGORIES.includes(c)))].slice(0,3);
-  let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myCmts=[],postWriting=false,postAgain=false,feedReady=false,homeLogError=false;
+  let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myLikeTimes={},myCmts=[],postWriting=false,postAgain=false,feedReady=false,homeLogError=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
   const MAX_POSTS=100,MAX_LIKES=500,MAX_CMTS=300;
   function subscribeFeed(){
@@ -230,21 +231,42 @@
       snap.docs.forEach(d=>{
         const v=d.data()||{};
         if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id,categories:postCategoriesOf(x)})});
-        if(Array.isArray(v.likes))v.likes.forEach(k=>{if(typeof k==='string')likes.push({by:d.id,key:k})});
+        if(Array.isArray(v.likes))v.likes.forEach(k=>{if(typeof k==='string')likes.push({by:d.id,key:k,at:typeof v.likeTimes?.[k]==='string'?v.likeTimes[k]:''})});
         if(Array.isArray(v.comments))v.comments.forEach(c=>{if(c&&typeof c.text==='string'&&typeof c.key==='string'&&typeof c.at==='string')cmts.push({id:String(c.id||''),key:c.key,text:c.text.slice(0,300),at:c.at,uid:d.id})});
-        if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
+        if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myLikeTimes=v.likeTimes&&typeof v.likeTimes==='object'?clone(v.likeTimes):{};myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
       });
       all.sort((p,q)=>q.at.localeCompare(p.at));cmts.sort((p,q)=>p.at.localeCompare(q.at));
-      feedAll=all;likesAll=likes;cmtsAll=cmts;feedReady=true;homeLogError=false;renderFeed();
+      feedAll=all;likesAll=likes;cmtsAll=cmts;feedReady=true;homeLogError=false;renderFeed();processPushNotice();
     },()=>{feedReady=true;homeLogError=true;renderFeed()});
   }
   async function flushPosts(){
     if(postWriting){postAgain=true;return}
     postWriting=true;
-    try{do{postAgain=false;await db.doc('posts/'+uid).set({posts:clone(myPosts),likes:clone(myLikes),comments:clone(myCmts)})}while(postAgain)}
+    try{do{postAgain=false;await db.doc('posts/'+uid).set({posts:clone(myPosts),likes:clone(myLikes),likeTimes:Object.fromEntries(myLikes.filter(k=>typeof myLikeTimes[k]==='string').map(k=>[k,myLikeTimes[k]])),comments:clone(myCmts)})}while(postAgain);dispatchReactionPushes()}
     catch(e){toast('保存できませんでした。通信状況を確認してください')}
     finally{postWriting=false}
   }
+  const pendingReactionPushes=new Map();let reactionPushBusy=false,reactionPushTimer=0;
+  function queueReactionPush(event){if(event.postKey.startsWith(uid+':'))return;const key=event.kind+'|'+event.postKey+'|'+(event.eventId||myLikeTimes[event.postKey]||'');pendingReactionPushes.set(key,{event,attempts:0})}
+  async function dispatchReactionPushes(){
+    if(reactionPushBusy||!window.appAuth?.push||backend!=='cloud'||pending())return;reactionPushBusy=true;clearTimeout(reactionPushTimer);const user=uid;
+    try{for(const [key,item] of pendingReactionPushes){if(uid!==user)break;try{await window.appAuth.push({action:'notify',...item.event});pendingReactionPushes.delete(key)}catch(error){item.attempts++;if(item.attempts>=3||[400,401,403,404].includes(error.status))pendingReactionPushes.delete(key)}}}finally{reactionPushBusy=false;if(pendingReactionPushes.size&&uid===user)reactionPushTimer=setTimeout(dispatchReactionPushes,30000)}
+  }
+  function reactionEvents(){
+    if(backend!=='cloud'||pending()||!feedReady||homeLogError)return [];
+    const own=new Map(feedAll.filter(p=>p.uid===uid).map(p=>[p.uid+':'+p.id,p]));
+    const likes=likesAll.filter(l=>l.by!==uid&&own.has(l.key)).map(l=>({id:'like|'+l.by+'|'+l.key+'|'+l.at,kind:'like',by:l.by,key:l.key,at:l.at,text:nameOf(l.by)+'さんがあなたの投稿にいいねしました。'}));
+    const comments=cmtsAll.filter(c=>c.uid!==uid&&own.has(c.key)).map(c=>({id:'comment|'+c.uid+'|'+c.id,kind:'comment',by:c.uid,key:c.key,at:c.at,text:nameOf(c.uid)+'さんがあなたの投稿にコメントしました。'}));
+    return [...likes,...comments].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+  }
+  function renderReactionNotice(){const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length;const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
+  function openReactionNotices(){
+    if(backend!=='cloud'||pending()){toast('承認後にお知らせを確認できます。');return}
+    const events=reactionEvents(),box=$('#reactionNotifications');box.replaceChildren();if(!events.length)box.textContent='いいね・コメントのお知らせはまだありません。';
+    for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
+    $('#notificationsDialog').showModal();if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
+  }
+  $('#notificationsClose').onclick=()=>$('#notificationsDialog').close();
   const agoText=at=>{const d=new Date(at),m=Math.floor((Date.now()-d)/60000);if(isNaN(m))return'';if(m<1)return'たった今';if(m<60)return`${m}分前`;if(m<1440)return`${Math.floor(m/60)}時間前`;return`${d.getMonth()+1}月${d.getDate()}日`};
   const postTimeText=at=>{const d=new Date(at);return isNaN(d)?'':d.toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})};
   const FIRE='<svg class="i" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.8 7-7 0-3.5-2.4-6.2-4.2-8.2-.4 2-1.6 3.4-2.8 3.4 0-3-1-6-3.6-8.2C8.6 5.6 5 9 5 14.5 5 18.9 8 22 12 22z"/><path d="M12 22c-1.7 0-3-1.3-3-3.1 0-1.9 1.6-3.3 3-4.9 1.4 1.6 3 3 3 4.9 0 1.8-1.3 3.1-3 3.1z"/></svg>';
@@ -318,9 +340,9 @@
     $('#homeLogEmpty').hidden=true;$('#homeLogPreview').hidden=false;
     paintHomeLog();syncHomeLogTimer(homeLogKey(previous)!==homeLogKey(homeLogItems[homeLogIndex])||previous?.text!==homeLogItems[homeLogIndex].text);
   }
-  function openHomeLog(key){
+  function openHomeLog(key,ownOnly=false){
     if(backend!=='cloud'||pending())return;
-    tlQuery='';tlMine=false;$('#tlSearch').value='';$('#tlMine').setAttribute('aria-pressed','false');go('timeline');
+    tlQuery='';tlMine=ownOnly;$('#tlSearch').value='';$('#tlMine').setAttribute('aria-pressed',String(ownOnly));go('timeline');
     if(key){const post=[...document.querySelectorAll('#feed [data-post-key]')].find(x=>x.dataset.postKey===key);if(post){post.tabIndex=-1;post.focus({preventScroll:true});post.scrollIntoView({behavior:homeLogMotion.matches?'auto':'smooth',block:'start'})}}
   }
   if(homeLogCard){
@@ -351,7 +373,7 @@
   }
 
   function renderFeed(){
-    markGrowthLogsSeen();renderHomeLog();
+    markGrowthLogsSeen();renderHomeLog();renderReactionNotice();
     const box=$('#feed');
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
     if(backend!=='cloud'){box.innerHTML=`<div class="card empty"><b style="color:var(--ink)">成長ログはまだ使えません</b>ログインすると、仲間の投稿が見られます。</div>`;return}
@@ -420,7 +442,7 @@
     const input=f.querySelector('input'),text=input.value.trim();if(!text)return;
     const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
     myCmts.push(c);if(myCmts.length>MAX_CMTS)myCmts=myCmts.slice(-MAX_CMTS);
-    cmtsAll=[...cmtsAll,{...c,uid}];renderFeed();flushPosts();
+    cmtsAll=[...cmtsAll,{...c,uid}];queueReactionPush({kind:'comment',postKey:c.key,eventId:c.id});renderFeed();flushPosts();
   });
   let delArmed='';
   $('#feed').addEventListener('click',e=>{
@@ -428,8 +450,8 @@
     if(lk){
       if(backend!=='cloud'||!uid||pending())return;
       const key=lk.dataset.like,i=myLikes.indexOf(key);
-      if(i<0){myLikes.push(key);if(myLikes.length>MAX_LIKES)myLikes=myLikes.slice(-MAX_LIKES);likesAll.push({by:uid,key})}
-      else{myLikes.splice(i,1);likesAll=likesAll.filter(l=>!(l.by===uid&&l.key===key))}
+      if(i<0){myLikes.push(key);if(myLikes.length>MAX_LIKES)myLikes=myLikes.slice(-MAX_LIKES);myLikeTimes[key]=new Date().toISOString();likesAll.push({by:uid,key,at:myLikeTimes[key]});queueReactionPush({kind:'like',postKey:key})}
+      else{myLikes.splice(i,1);delete myLikeTimes[key];for(const [id,item] of pendingReactionPushes){if(item.event.kind==='like'&&item.event.postKey===key)pendingReactionPushes.delete(id)}likesAll=likesAll.filter(l=>!(l.by===uid&&l.key===key))}
       renderFeed();flushPosts();return;
     }
     const cb=e.target.closest('[data-cmt]');
@@ -649,6 +671,7 @@
   function openShared(){
     if(sharedOpen)return;sharedOpen=true;
     subscribeMembers();subscribeChat();subscribeFeed();subscribeQuotes();subscribeMeeting();
+    ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(!$('#v-soon').hidden)openYoutube();
   }
   function watchApproval(){
@@ -1196,7 +1219,7 @@
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
       if(!$('#accAdmin').hidden)showAcc('menu');
     }
-    renderZoom();
+    renderZoom();renderMembers();
   }
   function renderAdminRoster(){
     if(!isOwnerView||$('#accAdmin').hidden||!adminLoaded)return;
@@ -1212,6 +1235,7 @@
       const person=document.createElement('div');person.className='admin-person';const title=document.createElement('b');title.textContent=name;const role=document.createElement('small');role.textContent=r.is_admin?'管理者':'メンバー';if(r.user_id===uid)role.textContent+=' ・ あなた';person.append(title,role);
       const state=document.createElement('span');state.className='admin-check'+(r.checked_today===true?' done':'');state.textContent=r.checked_today===true?'✓ チェック済み':r.checked_today===false?'未チェック':'未取得';
       if(r.checked_today!==true&&r.checked_today!==false)state.title='行動チェックの記録をまだ取得できていません。未チェックの人数には含めません。';
+      if(r.user_id!==uid){const button=document.createElement('button');button.type='button';button.className='small-btn dm-start-btn';button.textContent='チャット';button.onclick=()=>startDirectMessage(r.user_id);person.append(button)}
       row.append(av,person,state);box.append(row);
     });
   }
@@ -1237,6 +1261,7 @@
       $('#adminSummary').textContent=err&&['PGRST202','42883'].includes(err.code)?'管理者一覧の準備がまだ完了していません。':'一覧を取得できませんでした。「更新」で再試行してください。';
     }finally{if(token===adminLoadToken)$('#adminRefresh').disabled=false}
   }
+  $('#adminMembersDetails').addEventListener('toggle',()=>{if($('#adminMembersDetails').open)loadAdminMembers()});
   $('#adminRefresh').onclick=()=>{loadAdminMembers();renderApplicants()};
   $('#adminSearch').addEventListener('input',renderAdminRoster);$('#adminFilter').addEventListener('change',renderAdminRoster);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('#accAdmin').hidden)loadAdminMembers()});
@@ -1338,10 +1363,13 @@
     if(shinAi)shinAi.reset();
     if(youtubeRecommendations)youtubeRecommendations.stop();
     if(inquiryUi)inquiryUi.stop();
+    if(directMessages)directMessages.stop();
+    clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
-  $('#logoutBtn').onclick=()=>{
+  $('#logoutBtn').onclick=async()=>{
+    $('#logoutBtn').disabled=true;await shutdownPush();
     if(window.appAuth){window.appAuth.signOut();return}   // real sign-out; main.js reloads to the login screen
     try{localStorage.setItem(LOGOUT_KEY,'1')}catch(e){}showEnd('ログアウトしました','またいつでも戻ってきてください。','ログインする')};
   $('#endBtn').onclick=()=>{try{localStorage.removeItem(LOGOUT_KEY)}catch(e){}location.reload()};
@@ -1399,7 +1427,7 @@
   $('#delCancel').onclick=()=>{$('#delBox').hidden=true};
   $('#delGo').onclick=async()=>{
     if($('#delConfirm').value.trim()!=='削除'){toast('「削除」と入力してください');return}
-    const btn=$('#delGo');btn.disabled=true;btn.textContent='削除しています…';
+    const btn=$('#delGo');btn.disabled=true;btn.textContent='削除しています…';await shutdownPush();
     let failed=false;
     if(backend==='cloud'&&uid){
       const refs=[pRef(),phRef(),db.doc('members/'+uid),db.doc('chats/'+uid),db.doc('posts/'+uid),db.doc('applications/'+uid),...reflections.map(r=>rCol().doc(r.id))];
@@ -1407,7 +1435,7 @@
       for(const r of refs){try{await r.delete()}catch(e){failed=true}}
     }
     [LK.p,LK.r,LK.ph].forEach(k=>local.del(k));
-    profile=defaultProfile();photo='';reflections=[];myMsgs=[];myPosts=[];myLikes=[];myCmts=[];
+    profile=defaultProfile();photo='';reflections=[];myMsgs=[];myPosts=[];myLikes=[];myLikeTimes={};myCmts=[];
     btn.disabled=false;btn.textContent='アカウントを削除する';$('#delBox').hidden=true;
     if(window.appAuth&&!failed){
       const r=await window.appAuth.deleteAccount();
@@ -1425,7 +1453,7 @@
     showEnd(failed?'一部のデータを削除できませんでした':'アカウントを削除しました',failed?'通信状況を確認して、もう一度お試しください。':'ご利用ありがとうございました。','最初から登録する');
   };
   const talkToggle=$('#talkAboutToggle'),talkAbout=$('#talkAboutText');
-  if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'−':'＋';talkToggle.setAttribute('aria-label',expanded?'GIVE BUDDIESの説明を閉じる':'GIVE BUDDIESの説明を開く');talkAbout.hidden=!expanded};
+  if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'閉じる':'説明';talkToggle.setAttribute('aria-label',expanded?'GIVE BUDDIESの説明を閉じる':'GIVE BUDDIESの説明を開く');talkAbout.hidden=!expanded};
   let youtubeRecommendations=null,youtubeLoading=false;
   async function openYoutube(){
     if(youtubeLoading)return;
@@ -1462,7 +1490,7 @@
     }
     go('ai');
   };
-  $('#bellBtn').onclick=()=>toast(findR('week',curKey.week)?'新しいお知らせはありません':'今週の振り返りを日曜までに書きましょう');
+  $('#bellBtn').onclick=openReactionNotices;
 
   let channelSettingsBusy=false,channelSettingsLoaded=false,channelSettingsToken=0,channelSettingsRevision='';
   function renderRegisteredChannels(channels){
@@ -1491,23 +1519,46 @@
   const channelForm=$('#youtubeChannelsForm');
   if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings({op:'add',channel:$('#youtubeChannelInput').value.trim()})};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();$('#youtubeChannelsDetails').addEventListener('toggle',()=>{if($('#youtubeChannelsDetails').open&&!channelSettingsLoaded)youtubeChannelSettings()});}
 
+  let pushUi=null;
+  async function openPushSettings(){try{if(!pushUi){const module=await import('./push-notifications.js');pushUi=module.mountPushNotifications({request:payload=>{if(!window.appAuth?.push)throw Error('通知を更新するには再読み込みしてください。');return window.appAuth.push(payload)},allowed:()=>backend==='cloud'&&!!uid&&!pending()})}await pushUi.refresh()}catch{$('#pushStatus').textContent='通知の設定を開けませんでした。再読み込みしてください。'}}
+  async function shutdownPush(){try{const module=await import('./push-notifications.js');await module.disableDevicePush(payload=>window.appAuth?.push?window.appAuth.push(payload):Promise.reject(Error('offline')))}catch{}}
+  let pendingPushNotice=null;const noticeUrl=new URL(location.href);
+  if(noticeUrl.searchParams.has('openPost')||noticeUrl.searchParams.has('openDm')){pendingPushNotice={postKey:noticeUrl.searchParams.get('openPost'),threadId:noticeUrl.searchParams.get('openDm')};noticeUrl.searchParams.delete('openPost');noticeUrl.searchParams.delete('openDm');history.replaceState(null,'',noticeUrl.href)}
+  async function processPushNotice(){
+    if(!pendingPushNotice||backend!=='cloud'||pending()||$('#app').hidden)return;
+    const notice=pendingPushNotice;if(notice.postKey&&!feedReady)return;pendingPushNotice=null;if($('#notificationsDialog').open)$('#notificationsDialog').close();
+    if(typeof notice.threadId==='string'&&notice.threadId.length===73){go('mates');try{const ui=await ensureDirectMessages();await ui?.open(notice.threadId)}catch{toast('個別トークを開けませんでした。')}}
+    else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,true)}
+  }
+  if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}});
+  let directMessages=null,directLoading=null;
+  async function ensureDirectMessages(){
+    if(backend!=='cloud'||!uid||pending())return null;
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    return directMessages;
+  }
+  async function startDirectMessage(memberUid){
+    if(!isOwnerView)return;
+    try{const ui=await ensureDirectMessages();if(!ui)return;go('mates');await ui.create(memberUid)}catch(e){toast(e.message||'個別トークを開けませんでした。')}
+  }
   let inquiryUi=null,inquiryLoading=null;
   async function openInquiry(which){
-    if(!['settings','admin'].includes(which))return;
+    if(!['inquiry','admin'].includes(which))return;
     try{
       if(!inquiryUi){if(!inquiryLoading)inquiryLoading=import('./inquiry.js');const module=await inquiryLoading;
         if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||''});}
-      if((which==='settings'&&!$('#accSettings').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
+      if((which==='inquiry'&&!$('#accInquiry').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
   }
   function showAcc(which){
-    if(!['menu','profile','settings','admin'].includes(which))which='menu';
+    if(!['menu','profile','settings','admin','inquiry'].includes(which))which='menu';
     if(which==='admin'&&!isOwnerView)which='menu';
     if(which!=='admin')++adminLoadToken;
-    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accAdmin').hidden=which!=='admin';
+    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accInquiry').hidden=which!=='inquiry';$('#accAdmin').hidden=which!=='admin';
     if(which==='profile')fillForm();
-    if(which==='settings'||which==='admin')openInquiry(which);
-    if(which==='admin'){loadAdminMembers();renderApplicants()}
+    if(which==='settings')openPushSettings();
+    if(which==='inquiry'||which==='admin')openInquiry(which);
+    if(which==='admin'){if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }
@@ -1548,11 +1599,13 @@
     if(tab==='timeline')renderFeed();
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
-    if(tab==='mates'){renderChat.stick=true;renderChat()}
+    if(tab==='mates'){renderChat.stick=true;renderChat()}else if(directMessages)directMessages.leave();
+    if(backend==='cloud'&&uid&&!pending())ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();
     syncHomeLogTimer(true);
     window.scrollTo(0,0);
+    processPushNotice();
     if(tab!=='account')pushNav({v:tab,a:tab==='rfview'?rfOpenId:undefined});
   }
   // Safari-style ‹ › : a small history of the screens visited in this session

@@ -57,3 +57,20 @@ export async function requireAccountUser(request){
   if(!who.ok||typeof who.body?.id!=='string')return {status:who.status===401?401:503,message:'ログイン状態を確認できませんでした。'};
   return {ok:true,uid:who.body.id,email:typeof who.body.email==='string'?who.body.email:''};
 }
+
+export async function requireMemberRole(request){
+  const member=await requireYoutubeMember(request);if(!member.ok)return member;
+  const result=await readCheck('/rest/v1/rpc/is_host',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'HOST');
+  if(result.failure)return result.failure;if(!result.ok||typeof result.body!=='boolean')return {status:503,message:'権限を確認できませんでした。'};
+  return {...member,isHost:result.body};
+}
+export async function readPrivateChatRoster(request){
+  const result=await readCheck('/rest/v1/rpc/ikigai_admin_member_status_v1',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'ROSTER');
+  if(result.failure||!result.ok||!Array.isArray(result.body))throw Error('roster unavailable');return result.body;
+}
+
+export async function readNotificationDocument(request,path){
+  const query=new URLSearchParams({select:'data',path:'eq.'+path});
+  const result=await readCheck('/rest/v1/documents?'+query,{headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization')}},'DOCUMENT');
+  if(result.failure||!result.ok||!Array.isArray(result.body))throw Error('document unavailable');return result.body[0]?.data||null;
+}
