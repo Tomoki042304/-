@@ -1638,7 +1638,7 @@
   }
   $('#navBack').onclick=()=>navTo(navIdx-1);
   $('#navFwd').onclick=()=>navTo(navIdx+1);
-  document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-goto]');if(t)go(t.dataset.tab||t.dataset.goto)});
+  document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-goto]');if(t){go(t.dataset.tab||t.dataset.goto);if(t.classList.contains('header-check'))void completeDay()}});
 
   // ---------- hero ambience ----------
   const cv=$('#heroCanvas'),cx=cv.getContext('2d');
