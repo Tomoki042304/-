@@ -1177,7 +1177,7 @@
     isOwnerView=!!owner;
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
-      ++channelSettingsToken;channelSettingsLoaded=false;document.querySelectorAll("[data-channel-topic]").forEach(e=>{e.value="";e.disabled=true});
+      ++channelSettingsToken;channelSettingsLoaded=false;channelSettingsRevision='';if($('#youtubeChannelInput')){$('#youtubeChannelInput').value='';$('#youtubeChannelInput').disabled=true;$('#youtubeRegisteredChannels').replaceChildren();$('#youtubeChannelCount').textContent='';$('#youtubeChannelsDetails').open=false;}
       ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
       if(!$('#accAdmin').hidden)showAcc('menu');
@@ -1418,7 +1418,7 @@
       youtubeLoading=true;
       try{const module=await import('./youtube-recommendations.js');youtubeRecommendations=module.mountYoutubeRecommendations({
         allowed:()=>backend==='cloud'&&!!uid&&!pending(),
-        request:(topic,options)=>{if(!window.appAuth?.youtubeRecommendations)throw Error('おすすめ動画の接続準備中です。');return window.appAuth.youtubeRecommendations(topic,options)}
+        request:(cursor,options)=>{if(!window.appAuth?.youtubeRecommendations)throw Error('おすすめ動画の接続準備中です。');return window.appAuth.youtubeRecommendations(cursor,options)}
       })}catch(_){const status=$('#youtubeStatus');if(status)status.textContent='動画画面を開けませんでした。再読み込みしてください。';else toast('新しい動画画面を表示するには再読み込みしてください。');return}
       finally{youtubeLoading=false}
     }
@@ -1449,25 +1449,32 @@
   };
   $('#bellBtn').onclick=()=>toast(findR('week',curKey.week)?'新しいお知らせはありません':'今週の振り返りを日曜までに書きましょう');
 
-  let channelSettingsBusy=false,channelSettingsLoaded=false,channelSettingsToken=0;
-  async function youtubeChannelSettings(save=false){
+  let channelSettingsBusy=false,channelSettingsLoaded=false,channelSettingsToken=0,channelSettingsRevision='';
+  function renderRegisteredChannels(channels){
+    const list=$('#youtubeRegisteredChannels');list.replaceChildren();$('#youtubeChannelCount').textContent='（'+channels.length+'件）';
+    for(const c of channels){const row=document.createElement('div');row.className='registered-channel';const link=document.createElement('a');link.href='https://www.youtube.com/channel/'+c.id;link.target='_blank';link.rel='noopener noreferrer';link.textContent=c.title||c.id;const remove=document.createElement('button');remove.type='button';remove.className='small-btn';remove.textContent='登録解除';remove.setAttribute('aria-label',(c.title||c.id)+'の登録を解除');remove.onclick=()=>youtubeChannelSettings({op:'remove',id:c.id});row.append(link,remove);list.append(row)}
+    if(!channels.length)list.textContent='登録チャンネルはまだありません。';
+  }
+  async function youtubeChannelSettings(change){
     const form=$('#youtubeChannelsForm');if(!form||!isOwnerView||channelSettingsBusy)return;
-    const fields=[...form.querySelectorAll('[data-channel-topic]')],status=$('#youtubeChannelsStatus'),token=++channelSettingsToken;
-    const channels=Object.fromEntries(fields.map(e=>[e.dataset.channelTopic,e.value.trim()]));
-    channelSettingsBusy=true;fields.forEach(e=>e.disabled=true);$('#youtubeChannelsSave').disabled=true;$('#youtubeChannelsReload').disabled=true;
-    status.textContent=save?'チャンネルを確認して保存しています…':'設定を読み込んでいます…';
+    const input=$('#youtubeChannelInput'),status=$('#youtubeChannelsStatus'),token=++channelSettingsToken;
+    if(change?.op==='add'&&!input.value.trim()){status.textContent='チャンネルを入力してください。';input.focus();return}
+    channelSettingsBusy=true;form.querySelectorAll('button,input').forEach(e=>e.disabled=true);
+    status.textContent=change?'登録内容を保存しています…':'登録チャンネルを読み込んでいます…';
     try{
-      if(!window.appAuth?.youtubeChannels)throw Error('設定画面を更新するには再読み込みしてください。');
-      const data=await window.appAuth.youtubeChannels(save?channels:undefined);
+      if(!window.appAuth?.youtubeChannels)throw Error('画面を更新するには再読み込みしてください。');
+      const data=await window.appAuth.youtubeChannels(change?{...change,revision:channelSettingsRevision}:undefined);
       if(token!==channelSettingsToken||!isOwnerView)return;
-      fields.forEach(e=>e.value=data.channels[e.dataset.channelTopic]?.id||'');channelSettingsLoaded=true;
-      status.textContent=(save?'保存しました。':'')+Object.entries(data.channels).map(([t,c])=>({aspiration:'志',work:'仕事',challenge:'挑戦',training:'トレーニング'}[t])+'：'+c.title).join(' ／ ')+(Object.keys(data.channels).length?'':'全テーマを自動選定します。');
-      if(save&&youtubeRecommendations){youtubeRecommendations.invalidate();}
-    }catch(e){if(token===channelSettingsToken)status.textContent=e.name==='AbortError'?'時間がかかっています。設定を読み込み直して保存結果を確認してください。':e.message||'設定を読み込めませんでした。';}
-    finally{channelSettingsBusy=false;if(token===channelSettingsToken&&isOwnerView){fields.forEach(e=>e.disabled=!channelSettingsLoaded);$('#youtubeChannelsSave').disabled=!channelSettingsLoaded;$('#youtubeChannelsReload').disabled=false}}
+      if(!Array.isArray(data.channels))throw Error('最新の画面を表示するには再読み込みしてください。');
+      channelSettingsLoaded=true;channelSettingsRevision=data.revision;renderRegisteredChannels(data.channels);
+      if(change?.op==='add'&&!data.duplicate)input.value='';
+      status.textContent=data.duplicate?'このチャンネルは登録済みです。':change?'保存しました。反映まで約1分かかる場合があります。':'';
+      if(change&&youtubeRecommendations)youtubeRecommendations.invalidate();
+    }catch(e){if(token===channelSettingsToken)status.textContent=e.name==='AbortError'?'時間がかかっています。「更新」で保存結果を確認してください。':e.message||'設定を読み込めませんでした。';}
+    finally{channelSettingsBusy=false;if(token===channelSettingsToken&&isOwnerView){form.querySelectorAll('button,input').forEach(e=>e.disabled=false);input.disabled=!channelSettingsLoaded;$('#youtubeChannelsSave').disabled=!channelSettingsLoaded}}
   }
   const channelForm=$('#youtubeChannelsForm');
-  if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings(true)};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();}
+  if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings({op:'add',channel:$('#youtubeChannelInput').value.trim()})};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();$('#youtubeChannelsDetails').addEventListener('toggle',()=>{if($('#youtubeChannelsDetails').open&&!channelSettingsLoaded)youtubeChannelSettings()});}
 
   function showAcc(which){
     if(!['menu','profile','settings','admin'].includes(which))which='menu';
@@ -1475,7 +1482,7 @@
     if(which!=='admin')++adminLoadToken;
     $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accAdmin').hidden=which!=='admin';
     if(which==='profile')fillForm();
-    if(which==='admin'){loadAdminMembers();renderApplicants();if(!channelSettingsLoaded)youtubeChannelSettings()}
+    if(which==='admin'){loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }

@@ -335,19 +335,19 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
-    youtubeChannels: async (channels) => {
+    youtubeChannels: async (change) => {
       const {data,error}=await auth.getSession();
       if(error||!data.session?.access_token)throw Error("ログインし直してください。");
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),65000);
       try{
-        const response=await fetch("/api/youtube?action=channels",{method:channels?"POST":"GET",headers:{Authorization:"Bearer "+data.session.access_token,...(channels?{"Content-Type":"application/json"}:{})},...(channels?{body:JSON.stringify({channels})}:{}),signal:controller.signal,cache:"no-store",redirect:"error"});
+        const response=await fetch("/api/youtube?action=channels",{method:change?"POST":"GET",headers:{Authorization:"Bearer "+data.session.access_token,...(change?{"Content-Type":"application/json"}:{})},...(change?{body:JSON.stringify(change)}:{}),signal:controller.signal,cache:"no-store",redirect:"error"});
         const result=await response.json();if(!response.ok)throw Error(result.message||"チャンネル設定を保存できませんでした。");return result;
       }finally{clearTimeout(timer)}
     },
-    youtubeRecommendations: async (topic,{signal}={}) => {
+    youtubeRecommendations: async (cursor,{signal,revision}={}) => {
       const {data,error}=await auth.getSession();
       if(error||!data.session?.access_token)throw Error("ログインし直してください。");
-      const response=await fetch("/api/youtube?v=20261029-worker-fetch&topic="+encodeURIComponent(topic),{headers:{Authorization:"Bearer "+data.session.access_token},signal,cache:"no-store",redirect:"error"});
+      const response=await fetch("/api/youtube?v=channel-list&cursor="+encodeURIComponent(cursor||"0")+"&revision="+encodeURIComponent(revision||""),{headers:{Authorization:"Bearer "+data.session.access_token},signal,cache:"no-store",redirect:"error"});
       let result;try{result=await response.json()}catch{throw Error("おすすめ動画の接続準備中です。")}
       if(!response.ok)throw Error(typeof result.message==="string"?result.message:"動画を取得できませんでした。");
       return result;

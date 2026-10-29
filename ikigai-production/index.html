@@ -494,9 +494,6 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .youtube-heading h1{font-size:22px;margin:0;color:var(--accent)}
 .youtube-heading p{font-size:13px;color:var(--ink-2);margin:6px 0 0;line-height:1.7}
-.youtube-topics{display:flex;gap:8px;flex-wrap:wrap}
-.youtube-topics button{padding:8px 12px;border:1px solid var(--line);border-radius:99px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px}
-.youtube-topics button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .youtube-list{display:flex;flex-direction:column;gap:16px}
 .youtube-card{padding:0;overflow:hidden}
 .youtube-video{display:flex;flex-direction:column;gap:12px;padding:0 0 0;width:100%;border:0;background:none;text-align:left;color:var(--ink);font:inherit}
@@ -778,9 +775,18 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 .view > .view-title,.youtube-heading h1{color:#f4f4f4}
 .view > .back-link{color:#e8bbc6}
 .youtube-heading p,.youtube-status,.youtube-note,.youtube-note a{color:#bcbcbc}
-.youtube-topics button[aria-pressed="true"]{color:#fff}
 /* Keep conversation surfaces dark, including its enclosing card. */
 #v-mates > .card:first-child{--surface:#1a1a1a;--surface-2:#262626;--ink:#f4f4f4;--ink-2:#aaa;--line:#353535;--gold:#c9c9c9;--gold-soft:#292929;--accent-soft:#302329;background:#1a1a1a;color:#f4f4f4;color-scheme:dark}
+</style>
+
+<style>
+.channel-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}
+.channel-summary::-webkit-details-marker{display:none}
+.channel-expand::before{content:"＋";font-size:24px;line-height:1}
+details[open] > .channel-summary .channel-expand::before{content:"−"}
+.registered-channels{display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto}
+.registered-channel{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:10px;min-width:0}
+.registered-channel a{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--ink);font-size:14px}
 </style>
 </head>
 <body>
@@ -1144,12 +1150,12 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 
     <!-- YouTube recommendations -->
     <section class="view" id="v-soon" hidden>
-      <div class="youtube-heading"><h1>おすすめ動画</h1><p>志を深める。仕事に生かす。新しい一歩を踏み出す。</p></div>
-      <div class="youtube-topics" role="group" aria-label="動画のテーマ"><button type="button" data-youtube-topic="aspiration" aria-pressed="true">志</button><button type="button" data-youtube-topic="work" aria-pressed="false">仕事</button><button type="button" data-youtube-topic="challenge" aria-pressed="false">挑戦</button><button type="button" data-youtube-topic="training" aria-pressed="false">トレーニング</button></div>
+      <div class="youtube-heading"><h1>おすすめ動画</h1><p>管理者がおすすめするチャンネルの動画です。</p></div>
+
       <section class="card youtube-player" id="youtubePlayer" hidden aria-label="YouTube動画プレーヤー"><h2 class="youtube-player-title" id="youtubePlayerTitle" tabindex="-1"></h2><div class="youtube-frame" id="youtubeFrame"></div><div class="btn-row"><a id="youtubeExternal" target="_blank" rel="noopener noreferrer">YouTubeで開く ↗</a><button type="button" class="small-btn" id="youtubeClose">閉じる</button></div></section>
-      <p class="youtube-status" id="youtubeStatus" role="status">テーマに合う動画を表示します。</p><small class="youtube-note" id="youtubeUpdated"></small><button type="button" class="ghost" id="youtubeRetry" hidden>もう一度読み込む</button>
-      <div class="youtube-list" id="youtubeList"></div>
-      <p class="youtube-note">動画はYouTubeの検索結果からテーマに合わせて選びます。候補は約24時間ごとに更新されます。再生するとYouTubeに接続します。再生できない動画は「YouTubeで開く」からご覧ください。</p>
+      <p class="youtube-status" id="youtubeStatus" role="status">登録チャンネルの動画を表示します。</p><small class="youtube-note" id="youtubeUpdated"></small><button type="button" class="ghost" id="youtubeRetry" hidden>もう一度読み込む</button>
+      <div class="youtube-list" id="youtubeList"></div><button type="button" class="ghost" id="youtubeMore" hidden>もっと見る</button>
+      <p class="youtube-note">管理者が登録したチャンネルから動画を表示します。候補は約24時間ごとに更新されます。再生するとYouTubeに接続します。再生できない動画は「YouTubeで開く」からご覧ください。</p>
       <p class="youtube-note"><a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube 利用規約</a> · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google プライバシーポリシー</a></p>
     </section>
 
@@ -1213,14 +1219,16 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
         <form class="card admin-panel" id="youtubeChannelsForm">
-          <b>おすすめ動画のチャンネル</b>
-          <p class="muted admin-note">テーマごとに1つ指定できます。チャンネルURL・@ユーザー名・チャンネルIDを入力してください。空欄は自動選定です。保存すると全メンバーに反映されます（反映まで約1分）。</p>
-          <label>志<input type="text" data-channel-topic="aspiration" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
-          <label>仕事<input type="text" data-channel-topic="work" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
-          <label>挑戦<input type="text" data-channel-topic="challenge" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
-          <label>トレーニング<input type="text" data-channel-topic="training" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
-          <p id="youtubeChannelsStatus" class="muted admin-note" role="status" aria-live="polite"></p>
-          <div class="btn-row"><button type="submit" class="primary" id="youtubeChannelsSave" disabled>保存</button><button type="button" class="small-btn" id="youtubeChannelsReload">設定を読み込む</button></div>
+          <details id="youtubeChannelsDetails">
+            <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
+            <div class="admin-panel" style="margin-top:14px">
+              <p class="muted admin-note">テーマ分けはありません。おすすめしたいチャンネルを1つずつ追加できます。登録したチャンネルの動画を全メンバーに表示します。</p>
+              <label>チャンネルURL・@ユーザー名・チャンネルID<input type="text" id="youtubeChannelInput" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
+              <div class="btn-row"><button type="submit" class="primary" id="youtubeChannelsSave" disabled>追加</button><button type="button" class="small-btn" id="youtubeChannelsReload">更新</button></div>
+              <p id="youtubeChannelsStatus" class="muted admin-note" role="status" aria-live="polite"></p>
+              <div id="youtubeRegisteredChannels" class="registered-channels"></div>
+            </div>
+          </details>
         </form>
 
         <div class="card admin-panel">
