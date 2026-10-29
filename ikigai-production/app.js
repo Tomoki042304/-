@@ -748,6 +748,9 @@
     $('#daysSince').textContent=Math.max(1,Math.round((TODAY-parseIso(profile.shiSince))/864e5)+1);
     const on=isOn(todayKey);
     $('#todayCheck').setAttribute('aria-pressed',on);
+    const headerCheck=$('.header-check');
+    if(headerCheck){headerCheck.classList.toggle('is-checked',on);headerCheck.setAttribute('aria-label',on?'今日の行動はチェック済み。カレンダーを開く':'今日の行動をチェックしてカレンダーを開く');headerCheck.title=on?'今日の行動はチェック済み':'今日の行動をチェック';headerCheck.querySelector('span').textContent=on?'済':'行動';}
+
     $('#todayCheck').disabled=on||checkSaving||loadFailed;
     $('#todayTitle').textContent=on?'今日のタスク、やり遂げた！':'今日、自分が決めたタスクをやり遂げた？';
     $('#todaySub').textContent=on?'次は明日0:00（日本時間）から':'1日1回。やり遂げたらタップしてチェック';
