@@ -22,6 +22,19 @@
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
+
+#mtChat #composer{position:static;margin-top:12px;border:1px solid #383838;border-radius:18px;padding:16px;color:#eee}
+#giveTemplate summary{cursor:pointer;display:flex;justify-content:space-between;font-weight:600;list-style:none}
+#giveTemplate summary::-webkit-details-marker{display:none}
+#giveTemplate[open] summary span{transform:rotate(45deg)}
+.template-note{font-size:12px;color:#aaa;line-height:1.6}
+.template-fields{display:grid;gap:14px;margin:16px 0}
+.template-fields label,.template-preview-label{display:block;font-size:14px;color:#eee}
+.template-fields label span{font-size:11px;color:#e3a5b5;margin-left:6px}
+#giveTemplate input,#giveTemplate textarea{display:block;box-sizing:border-box;width:100%;margin-top:6px;padding:12px;border:1px solid #555;border-radius:10px;background:#2a2a2a;color:#fff;font:inherit;font-size:16px;line-height:1.6}
+#giveTemplate #chatInput{height:auto;min-height:230px;resize:vertical;font-size:15px;white-space:pre-wrap}
+.template-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
+.template-actions button{background:#7a1f33;color:#fff;border-color:#7a1f33;padding:10px 20px}
 </style>
 <style>
 /* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */
@@ -1128,12 +1141,20 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
         </div>
         <div class="card chat-log" id="chatLog" aria-live="polite"></div>
         <form class="composer" id="composer">
+          <details id="giveTemplate">
+            <summary>テンプレートで投稿する <span aria-hidden="true">＋</span></summary>
+            <p class="template-note">3つの項目を入力し、文章を確認して送信してください。</p>
+            <div class="template-fields">
+              <label>職業 <span>必須</span><input id="giveOccupation" maxlength="40" required placeholder="例：人材育成の仕事" autocomplete="organization-title"></label>
+              <label>名前 <span>必須</span><input id="giveName" maxlength="30" required placeholder="例：岡村伸之佑" autocomplete="name"></label>
+              <label>つながりたい方の内容 <span>必須</span><textarea id="giveContent" rows="3" maxlength="120" required placeholder="例：新しく事業に挑戦"></textarea></label>
+            </div>
+            <label class="template-preview-label" for="chatInput">送信する文章</label>
+            <textarea id="chatInput" rows="8" readonly aria-label="送信する文章"></textarea>
+            <div class="template-actions"><span id="giveTemplateCount" class="template-note" role="status"></span><button type="submit" class="small-btn">送信する</button></div>
+          </details>
           <div class="give-to" id="giveTo" hidden><span>GIVEする相手</span><div class="chips" id="giveChips"></div></div>
-          <div class="comp-row">
-            <button type="button" class="give-btn" id="giveBtn" aria-pressed="false" hidden>GIVE</button>
-            <textarea id="chatInput" rows="1" maxlength="300" placeholder="メッセージを入力" aria-label="メッセージ"></textarea>
-            <button type="submit" class="send-btn" aria-label="送信"><svg class="i" viewBox="0 0 24 24"><path d="M4 12 20 4l-6 16-3-7z"/></svg></button>
-          </div>
+          <button type="button" class="give-btn" id="giveBtn" aria-pressed="false" hidden>GIVE</button>
         </form>
       </div>
       <div id="mtMembers" class="view" hidden>

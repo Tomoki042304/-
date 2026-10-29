@@ -440,7 +440,7 @@
   $('#feed').addEventListener('submit',e=>{
     const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();
     const input=f.querySelector('input'),text=input.value.trim();if(!text)return;
-    const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
+    const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text,at:new Date().toISOString()};
     myCmts.push(c);if(myCmts.length>MAX_CMTS)myCmts=myCmts.slice(-MAX_CMTS);
     cmtsAll=[...cmtsAll,{...c,uid}];queueReactionPush({kind:'comment',postKey:c.key,eventId:c.id});renderFeed();flushPosts();
   });
@@ -592,27 +592,38 @@
   function setGive(on,to){
     giveMode=on;if(to!==undefined)giveTo=to;if(!on)giveTo='';if(!giveMode&&chatMode==='give')giveMode=true;
     $('#giveBtn').setAttribute('aria-pressed',giveMode);$('#giveTo').hidden=true;
-    $('#chatInput').placeholder=giveMode?'感謝や称賛のメッセージを入力':'メッセージを入力';
+    $('#chatInput').placeholder='入力した内容から文章を作成します';
     renderBuddies();
   }
   $('#giveBtn').onclick=()=>setGive(!giveMode);
   $('#buddyStrip').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;setGive(true,b.dataset.give);$('#chatInput').focus()});
   $('#giveChips').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;setGive(true,b.dataset.give);$('#chatInput').focus()});
-  // LINE-style input: Enter adds a new line, the send button sends (Ctrl/⌘+Enter also sends)
-  function fitChatInput(){const t=$('#chatInput');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,132)+'px'}
-  $('#chatInput').addEventListener('input',fitChatInput);
-  $('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)&&!e.isComposing){e.preventDefault();$('#composer').requestSubmit()}});
+  const templateFields=['#giveOccupation','#giveName','#giveContent'];
+  function templateMessage(placeholders=false){
+    const [occupation,name,content]=templateFields.map((id,i)=>$(id).value.trim()||(placeholders?['［職業］','［名前］','［内容］'][i]:''));
+    return `お疲れ様です！\n\n${occupation}をしております、${name}と申します！\n\nこの度、${content}している方とご縁をいただきたいと考えているのですが、どなたかお繋ぎいただける方はいらっしゃいますか？\n\nよろしくお願いいたします！`;
+  }
+  function fitChatInput(){
+    $('#chatInput').value=templateMessage(true);
+    $('#giveTemplateCount').textContent=templateMessage().length+' / 300文字';
+  }
+  templateFields.forEach(id=>$(id).addEventListener('input',fitChatInput));
+  $('#giveTemplate').addEventListener('toggle',()=>{if($('#giveTemplate').open)fitChatInput()});
+  fitChatInput();
   $('#composer').addEventListener('submit',e=>{
     e.preventDefault();
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
     if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
-    const input=$('#chatInput'),text=input.value.trim();
-    if(!text){toast(giveMode?'贈る言葉を書いてください':'メッセージを入力してください');return}
+    const input=$('#chatInput');
+    const missing=templateFields.find(id=>!$(id).value.trim());
+    if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・内容をすべて入力してください');return}
+    const text=templateMessage();
+    if(text.length>300){toast('文章を300文字以内にしてください');return}
     const msg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:giveMode?'give':'msg',to:giveMode?giveTo:'',text:text.slice(0,300),at:new Date().toISOString()};
     myMsgs.push(msg);if(myMsgs.length>MAX_MY_MSGS)myMsgs=myMsgs.slice(-MAX_MY_MSGS);
     chatAll=[...chatAll,{...msg,uid}];
-    input.value='';fitChatInput();renderChat.stick=true;
+    $('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;renderChat.stick=true;
     if(giveMode)setGive(chatMode==='give','');
     renderChat();renderBuddies();flushChat();
   });
