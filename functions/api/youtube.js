@@ -41,15 +41,20 @@ async function settings(request,env,config){
     await env.YT_CACHE.put(CONFIG,JSON.stringify(next));return reply(200,next);
   }catch{return reply(503,{message:'登録内容を保存できませんでした。時間をおいてお試しください。'})}
 }
-function cached(v,id){return v&&v.channelId===id&&Array.isArray(v.videos)&&v.videos.length<=6&&v.videos.every(x=>ID.test(x.id)&&x.channelId===id&&typeof x.title==='string'&&typeof x.channel==='string')&&Number.isFinite(Date.parse(v.updatedAt))&&Date.parse(v.updatedAt)<=Date.now()+60000&&Date.now()-Date.parse(v.updatedAt)<AGE*2}
+function durationSeconds(value){const m=/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(value||'');return m&&(m[1]||m[2]||m[3])?Number(m[1]||0)*3600+Number(m[2]||0)*60+Number(m[3]||0):0}
+function cached(v,id){return v&&v.channelId===id&&Array.isArray(v.videos)&&v.videos.length<=6&&v.videos.every(x=>x&&ID.test(x.id)&&x.channelId===id&&typeof x.title==='string'&&typeof x.channel==='string'&&Number.isFinite(x.durationSeconds)&&x.durationSeconds>180)&&Number.isFinite(Date.parse(v.updatedAt))&&Date.parse(v.updatedAt)<=Date.now()+60000&&Date.now()-Date.parse(v.updatedAt)<AGE*2}
 async function channelVideos(channel,env){
-  const key='youtube:channel-feed:v1:'+channel.id;let previous;
+  const key='youtube:full-channel-feed:v2:'+channel.id;let previous;
   try{previous=await env.YT_CACHE.get(key,'json')}catch{throw Error('cache')}
   const valid=cached(previous,channel.id);if(valid&&Date.now()-Date.parse(previous.updatedAt)<AGE)return {...previous,stale:false};
   try{
-    const items=await google(env,'search',{part:'snippet',type:'video',channelId:channel.id,maxResults:'6',order:'date',safeSearch:'strict',videoEmbeddable:'true',videoSyndicated:'true'});
+    const items=await google(env,'search',{part:'snippet',type:'video',channelId:channel.id,maxResults:'25',order:'date',safeSearch:'strict',videoEmbeddable:'true',videoSyndicated:'true'});
+    const candidates=items.filter(item=>ID.test(item?.id?.videoId)&&item?.snippet?.channelId===channel.id);
+    const ids=[...new Set(candidates.map(item=>item.id.videoId))];
+    const details=ids.length?await google(env,'videos',{part:'contentDetails,status,snippet',id:ids.join(',')}):[];
+    const verified=new Map(details.filter(v=>v.snippet?.channelId===channel.id&&v.status?.embeddable===true&&v.status?.privacyStatus==='public'&&(!v.contentDetails?.regionRestriction?.blocked?.includes('JP')&&(!v.contentDetails?.regionRestriction?.allowed||v.contentDetails.regionRestriction.allowed.includes('JP')))&&!['live','upcoming'].includes(v.snippet?.liveBroadcastContent)&&durationSeconds(v.contentDetails?.duration)>180).map(v=>[v.id,v]));
     const seen=new Set(),videos=[];
-    for(const item of items){const id=item?.id?.videoId,s=item?.snippet;if(!ID.test(id)||!s||s.channelId!==channel.id||!clean(s.title)||seen.has(id)||['live','upcoming'].includes(s.liveBroadcastContent))continue;seen.add(id);let thumbnail='';try{const u=new URL(s.thumbnails?.high?.url||s.thumbnails?.medium?.url||'');if(u.protocol==='https:'&&u.hostname==='i.ytimg.com'&&!u.username&&!u.password&&!u.port)thumbnail=u.href}catch{}videos.push({id,title:clean(s.title).slice(0,200),channel:clean(s.channelTitle).slice(0,120),channelId:channel.id,thumbnail})}
+    for(const item of candidates){const id=item.id.videoId,s=item.snippet,detail=verified.get(id);if(!detail||!clean(s.title)||seen.has(id)||['live','upcoming'].includes(s.liveBroadcastContent)||/#shorts?\b/i.test(s.title))continue;seen.add(id);let thumbnail='';try{const u=new URL(s.thumbnails?.high?.url||s.thumbnails?.medium?.url||'');if(u.protocol==='https:'&&u.hostname==='i.ytimg.com'&&!u.username&&!u.password&&!u.port)thumbnail=u.href}catch{}videos.push({id,title:clean(s.title).slice(0,200),channel:clean(s.channelTitle).slice(0,120),channelId:channel.id,thumbnail,durationSeconds:durationSeconds(detail.contentDetails.duration)});if(videos.length===6)break}
     const data={channelId:channel.id,updatedAt:new Date().toISOString(),videos};await env.YT_CACHE.put(key,JSON.stringify(data),{expirationTtl:172800});return {...data,stale:false};
   }catch{if(valid)return {...previous,stale:true};throw Error('unavailable')}
 }

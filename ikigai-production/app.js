@@ -219,7 +219,7 @@
     });
   }
   // ---------- timeline (成長ログ): each person keeps posts, reactions and comments in posts/<uid> ----------
-  const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦'];
+  const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦','成長','努力','継続','学び','達成','気づき','感謝','交流','健康','その他'];
   const postCategoriesOf=x=>[...new Set((Array.isArray(x.categories)?x.categories:[x.category]).filter(c=>POST_CATEGORIES.includes(c)))].slice(0,3);
   let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myCmts=[],postWriting=false,postAgain=false,feedReady=false,homeLogError=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
