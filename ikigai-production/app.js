@@ -740,7 +740,7 @@
       const doy=Math.round((TODAY-new Date(TODAY.getFullYear(),0,1))/864e5);
       void doy;   // the daily lines are kept in HERO_LINES; this spot now shows the final goal
       const fg=goal().t;
-      $('#heroLine').textContent=fg?`THE GOAL👑：${fg}`:'THE GOAL👑は、プロフィールの変更から設定できます'; }
+      $('#heroLine').innerHTML='<span class="hero-goal-label">THE GOAL👑</span><span class="hero-goal-text">'+esc(fg||'プロフィールの変更から設定できます')+'</span>'; }
     $('#shiText').innerHTML=profile.shi?esc(profile.shi).replace(/\n/g,'<br>'):'<span style="opacity:.7">アカウントから志を書いてみよう</span>';
     document.querySelector('.hero .kicker').textContent=profile.nick?`${profile.nick}の志`:'MY ASPIRATION';
     const ha=$('#heroAvatar');ha.hidden=!profile.nick&&!profile.avatar;paintAvatar(ha,profile.avatar,profile.nick);
