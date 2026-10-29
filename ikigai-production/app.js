@@ -1238,10 +1238,10 @@
   }
   function renderAdminRoster(){
     if(!isOwnerView||$('#accAdmin').hidden||!adminLoaded)return;
-    const box=$('#adminRoster'),query=$('#adminSearch').value.trim().toLocaleLowerCase('ja-JP'),filter=$('#adminFilter').value;
+    const box=$('#adminRoster'),filter=$('#adminFilter').value;
     const done=adminRows.filter(r=>r.checked_today===true).length,unknown=adminRows.filter(r=>r.checked_today!==true&&r.checked_today!==false).length;
     $('#adminSummary').textContent=`在籍 ${adminRows.length}人 ／ チェック済み ${done}人 ／ 未チェック ${adminRows.length-done-unknown}人 ／ 未取得 ${unknown}人`;
-    const rows=adminRows.filter(r=>(!query||String(r.display_name||'').toLocaleLowerCase('ja-JP').includes(query))&&(filter==='all'||(filter==='done'&&r.checked_today===true)||(filter==='pending'&&r.checked_today===false)||(filter==='unknown'&&r.checked_today!==true&&r.checked_today!==false)));
+    const rows=adminRows.filter(r=>(filter==='all'||(filter==='done'&&r.checked_today===true)||(filter==='pending'&&r.checked_today===false)||(filter==='unknown'&&r.checked_today!==true&&r.checked_today!==false)));
     box.replaceChildren();
     if(!rows.length){const p=document.createElement('p');p.className='muted admin-note';p.textContent=adminRows.length?'条件に合うメンバーはいません。':'在籍メンバーはまだいません。';box.append(p);return}
     rows.forEach(r=>{
@@ -1278,7 +1278,7 @@
   }
   $('#adminMembersDetails').addEventListener('toggle',()=>{if($('#adminMembersDetails').open)loadAdminMembers()});
   $('#adminRefresh').onclick=()=>{loadAdminMembers();renderApplicants()};
-  $('#adminSearch').addEventListener('input',renderAdminRoster);$('#adminFilter').addEventListener('change',renderAdminRoster);
+  $('#adminFilter').addEventListener('change',renderAdminRoster);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('#accAdmin').hidden)loadAdminMembers()});
 
   // owner-only list of membership answers

@@ -4,10 +4,11 @@ const UID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','Vary':'Authorization, Origin','X-Content-Type-Options':'nosniff'}});
 const tkey=id=>'dm:thread:v1:'+id,ikey=(uid,id)=>'dm:inbox:v1:'+uid+':'+id;
 const incoming=(uid,id)=>'dm:incoming:v1:'+uid+':'+id+':',readKey=(uid,id)=>'dm:read:v1:'+uid+':'+id;
+const messageKey=(thread,id)=>'dm:message:v1:'+thread+':'+id,unsentKey=(thread,id)=>'dm:unsent:v1:'+thread+':'+id,receiptKey=(uid,thread,id)=>'dm:receipt:v1:'+uid+':'+thread+':'+id;
 const validThread=t=>t&&UID.test(t.hostUid)&&UID.test(t.memberUid)&&t.id===t.hostUid+':'+t.memberUid&&typeof t.hostName==='string'&&typeof t.memberName==='string';
 const canRead=(u,t)=>validThread(t)&&((t.hostUid===u.uid&&u.isHost)||t.memberUid===u.uid);
 const sortKey=m=>String(9999999999999-Date.parse(m.at)).padStart(13,'0')+':'+m.id;
-async function unread(kv,u,t){const [list,seen]=await Promise.all([kv.list({prefix:incoming(u.uid,t.id),limit:20}),kv.get(readKey(u.uid,t.id),'json')]);list.keys=list.keys.filter(k=>9999999999999-Number(k.name.slice(incoming(u.uid,t.id).length).split(':')[0])>=u.chatSince);const ids=Array.isArray(seen?.ids)?seen.ids:[];return {incomingIds:list.keys.map(k=>k.name.split(':').at(-1)),unread:list.keys.some(k=>!ids.includes(k.name.split(':').at(-1))),updatedAt:list.keys.length?new Date(9999999999999-Number(list.keys[0].name.slice(incoming(u.uid,t.id).length).split(':')[0])).toISOString():t.createdAt}}
+async function unread(kv,u,t){const [list,seen]=await Promise.all([kv.list({prefix:incoming(u.uid,t.id),limit:20}),kv.get(readKey(u.uid,t.id),'json')]);list.keys=list.keys.filter(k=>9999999999999-Number(k.name.slice(incoming(u.uid,t.id).length).split(':')[0])>=u.chatSince);const cancelled=await Promise.all(list.keys.map(k=>kv.get(unsentKey(t.id,k.name.split(':').at(-1)))));list.keys=list.keys.filter((k,i)=>!cancelled[i]);const receipts=await Promise.all(list.keys.map(k=>kv.get(receiptKey(u.uid,t.id,k.name.split(':').at(-1)))));const ids=Array.isArray(seen?.ids)?seen.ids:[];return {incomingIds:list.keys.map(k=>k.name.split(':').at(-1)),unread:list.keys.some((k,i)=>!receipts[i]&&!ids.includes(k.name.split(':').at(-1))),updatedAt:list.keys.length?new Date(9999999999999-Number(list.keys[0].name.slice(incoming(u.uid,t.id).length).split(':')[0])).toISOString():t.createdAt}}
 export async function onRequest(context){
   const {request,env}=context;
   if(request.method!=='POST')return reply(405,{message:'POSTで利用してください。'});
@@ -32,7 +33,7 @@ export async function onRequest(context){
     if(body.action==='inbox'){
       const page=await kv.list({prefix:'dm:inbox:v1:'+user.uid+':',limit:10,...(body.cursor?{cursor:body.cursor}:{})});
       const links=await Promise.all(page.keys.map(k=>kv.get(k.name,'json'))),threads=[];
-      for(const link of links){if(!link?.id)continue;const t=await kv.get(tkey(link.id),'json');if(!canRead(user,t))continue;const state=await unread(kv,user,t);threads.push({id:t.id,peerUid:t.hostUid===user.uid?t.memberUid:t.hostUid,peerName:t.hostUid===user.uid?t.memberName:t.hostName,...state});}
+      await Promise.all(links.map(async link=>{if(!link?.id)return;const t=await kv.get(tkey(link.id),'json');if(!canRead(user,t))return;const state=await unread(kv,user,t);threads.push({id:t.id,peerUid:t.hostUid===user.uid?t.memberUid:t.hostUid,peerName:t.hostUid===user.uid?t.memberName:t.hostName,...state});}));threads.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.id.localeCompare(b.id));
       return reply(200,{threads,cursor:page.list_complete?null:page.cursor,isHost:user.isHost});
     }
     if(typeof body.threadId!=='string'||body.threadId.length!==73)return reply(400,{message:'個別トークを選んでください。'});
@@ -40,17 +41,38 @@ export async function onRequest(context){
     if(body.action==='messages'){
       const page=await kv.list({prefix:'dm:messages:v1:'+thread.id+':',limit:20,...(body.cursor?{cursor:body.cursor}:{})});const rows=await Promise.all(page.keys.map(k=>kv.get(k.name,'json')));
       if(rows.some(m=>!m||m.threadId!==thread.id||![thread.hostUid,thread.memberUid].includes(m.senderUid)||!UID.test(m.id)||typeof m.text!=='string'||!Number.isFinite(Date.parse(m.at))))throw Error('message');
-      rows.sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));const eligible=rows.filter(m=>Date.parse(m.at)>=user.chatSince);return reply(200,{thread,since:new Date(user.chatSince).toISOString(),messages:eligible,cursor:page.list_complete||eligible.length<rows.length?null:page.cursor});
+      rows.sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));const eligible=rows.filter(m=>Date.parse(m.at)>=user.chatSince);
+      const peer=user.uid===thread.hostUid?thread.memberUid:thread.hostUid,peerSeen=await kv.get(readKey(peer,thread.id),'json');
+      const hydrated=await Promise.all(eligible.map(async m=>{
+        const [cancelled,canonical,receipt]=await Promise.all([kv.get(unsentKey(thread.id,m.id),'json'),kv.get(messageKey(thread.id,m.id),'json'),m.senderUid===user.uid?kv.get(receiptKey(peer,thread.id,m.id),'json'):null]);
+        const unsent=!!cancelled||canonical?.unsent===true||m.unsent===true;
+        return {id:m.id,threadId:thread.id,senderUid:m.senderUid,at:m.at,text:unsent?'':m.text,unsent,read:m.senderUid===user.uid&&(!!receipt||peerSeen?.ids?.includes(m.id)===true)};
+      }));
+      return reply(200,{thread,since:new Date(user.chatSince).toISOString(),messages:hydrated,cursor:page.list_complete||eligible.length<rows.length?null:page.cursor});
     }
     if(body.action==='read'){
       if(!Array.isArray(body.ids)||body.ids.length>40||!body.ids.every(id=>UID.test(id)))return reply(400,{message:'既読情報を確認できませんでした。'});
+      const received=await Promise.all(body.ids.map(id=>kv.get(messageKey(thread.id,id),'json')));
+      if(received.some(m=>!m||m.threadId!==thread.id||m.senderUid===user.uid||![thread.hostUid,thread.memberUid].includes(m.senderUid)||!Number.isFinite(Date.parse(m.at))||Date.parse(m.at)<user.chatSince))return reply(403,{message:'受信したメッセージのみ既読にできます。'});
+      const at=new Date().toISOString();
+      await Promise.all(body.ids.map(async id=>{const key=receiptKey(user.uid,thread.id,id);if(!await kv.get(key))await kv.put(key,JSON.stringify({at}))}));
       const old=await kv.get(readKey(user.uid,thread.id),'json'),ids=[...new Set([...(Array.isArray(old?.ids)?old.ids:[]),...body.ids])].slice(-200);await kv.put(readKey(user.uid,thread.id),JSON.stringify({ids}));return reply(200,{ok:true});
+    }
+    if(body.action==='unsend'){
+      if(!UID.test(body.id))return reply(400,{message:'メッセージを選んでください。'});
+      const key=messageKey(thread.id,body.id),message=await kv.get(key,'json');
+      if(!message||message.threadId!==thread.id||message.senderUid!==user.uid||!Number.isFinite(Date.parse(message.at))||Date.parse(message.at)<user.chatSince)return reply(403,{message:'自分が送信したメッセージのみ取り消せます。'});
+      const marker=unsentKey(thread.id,body.id);if(!await kv.get(marker))await kv.put(marker,JSON.stringify({at:new Date().toISOString()}));
+      const cancelled={...message,text:'',unsent:true};
+      if(!message.unsent)await Promise.all([kv.put(key,JSON.stringify(cancelled)),kv.put('dm:messages:v1:'+thread.id+':'+sortKey(message),JSON.stringify(cancelled))]);
+      return reply(200,{message:cancelled});
     }
     if(body.action==='send'){
       if(!UID.test(body.id)||typeof body.text!=='string'||!body.text.trim()||body.text.trim().length>2000)return reply(400,{message:'メッセージを1〜2000文字で入力してください。'});
       if(user.isHost&&thread.hostUid===user.uid){const roster=await readPrivateChatRoster(request);if(!roster.some(r=>r.user_id===thread.memberUid))return reply(403,{message:'相手の在籍状態を確認できませんでした。'});}
       const key='dm:message:v1:'+thread.id+':'+body.id;let message=await kv.get(key,'json');
       if(message&&Date.parse(message.at)<user.chatSince)return reply(403,{message:'入会前のメッセージは利用できません。'});
+      if(await kv.get(unsentKey(thread.id,body.id))||message?.unsent)return reply(409,{message:'送信を取り消したメッセージは再送できません。'});
       if(message&&(message.senderUid!==user.uid||message.text!==body.text.trim()))return reply(409,{message:'送信内容を確認し、個別トークを開き直してください。'});
       if(!message){message={id:body.id,threadId:thread.id,senderUid:user.uid,text:body.text.trim(),at:new Date().toISOString()};await kv.put(key,JSON.stringify(message));}
       const sort=sortKey(message),recipient=user.uid===thread.hostUid?thread.memberUid:thread.hostUid;
