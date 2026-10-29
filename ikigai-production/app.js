@@ -5,6 +5,8 @@
   const parseIso=k=>{const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d||1)};
   const dayFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'});
   const japanDayKey=()=>{const p=Object.fromEntries(dayFormatter.formatToParts(new Date()).map(x=>[x.type,x.value]));return `${p.year}-${p.month}-${p.day}`};
+  const actionDayKey=()=>{const p=Object.fromEntries(dayFormatter.formatToParts(new Date(Date.now()-7*3600000)).map(x=>[x.type,x.value]));return `${p.year}-${p.month}-${p.day}`};
+  let actionCycleKey=actionDayKey();
   const TODAY=parseIso(japanDayKey());
   let todayKey=iso(TODAY);
   const WD=['日','月','火','水','木','金','土'];
@@ -671,6 +673,7 @@
       }
       // the Firebase adapter has no approval step, so everyone there counts as approved
       approved=u.isMember?await u.isMember().catch(()=>false):true;
+      if(p.exists)await migrateActionCheckCycle();
       renderAll();fillForm();
       if(approved)openShared();else watchApproval();
       syncMember();
@@ -706,12 +709,14 @@
 
   // ---------- check stats ----------
   const isOn=k=>!!profile.checks[k];
+  const currentCheckDone=()=>typeof profile.actionCheckCycle==='string'?profile.actionCheckCycle===actionDayKey():isOn(todayKey);
+  async function migrateActionCheckCycle(){if(typeof profile.actionCheckCycle==='string')return;profile.actionCheckCycle=(isOn(todayKey)||isOn(actionDayKey()))?actionDayKey():'';await saveProfile(true)};
   let checkSaving=false;
   async function completeDay(key){
     refreshDayClock();
     const day=key||todayKey;
-    if(day!==todayKey||checkSaving||isOn(day)||loadFailed)return false;
-    checkSaving=true;profile.checks[day]=true;renderHome();renderCheck();
+    if(day!==todayKey||checkSaving||currentCheckDone()||loadFailed)return false;
+    checkSaving=true;profile.checks[day]=true;profile.actionCheckCycle=actionDayKey();profile.actionCheckAt=new Date().toISOString();renderHome();renderCheck();
     try{const ok=await saveProfile();if(ok)toast('チェックしました');return ok}
     finally{checkSaving=false;renderHome();renderCheck()}
   }
@@ -746,14 +751,14 @@
     const ha=$('#heroAvatar');ha.hidden=!profile.nick&&!profile.avatar;paintAvatar(ha,profile.avatar,profile.nick);
     $('#daysLine').hidden=true;   // 「志を立てて〇日目」は表示しない
     $('#daysSince').textContent=Math.max(1,Math.round((TODAY-parseIso(profile.shiSince))/864e5)+1);
-    const on=isOn(todayKey);
+    const on=currentCheckDone();
     $('#todayCheck').setAttribute('aria-pressed',on);
     const headerCheck=$('.header-check');
     if(headerCheck){headerCheck.classList.toggle('is-checked',on);headerCheck.setAttribute('aria-label',on?'今日の行動はチェック済み。カレンダーを開く':'今日の行動をチェックしてカレンダーを開く');headerCheck.title=on?'今日の行動はチェック済み':'今日の行動をチェック';headerCheck.querySelector('span').textContent=on?'済':'行動';}
 
     $('#todayCheck').disabled=on||checkSaving||loadFailed;
     $('#todayTitle').textContent=on?'今日のタスク、やり遂げた！':'今日、自分が決めたタスクをやり遂げた？';
-    $('#todaySub').textContent=on?'次は明日0:00（日本時間）から':'1日1回。やり遂げたらタップしてチェック';
+    $('#todaySub').textContent=on?'次は朝7:00（日本時間）に切り替わります':'朝7時から翌朝7時までに1回。やり遂げたらチェック';
     $('#todayCheckLabel').textContent=checkSaving?'保存中…':on?'チェック済み':'やり遂げた';
     $('#todayStreak').textContent=`連続 ${streak()} 日`;
     const wDone=!!findR('week',curKey.week),mon=parseIso(curKey.week);
@@ -1010,7 +1015,7 @@
     let h=WD.map((w,i)=>`<div class="wd ${i===0?'sun':''}">${w}</div>`).join('');
     for(let i=0;i<first;i++)h+='<div></div>';
     for(let d=1;d<=last;d++){
-      const dt=new Date(y,m,d),k=iso(dt),fut=dt>TODAY,on=isOn(k);
+      const dt=new Date(y,m,d),k=iso(dt),fut=dt>TODAY,on=k===todayKey?currentCheckDone():isOn(k);
       h+=`<button class="${on?'on':''} ${k===todayKey?'today':''} ${fut?'future':''}" data-day="${k}" ${(k!==todayKey||on||checkSaving||loadFailed)?'disabled':''} aria-pressed="${on}" aria-label="${m+1}月${d}日">${d}${on?CHECK:''}</button>`;
     }
     return h;
@@ -1594,7 +1599,7 @@
   // Refresh display only: never erase history or rebuild a reflection/comment draft at midnight.
   let dayTimer=0;
   function refreshDayClock(){
-    const next=japanDayKey();if(next===todayKey)return false;
+    const next=japanDayKey(),cycle=actionDayKey();if(next===todayKey&&cycle===actionCycleKey)return false;actionCycleKey=cycle;
     const oldWeek=curKey.week,oldMonth=curKey.month,currentMonth=viewY===TODAY.getFullYear()&&viewM===TODAY.getMonth();
     TODAY.setTime(parseIso(next).getTime());todayKey=next;yesterdayKey=iso(addDays(TODAY,-1));
     curKey.week=iso(mondayOf(TODAY));curKey.month=`${TODAY.getFullYear()}-${pad(TODAY.getMonth()+1)}`;
@@ -1606,7 +1611,8 @@
   }
   function scheduleDayClock(){
     clearTimeout(dayTimer);
-    const nextMidnight=Date.parse(japanDayKey()+'T00:00:00+09:00')+86400000;
+    const dayStart=Date.parse(japanDayKey()+'T00:00:00+09:00'),seven=dayStart+7*3600000;
+    const nextMidnight=Math.min(dayStart+86400000,seven>Date.now()?seven:seven+86400000);
     dayTimer=setTimeout(()=>{refreshDayClock();scheduleDayClock()},Math.max(1,nextMidnight-Date.now()));
   }
   function resumeDayClock(){refreshDayClock();scheduleDayClock()}
