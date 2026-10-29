@@ -12,7 +12,7 @@ export function mountInquiry({request,account,isAdmin,name}){
     try{
       const data=await request('self',payload,undefined,selected);if(token!==selfToken||account()!==uid)return;
       current=data.request;
-      if(current){reason.value=current.reason;confirm.checked=selected==='withdrawal';$('#inquiryStatus').textContent=(send?'管理者へ送信しました。':current.status==='handled'?'管理者が確認済みです。':'管理者へ送信済みです。')+'（'+date(current.submittedAt)+'）';}
+      if(current){reason.value='';confirm.checked=false;$('#inquiryStatus').textContent=(send?'管理者へ送信しました。':current.status==='handled'?'管理者が確認済みです。':'管理者へ送信済みです。')+'（'+date(current.submittedAt)+'）';}
       else $('#inquiryStatus').textContent='';
       selfBusy=false;selfControls(true);
     }catch(e){if(token!==selfToken||account()!==uid)return;$('#inquiryStatus').textContent=e.name==='AbortError'?'時間がかかっています。「送信状況を確認」で結果を確認してください。':e.message||'連絡を保存できませんでした。';selfBusy=false;selfControls(send);}
