@@ -1228,7 +1228,7 @@
   });
 
   // Administrator-only account screen. No roster data is kept in browser storage.
-  let adminRows=[],adminLoadToken=0,adminLoaded=false,adminRosterMode='checks';
+  let adminRows=[],adminLoadToken=0,adminLoaded=false;
   function setOwnerView(owner){
     isOwnerView=!!owner;
     if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
@@ -1243,9 +1243,9 @@
   }
   function renderAdminRoster(){
     if(!isOwnerView||$('#accAdmin').hidden||!adminLoaded)return;
-    const box=$('#adminRoster'),filter=adminRosterMode==='members'?'all':$('#adminFilter').value;
+    const box=$('#adminRoster'),filter=$('#adminFilter').value;
     const done=adminRows.filter(r=>r.checked_today===true).length,unknown=adminRows.filter(r=>r.checked_today!==true&&r.checked_today!==false).length;
-    $('#adminSummary').textContent=adminRosterMode==='members'?`在籍 ${adminRows.length}人`:`在籍 ${adminRows.length}人 ／ チェック済み ${done}人 ／ 未チェック ${adminRows.length-done-unknown}人 ／ 未取得 ${unknown}人`;
+    $('#adminSummary').textContent=`在籍 ${adminRows.length}人 ／ チェック済み ${done}人 ／ 未チェック ${adminRows.length-done-unknown}人 ／ 未取得 ${unknown}人`;
     const rows=adminRows.filter(r=>(filter==='all'||(filter==='done'&&r.checked_today===true)||(filter==='pending'&&r.checked_today===false)||(filter==='unknown'&&r.checked_today!==true&&r.checked_today!==false)));
     box.replaceChildren();
     if(!rows.length){const p=document.createElement('p');p.className='muted admin-note';p.textContent=adminRows.length?'条件に合うメンバーはいません。':'在籍メンバーはまだいません。';box.append(p);return}
@@ -1256,7 +1256,7 @@
       const state=document.createElement('span');state.className='admin-check'+(r.checked_today===true?' done':'');state.textContent=r.checked_today===true?'✓ チェック済み':r.checked_today===false?'未チェック':'未取得';
       if(r.checked_today!==true&&r.checked_today!==false)state.title='行動チェックの記録をまだ取得できていません。未チェックの人数には含めません。';
       if(r.user_id!==uid){const button=document.createElement('button');button.type='button';button.className='small-btn dm-start-btn';button.textContent='チャット';button.onclick=()=>startDirectMessage(r.user_id);person.append(button)}
-      row.append(av,person);if(adminRosterMode==='checks')row.append(state);box.append(row);
+      row.append(av,person,state);box.append(row);
     });
   }
   async function loadAdminMembers(){
@@ -1281,18 +1281,7 @@
       $('#adminSummary').textContent=err&&['PGRST202','42883'].includes(err.code)?'管理者一覧の準備がまだ完了していません。':'一覧を取得できませんでした。「更新」で再試行してください。';
     }finally{if(token===adminLoadToken)$('#adminRefresh').disabled=false}
   }
-  function syncAdminRosterMode(){
-    const open=$('#adminMembersDetails').open;
-    document.querySelectorAll('[data-admin-mode]').forEach(b=>{const expanded=open&&b.dataset.adminMode===adminRosterMode;b.setAttribute('aria-expanded',String(expanded));b.querySelector('span').textContent=expanded?'−':'＋'});
-    $('#adminRosterTitle').textContent=adminRosterMode==='members'?'メンバー情報':'行動チェック';
-    $('#adminCheckDay').hidden=adminRosterMode==='members';$('#adminFilter').closest('.admin-filters').hidden=adminRosterMode==='members';
-  }
-  document.querySelectorAll('[data-admin-mode]').forEach(b=>b.onclick=()=>{
-    const details=$('#adminMembersDetails'),same=adminRosterMode===b.dataset.adminMode;adminRosterMode=b.dataset.adminMode;
-    if(same&&details.open)details.open=false;else details.open=true;
-    syncAdminRosterMode();if(details.open){if(adminLoaded)renderAdminRoster();else loadAdminMembers()}
-  });
-  $('#adminMembersDetails').addEventListener('toggle',()=>{syncAdminRosterMode()});
+  $('#adminMembersDetails').addEventListener('toggle',()=>{if($('#adminMembersDetails').open){if(adminLoaded)renderAdminRoster();else loadAdminMembers()}});
   $('#adminRefresh').onclick=()=>{loadAdminMembers();renderApplicants()};
   $('#adminFilter').addEventListener('change',renderAdminRoster);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('#accAdmin').hidden)loadAdminMembers()});

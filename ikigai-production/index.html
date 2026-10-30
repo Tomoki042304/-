@@ -47,13 +47,13 @@ img{max-width:100%}
 .dm-row .dm-bubble.dm-unsent{background:transparent;color:#aaa;font-size:13px;padding:6px 0}
 .dm-actions button{padding:9px 14px;background:#292929;border:1px solid #666;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;min-height:40px}
 .dm-thread:active,.dm-start-btn:active{opacity:.7;transform:scale(.98)}
-#adminMembersDetails > summary .channel-expand::before{content:"↓"}
-#adminMembersDetails[open] > summary .channel-expand::before{content:"↑"}
+#adminMembersDetails > summary .channel-expand::before{content:"＋"}
+#adminMembersDetails[open] > summary .channel-expand::before{content:"−"}
 #adminMembersDetails .admin-filters{grid-template-columns:1fr}
 .admin-roster-switches{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .admin-roster-switches button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:56px;padding:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;font-size:14px;text-align:left}
 .admin-roster-switches button span{font-size:24px;line-height:1}.admin-roster-switches button[aria-expanded=true]{border-color:var(--accent);color:var(--accent)}
-#adminMembersDetails:not([open]){display:none}#adminMembersDetails > summary[hidden]{display:none}
+
 </style>
 <style>
 /* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */
@@ -1316,13 +1316,21 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
       <div id="accAdmin" class="view" hidden>
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
-        <section class="card admin-panel" id="inquiryAdmin">
-          <div class="card-head"><b>問い合わせ連絡</b><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button></div>
-          <p class="muted admin-note">購入・研修・退会についての連絡欄です。「確認済み」にしても退会処理やデータ削除は行いません。反映まで約1分かかる場合があります。</p>
-          <p id="inquiryAdminStatus" class="muted admin-note" role="status" aria-live="polite"></p>
-          <div id="inquiryAdminList" class="admin-roster"></div>
-          <button type="button" class="small-btn" id="inquiryAdminMore" hidden>さらに読み込む</button>
-        </section>
+      <div class="card" id="appCard" hidden>
+        <div class="card-head"><b style="font-size:16px">入会申込の一覧<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b><span class="mono" id="appCount"></span></div>
+        <div class="box-list" id="appList"><p class="muted">読み込んでいます…</p></div>
+      </div>
+        <details class="card" id="adminMembersDetails"><summary class="channel-summary"><b>メンバー情報</b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px">
+          <div class="card-head"><b id="adminRosterTitle">在籍メンバー・行動チェック</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
+          <p class="muted" id="adminCheckDay"></p>
+          <p id="adminSummary" role="status" aria-live="polite">読み込んでいます…</p>
+          <div class="admin-filters">
+            <label>今日の行動チェック<select id="adminFilter"><option value="all">全員</option><option value="done">チェック済み</option><option value="pending">未チェック</option><option value="unknown">未取得</option></select></label>
+          </div>
+          <p class="muted admin-note">承認済みメンバーと管理者を表示します。「更新」で最新の状況を確認できます。</p>
+          <div id="adminRoster" class="admin-roster"></div>
+          <p class="muted admin-note" id="adminUpdated"></p>
+        </div></details>
         <form class="card admin-panel" id="youtubeChannelsForm">
           <details id="youtubeChannelsDetails">
             <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
@@ -1335,26 +1343,13 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
             </div>
           </details>
         </form>
-
-        <div class="admin-roster-switches">
-          <button type="button" id="adminChecksToggle" data-admin-mode="checks" aria-expanded="false" aria-controls="adminMembersDetails"><b>行動チェック</b><span aria-hidden="true">＋</span></button>
-          <button type="button" id="adminPeopleToggle" data-admin-mode="members" aria-expanded="false" aria-controls="adminMembersDetails"><b>メンバー情報</b><span aria-hidden="true">＋</span></button>
-        </div>
-        <details class="card" id="adminMembersDetails"><summary hidden>管理者一覧</summary><div class="admin-panel" style="margin-top:14px">
-          <div class="card-head"><b id="adminRosterTitle">行動チェック</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
-          <p class="muted" id="adminCheckDay"></p>
-          <p id="adminSummary" role="status" aria-live="polite">読み込んでいます…</p>
-          <div class="admin-filters">
-            <label>今日の行動チェック<select id="adminFilter"><option value="all">全員</option><option value="done">チェック済み</option><option value="pending">未チェック</option><option value="unknown">未取得</option></select></label>
-          </div>
-          <p class="muted admin-note">承認済みメンバーと管理者を表示します。「更新」で最新の状況を確認できます。</p>
-          <div id="adminRoster" class="admin-roster"></div>
-          <p class="muted admin-note" id="adminUpdated"></p>
-        </div></details>
-      <div class="card" id="appCard" hidden>
-        <div class="card-head"><b style="font-size:16px">入会申込の一覧<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b><span class="mono" id="appCount"></span></div>
-        <div class="box-list" id="appList"><p class="muted">読み込んでいます…</p></div>
-      </div>
+        <section class="card admin-panel" id="inquiryAdmin">
+          <div class="card-head"><b>問い合わせ連絡</b><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button></div>
+          <p class="muted admin-note">購入・研修・退会についての連絡欄です。「確認済み」にしても退会処理やデータ削除は行いません。反映まで約1分かかる場合があります。</p>
+          <p id="inquiryAdminStatus" class="muted admin-note" role="status" aria-live="polite"></p>
+          <div id="inquiryAdminList" class="admin-roster"></div>
+          <button type="button" class="small-btn" id="inquiryAdminMore" hidden>さらに読み込む</button>
+        </section>
       </div>
     </section>
   </main>
