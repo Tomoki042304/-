@@ -1,7 +1,7 @@
 const TYPES={note:'志動録ノート購入',training:'企業研修について',withdrawal:'退会について'};
 export function mountInquiry({request,account,isAdmin,name}){
   const $=s=>document.querySelector(s),form=$('#inquiryForm'),type=$('#inquiryType'),reason=$('#inquiryReason'),confirm=$('#inquiryConfirm'),submit=$('#inquirySubmit');
-  let selfToken=0,adminToken=0,selfBusy=false,adminBusy=false,current=null,rows=[],cursor=null;
+  let selfToken=0,adminToken=0,selfBusy=false,adminBusy=false,current=null,rows=[],cursor=null,draftKey='',draftSignature='';
   let noticeTimer=0,noticeToken=0,noticeBusy=false,noticesStarted=false;const handledIds=new Set();
   function noticeDot(on){for(const id of ['#inquiryAdminDot','#inquiryEntryDot']){const dot=$(id);if(dot)dot.hidden=!on}}
   async function pollNotices(){
@@ -20,15 +20,16 @@ export function mountInquiry({request,account,isAdmin,name}){
   function startNotices(){if(!isAdmin())return;noticesStarted=true;void pollNotices()}
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&noticesStarted)void pollNotices();else clearTimeout(noticeTimer)});
   const date=s=>new Date(s).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'});
-  function selfControls(ready){type.disabled=selfBusy;reason.disabled=!ready||selfBusy||current?.status==='pending';confirm.disabled=reason.disabled;submit.disabled=reason.disabled;$('#inquiryReload').disabled=selfBusy;$('#inquiryReasonLabel').textContent=type.value==='withdrawal'?'退会理由（必須）':'お問い合わせ内容（必須）';confirm.required=type.value==='withdrawal';$('#inquiryConfirmRow').hidden=type.value!=='withdrawal';submit.textContent=current?.status==='pending'?'送信済み':'管理者へ送信する'}
+  function selfControls(ready){type.disabled=selfBusy;reason.disabled=!ready||selfBusy;confirm.disabled=reason.disabled;submit.disabled=reason.disabled;$('#inquiryReload').disabled=selfBusy;$('#inquiryReasonLabel').textContent=type.value==='withdrawal'?'退会理由（必須）':'お問い合わせ内容（必須）';confirm.required=type.value==='withdrawal';$('#inquiryConfirmRow').hidden=type.value!=='withdrawal';submit.textContent=selfBusy?'確認中…':'管理者へ送信する'}
   async function loadSelf(send=false){
     if(!account()||selfBusy)return;
     if(send&&(!reason.value.trim()||(type.value==='withdrawal'&&!confirm.checked))){$('#inquiryStatus').textContent='内容を入力し、退会については「退会希望」にチェックしてください。';return}
-    const token=++selfToken,uid=account(),selected=type.value,payload=send?{name:name(),reason:reason.value.trim(),confirmed:confirm.checked}:undefined;
+    if(send){const signature=JSON.stringify([type.value,reason.value.trim(),confirm.checked]);if(signature!==draftSignature||!draftKey){draftKey=crypto.randomUUID();draftSignature=signature;}}
+    const token=++selfToken,uid=account(),selected=type.value,payload=send?{name:name(),reason:reason.value.trim(),confirmed:confirm.checked,requestId:draftKey}:undefined;
     selfBusy=true;selfControls(false);$('#inquiryStatus').textContent=send?'管理者へ送信しています…':'送信状況を確認しています…';
     try{
       const data=await request('self',payload,undefined,selected);if(token!==selfToken||account()!==uid)return;
-      current=data.request;
+      current=data.request;if(send){draftKey='';draftSignature='';}
       if(current){reason.value='';confirm.checked=false;$('#inquiryStatus').textContent=(send?'管理者へ送信しました。':current.status==='handled'?'管理者が確認済みです。':'管理者へ送信済みです。')+'（'+date(current.submittedAt)+'）';}
       else $('#inquiryStatus').textContent='';
       selfBusy=false;selfControls(true);
@@ -44,7 +45,7 @@ export function mountInquiry({request,account,isAdmin,name}){
   async function loadAdmin(more=false){
     if(!account()||!isAdmin()||adminBusy)return;
     const token=++adminToken,uid=account();adminBusy=true;$('#inquiryAdminRefresh').disabled=true;$('#inquiryAdminMore').disabled=true;$('#inquiryAdminStatus').textContent='読み込んでいます…';
-    try{const data=await request('admin',undefined,more?cursor:undefined);if(token!==adminToken||account()!==uid||!isAdmin())return;if(!Array.isArray(data.requests))throw Error('一覧を読み込めませんでした。');rows=more?[...new Map([...rows,...data.requests].map(r=>[r.requestId,r])).values()]:data.requests;cursor=data.cursor;renderAdmin();if(rows.some(r=>r.status==='pending'&&!handledIds.has(r.requestId)))noticeDot(true);if(noticesStarted)void pollNotices();$('#inquiryAdminStatus').textContent=rows.length?'表示 '+rows.length+'件（未確認 '+rows.filter(r=>r.status==='pending').length+'件）':'問い合わせはありません。';}
+    try{const data=await request('admin',undefined,more?cursor:undefined);if(token!==adminToken||account()!==uid||!isAdmin())return;if(!Array.isArray(data.requests))throw Error('一覧を読み込めませんでした。');rows=[...new Map([...(more?rows:[]),...data.requests].map(r=>[r.requestId,r])).values()];cursor=data.cursor;renderAdmin();if(rows.some(r=>r.status==='pending'&&!handledIds.has(r.requestId)))noticeDot(true);if(noticesStarted)void pollNotices();$('#inquiryAdminStatus').textContent=rows.length?'表示 '+rows.length+'件（未確認 '+rows.filter(r=>r.status==='pending').length+'件）':'問い合わせはありません。';}
     catch(e){if(token===adminToken)$('#inquiryAdminStatus').textContent=e.message||'一覧を読み込めませんでした。'}
     finally{if(token===adminToken){adminBusy=false;$('#inquiryAdminRefresh').disabled=false;$('#inquiryAdminMore').disabled=false}}
   }
@@ -59,6 +60,6 @@ export function mountInquiry({request,account,isAdmin,name}){
   type.onchange=()=>{current=null;reason.value='';confirm.checked=false;loadSelf()};
   $('#inquiryReload').onclick=()=>loadSelf();$('#inquiryAdminRefresh').onclick=()=>loadAdmin();$('#inquiryAdminMore').onclick=()=>loadAdmin(true);
   function clearAdmin(){noticesStarted=false;clearTimeout(noticeTimer);noticeToken++;noticeBusy=false;handledIds.clear();noticeDot(false);adminToken++;adminBusy=false;rows=[];cursor=null;$('#inquiryAdminList').replaceChildren();$('#inquiryAdminStatus').textContent='';$('#inquiryAdminMore').hidden=true;$('#inquiryAdminRefresh').disabled=false;}
-  function stop(){selfToken++;selfBusy=false;current=null;reason.value='';confirm.checked=false;selfControls(false);clearAdmin();$('#inquiryStatus').textContent='';}
+  function stop(){draftKey='';draftSignature='';selfToken++;selfBusy=false;current=null;reason.value='';confirm.checked=false;selfControls(false);clearAdmin();$('#inquiryStatus').textContent='';}
   return {startNotices,open(which){if(which==='admin')loadAdmin();else loadSelf()},stop,clearAdmin};
 }

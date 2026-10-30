@@ -3,9 +3,10 @@ const encoder = new TextEncoder(), decoder = new TextDecoder();
 const bytes = text => Uint8Array.from(atob(text), x => x.charCodeAt(0));
 const base64 = data => btoa(String.fromCharCode(...new Uint8Array(data)));
 async function keyFor(env, id, usage) {
-  const keys = JSON.parse(env.PII_ENCRYPTION_KEYS || '{}');
+  let keys;try{keys=JSON.parse(env.PII_ENCRYPTION_KEYS || '{}')}catch{throw Error('PII_KEY_INVALID')}
+  if(!keys||typeof keys!=='object'||Array.isArray(keys))throw Error('PII_KEY_INVALID');
   if (!/^[a-zA-Z0-9_-]{1,40}$/.test(id || '') || typeof keys[id] !== 'string') throw Error('PII_KEY_UNAVAILABLE');
-  const raw = bytes(keys[id]);
+  let raw;try{raw=bytes(keys[id])}catch{throw Error('PII_KEY_INVALID')}
   if (raw.length !== 32) throw Error('PII_KEY_INVALID');
   return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, [usage]);
 }

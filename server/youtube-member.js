@@ -65,6 +65,11 @@ export async function requireMemberRole(request){
   if(result.failure)return result.failure;if(!result.ok||typeof result.body!=='boolean')return {status:503,message:'権限を確認できませんでした。'};
   return {...member,isHost:result.body};
 }
+// Sending needs only admission, not decryption of every member's display name.
+export async function readPrivateChatRosterIds(request){
+  const result=await readCheck('/rest/v1/rpc/ikigai_admin_member_status_v1?select=user_id',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'ROSTER');
+  if(result.failure||!result.ok||!Array.isArray(result.body))throw Error('roster unavailable');return result.body;
+}
 export async function readPrivateChatRoster(request,env){
   return privateRoster(request,env);
 }
