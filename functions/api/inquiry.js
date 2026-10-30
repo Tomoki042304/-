@@ -1,3 +1,4 @@
+import {privateKv} from '../../server/pii-storage.js';
 import {requireAccountUser,requireYoutubeHost} from '../../server/youtube-member.js';
 const PREFIX='inquiry:v1:',TYPES=['note','training','withdrawal'],UID=/^[A-Za-z0-9-]{1,80}$/;
 const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Authorization, Origin'}});
@@ -10,7 +11,7 @@ export async function onRequest({request,env}){
   const user=await (admin?requireYoutubeHost:requireAccountUser)(request);
   if(!user.ok)return reply(user.status,{message:user.status===403&&admin?'管理者専用の連絡欄です。':user.message});
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const kv=env.YT_CACHE;if(!kv?.get||!kv?.put||(admin&&!kv?.list))return reply(503,{message:'問い合わせ機能は接続準備中です。'});
+  const storage=env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||(admin&&!kv?.list))return reply(503,{message:'問い合わせ機能は接続準備中です。'});
   try{
     if(admin&&reading){
       const cursor=url.searchParams.get('cursor')||undefined;if(cursor&&cursor.length>2048)return reply(400,{message:'一覧を更新してください。'});
@@ -21,6 +22,7 @@ export async function onRequest({request,env}){
     if(!admin&&reading){
       const current=await kv.get(PREFIX+user.uid+':'+type,'json');if(current&&!valid(current))throw Error('record');return reply(200,{request:current||null});
     }
+    if(env.PII_MIGRATION_MODE==='locked')return reply(503,{message:'個人情報の保護設定を更新中です。しばらくしてから送信してください。'});
     if(!request.headers.get('Content-Type')?.startsWith('application/json'))return reply(415,{message:'JSON形式で送信してください。'});
     const raw=await request.text();if(raw.length>5000)return reply(400,{message:'入力が長すぎます。'});
     let body;try{body=JSON.parse(raw)}catch{return reply(400,{message:'入力内容を確認してください。'})}

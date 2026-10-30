@@ -1,3 +1,4 @@
+import {privateRoster} from './private-documents.js';
 const URL_ROOT='https://ebozxwiuujrnvmxienat.supabase.co';
 const PUBLIC_KEY='sb_publishable_mJ6vFykk8ykbAmm2LaEEuA_Ea5n4yp8';
 const issue=(stage,suffix,status=503)=>({status,code:'YT_'+stage+'_'+suffix,message:(stage==='AUTH'?'ログイン状態':'承認状態')+'を確認できませんでした。（YT_'+stage+'_'+suffix+'）時間をおいて、もう一度読み込んでください。'});
@@ -64,9 +65,8 @@ export async function requireMemberRole(request){
   if(result.failure)return result.failure;if(!result.ok||typeof result.body!=='boolean')return {status:503,message:'権限を確認できませんでした。'};
   return {...member,isHost:result.body};
 }
-export async function readPrivateChatRoster(request){
-  const result=await readCheck('/rest/v1/rpc/ikigai_admin_member_status_v1',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:request.headers.get('Authorization'),'Content-Type':'application/json'},body:'{}'},'ROSTER');
-  if(result.failure||!result.ok||!Array.isArray(result.body))throw Error('roster unavailable');return result.body;
+export async function readPrivateChatRoster(request,env){
+  return privateRoster(request,env);
 }
 
 export async function readNotificationDocument(request,path){

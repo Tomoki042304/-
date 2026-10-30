@@ -238,14 +238,26 @@ function start() {
     const {data,error}=await supabase.rpc('ikigai_chat_room_v1');fail(error);
     if(!Array.isArray(data))throw Error('トークを読み込めませんでした。');return data;
   }
+  const protectedPath = path => /^(members\/[^/]+|applications\/[^/]+|data\/users\/[^/]+\/profile)$/.test(path);
+  async function protectedRequest(payload) {
+    const {data,error}=await supabase.auth.getSession();fail(error);
+    if(!data.session)throw Error('ログインし直してください。');
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+    try {
+      const response=await fetch('/api/private-data',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});
+      const result=await response.json();if(!response.ok)throw Error(result.message||'保護された情報に接続できませんでした。');return result;
+    }finally{clearTimeout(timer)}
+  }
   async function readDoc(path) {
     fault("read");
+    if(protectedPath(path))return (await protectedRequest({action:"read",path})).row;
     if(path.startsWith("chats/"))return (await readChatRows()).find(row=>row.path===path)||null;
     const { data, error } = await supabase.from(T).select("path,data").eq("path", path).maybeSingle();
     fail(error); return data;
   }
   async function writeDoc(path, data) {
     fault("write");
+    if(protectedPath(path)){await protectedRequest({action:"write",path,data});return;}
     if(path.startsWith('chats/')){
       if(!currentUser||path!=='chats/'+currentUser.id)throw Error('自分のメッセージだけ保存できます。');
       const {error}=await supabase.rpc('ikigai_chat_write_v1',{p_messages:Array.isArray(data.msgs)?data.msgs:[],p_read_at:data.readAt||null,p_give_read_at:data.giveReadAt||null});fail(error);return;
@@ -256,6 +268,7 @@ function start() {
   async function readCol(path) {
     fault("read");
     if(path==="chats")return readChatRows();
+    if(path==="members"||path==="applications")return (await protectedRequest({action:"list",path})).rows;
     const { data, error } = await supabase.from(T).select("path,data").eq("coll", path).order("path");
     fail(error); return data || [];
   }
@@ -318,8 +331,7 @@ function start() {
     adminMembers: {
       list: async () => {
         fault("read");
-        const { data, error } = await supabase.rpc("ikigai_admin_member_status_v1");
-        fail(error);
+        const { rows: data } = await protectedRequest({action:'roster'});
         if (!Array.isArray(data)) throw new Error("Invalid administrator roster response");
         return data;
       }
@@ -355,6 +367,11 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    security: async payload => {
+      const {data,error}=await supabase.auth.getSession();fail(error);if(!data.session)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+      try{const response=await fetch('/api/security',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'保護設定を確認できませんでした。');return result}finally{clearTimeout(timer)}
+    },
     push: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),payload.action==='unsubscribe'?5000:45000);

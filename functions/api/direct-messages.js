@@ -1,3 +1,4 @@
+import {privateKv} from '../../server/pii-storage.js';
 import {deliverPush} from '../../server/web-push.js';
 import {requireMemberRole,readPrivateChatRoster,readChatAccessSince} from '../../server/youtube-member.js';
 const UID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,14 +16,15 @@ export async function onRequest(context){
   const user=await requireMemberRole(request);if(!user.ok)return reply(user.status,{message:user.message});
   try{user.chatSince=await readChatAccessSince(request)}catch{return reply(503,{message:'トークの利用情報を確認できませんでした。時間をおいてもう一度お試しください。'})}
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const kv=env.YT_CACHE;if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'個別トークは接続準備中です。'});
+  const storage=env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'個別トークは接続準備中です。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>8000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object'||Array.isArray(body))throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
   if(body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>2048))return reply(400,{message:'一覧を更新してください。'});
   try{
     if(body.action==='create'){
+      if(env.PII_MIGRATION_MODE==='locked')return reply(503,{message:'個人情報の保護設定を更新中です。新しい個別トークは後ほど作成してください。'});
       if(!user.isHost)return reply(403,{message:'新しい個別トークは管理者のみ開始できます。'});
       if(!UID.test(body.memberUid)||body.memberUid===user.uid)return reply(400,{message:'連絡するメンバーを選んでください。'});
-      const roster=await readPrivateChatRoster(request),member=roster.find(r=>r.user_id===body.memberUid),host=roster.find(r=>r.user_id===user.uid);
+      const roster=await readPrivateChatRoster(request,env),member=roster.find(r=>r.user_id===body.memberUid),host=roster.find(r=>r.user_id===user.uid);
       if(!member)return reply(403,{message:'在籍メンバーを確認できませんでした。'});
       const id=user.uid+':'+body.memberUid;let thread=await kv.get(tkey(id),'json');
       if(thread&&!validThread(thread))throw Error('thread');
@@ -69,7 +71,7 @@ export async function onRequest(context){
     }
     if(body.action==='send'){
       if(!UID.test(body.id)||typeof body.text!=='string'||!body.text.trim()||body.text.trim().length>2000)return reply(400,{message:'メッセージを1〜2000文字で入力してください。'});
-      if(user.isHost&&thread.hostUid===user.uid){const roster=await readPrivateChatRoster(request);if(!roster.some(r=>r.user_id===thread.memberUid))return reply(403,{message:'相手の在籍状態を確認できませんでした。'});}
+      if(user.isHost&&thread.hostUid===user.uid){const roster=await readPrivateChatRoster(request,env);if(!roster.some(r=>r.user_id===thread.memberUid))return reply(403,{message:'相手の在籍状態を確認できませんでした。'});}
       const key='dm:message:v1:'+thread.id+':'+body.id;let message=await kv.get(key,'json');
       if(message&&Date.parse(message.at)<user.chatSince)return reply(403,{message:'入会前のメッセージは利用できません。'});
       if(await kv.get(unsentKey(thread.id,body.id))||message?.unsent)return reply(409,{message:'送信を取り消したメッセージは再送できません。'});

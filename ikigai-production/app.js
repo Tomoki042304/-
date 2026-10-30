@@ -1592,6 +1592,11 @@
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
   }
   $('#announcementBack').onclick=()=>showAcc('admin');
+  let securityUi=null;
+  async function ensureSecurity(){
+    if(!isOwnerView)return;
+    if(!securityUi){const module=await import('./security-settings.js');securityUi=module.mountSecurity({request:payload=>window.appAuth.security(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden})}
+  }
   function showAcc(which){
     if(!['menu','profile','settings','admin','inquiry','announcements'].includes(which))which='menu';
     if((which==='admin'||which==='announcements')&&!isOwnerView)which='menu';
@@ -1601,7 +1606,7 @@
     if(which==='settings')openPushSettings();
     if(which==='announcements')ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementPublishStatus').textContent='配信画面を読み込めませんでした。'})
     if(which==='inquiry'||which==='admin')openInquiry(which);
-    if(which==='admin'){ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
+    if(which==='admin'){ensureSecurity().catch(()=>{});ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }
