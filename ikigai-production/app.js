@@ -1231,6 +1231,7 @@
   let adminRows=[],adminLoadToken=0,adminLoaded=false;
   function setOwnerView(owner){
     isOwnerView=!!owner;
+    if(isOwnerView)void openInquiry('notify');
     if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
@@ -1563,10 +1564,11 @@
   }
   let inquiryUi=null,inquiryLoading=null;
   async function openInquiry(which){
-    if(!['inquiry','admin'].includes(which))return;
+    if(!['inquiry','admin','notify'].includes(which))return;
     try{
       if(!inquiryUi){if(!inquiryLoading)inquiryLoading=import('./inquiry.js');const module=await inquiryLoading;
         if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||''});}
+      if(which==='notify'){inquiryUi.startNotices();return}
       if((which==='inquiry'&&!$('#accInquiry').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
   }

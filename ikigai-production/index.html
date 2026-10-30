@@ -54,6 +54,7 @@ img{max-width:100%}
 .admin-roster-switches button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:56px;padding:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:16px;font-size:14px;text-align:left}
 .admin-roster-switches button span{font-size:24px;line-height:1}.admin-roster-switches button[aria-expanded=true]{border-color:var(--accent);color:var(--accent)}
 
+.inquiry-notice-dot{display:inline-block;width:9px;height:9px;margin-left:6px;border-radius:50%;background:#ed414f;vertical-align:middle}.inquiry-notice-dot[hidden]{display:none}
 </style>
 <style>
 /* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */
@@ -1252,7 +1253,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <button type="button" class="acc-row" data-acc="settings"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span><b>各種設定</b><small>公開範囲・通知・データ</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
       <div class="card acc-list" id="adminEntry" hidden>
-        <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利</b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+        <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利 <span id="inquiryEntryDot" class="inquiry-notice-dot" aria-label="未確認の問い合わせがあります" hidden></span></b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
       </div>
       </div>
       <div id="accInquiry" class="view" hidden><button type="button" class="back-link" data-acc="menu">‹ アカウント</button><h2 class="view-title">問い合わせ</h2>
@@ -1344,7 +1345,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           </details>
         </form>
         <section class="card admin-panel" id="inquiryAdmin">
-          <div class="card-head"><b>問い合わせ連絡</b><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button></div>
+          <div class="card-head"><b>問い合わせ連絡 <span id="inquiryAdminDot" class="inquiry-notice-dot" aria-label="未確認の問い合わせがあります" hidden></span></b><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button></div>
           <p class="muted admin-note">購入・研修・退会についての連絡欄です。「確認済み」にしても退会処理やデータ削除は行いません。反映まで約1分かかる場合があります。</p>
           <p id="inquiryAdminStatus" class="muted admin-note" role="status" aria-live="polite"></p>
           <div id="inquiryAdminList" class="admin-roster"></div>
