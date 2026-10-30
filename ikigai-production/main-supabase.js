@@ -11,7 +11,7 @@ const MIN_PASS = 8;
 
 // ---------- service worker (offline shell + "add to home screen") ----------
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  import("./update-manager.js").then(module => module.startUpdates()).catch(() => {});
 }
 
 // ---------- second check before anything talks to Supabase ----------
