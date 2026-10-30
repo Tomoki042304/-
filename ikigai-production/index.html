@@ -55,6 +55,10 @@ img{max-width:100%}
 .admin-roster-switches button span{font-size:24px;line-height:1}.admin-roster-switches button[aria-expanded=true]{border-color:var(--accent);color:var(--accent)}
 
 .inquiry-notice-dot{display:inline-block;width:9px;height:9px;margin-left:6px;border-radius:50%;background:#ed414f;vertical-align:middle}.inquiry-notice-dot[hidden]{display:none}
+.announcement-section{margin-top:16px}.announcement-item{padding:12px;border:1px solid #dedede;border-radius:12px;background:#fff;color:#2b1418}
+.announcement-item summary{cursor:pointer;overflow-wrap:anywhere}.announcement-item summary small{display:block;font-size:11px;color:#7a6266;margin-top:4px}
+.announcement-item p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.75;margin:12px 0 0}
+#announcementForm input,#announcementForm textarea{display:block;width:100%;margin-top:6px;padding:10px;font:inherit;font-size:16px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px}
 </style>
 <style>
 /* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */
@@ -1332,6 +1336,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <div id="adminRoster" class="admin-roster"></div>
           <p class="muted admin-note" id="adminUpdated"></p>
         </div></details>
+        <section class="card admin-panel" id="announcementAdmin"><button type="button" class="channel-summary" data-acc="announcements" style="background:none;border:0;padding:0;color:inherit;text-align:left"><b>お知らせ配信</b><span aria-hidden="true">›</span></button></section>
         <form class="card admin-panel" id="youtubeChannelsForm">
           <details id="youtubeChannelsDetails">
             <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
@@ -1350,6 +1355,19 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <p id="inquiryAdminStatus" class="muted admin-note" role="status" aria-live="polite"></p>
           <div id="inquiryAdminList" class="admin-roster"></div>
           <button type="button" class="small-btn" id="inquiryAdminMore" hidden>さらに読み込む</button>
+        </section>
+      </div>
+      <div id="accAnnouncements" class="view" hidden>
+        <button type="button" class="back-link" id="announcementBack">‹ 管理者画面へ</button><h2 class="view-title">お知らせ配信</h2>
+        <section class="card admin-panel">
+            <form id="announcementForm" class="admin-panel" style="margin-top:14px">
+              <p class="muted admin-note">運営から全メンバーへ、アプリ内のお知らせを配信します。メンバーは上部のベルから確認できます。</p>
+              <label>タイトル（必須）<input id="announcementTitle" maxlength="80" required placeholder="例：次回の朝会について"></label>
+              <label>本文（必須）<textarea id="announcementText" rows="6" maxlength="3000" required placeholder="メンバー全員に伝える文章を入力してください。"></textarea></label>
+              <button type="submit" class="primary" id="announcementSend">全メンバーに配信する</button>
+              <p id="announcementPublishStatus" class="muted admin-note" role="status" aria-live="polite"></p>
+              <b>配信済みのお知らせ</b><div id="announcementHistory" class="admin-roster"></div>
+            </form>
         </section>
       </div>
     </section>
@@ -1392,6 +1410,6 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
     && new URLSearchParams(location.search).get("backend") === "firebase";
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
-<dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><div id="reactionNotifications" class="admin-roster" style="margin-top:14px"></div></dialog>
+<dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p><div id="announcementList" class="admin-roster"></div></section><div id="reactionNotifications" class="admin-roster" style="margin-top:14px"></div></dialog>
 </body>
 </html>

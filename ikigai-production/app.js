@@ -261,12 +261,12 @@
     const comments=cmtsAll.filter(c=>c.uid!==uid&&own.has(c.key)).map(c=>({id:'comment|'+c.uid+'|'+c.id,kind:'comment',by:c.uid,key:c.key,at:c.at,text:nameOf(c.uid)+'さんがあなたの投稿にコメントしました。'}));
     return [...likes,...comments].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   }
-  function renderReactionNotice(){const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length;const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
+  function renderReactionNotice(){const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length+(announcementsUi?.unread()||0);const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
   function openReactionNotices(){
     if(backend!=='cloud'||pending()){toast('承認後にお知らせを確認できます。');return}
     const events=reactionEvents(),box=$('#reactionNotifications');box.replaceChildren();if(!events.length)box.textContent='いいね・コメントのお知らせはまだありません。';
     for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
-    $('#notificationsDialog').showModal();if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
+    $('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
   }
   $('#notificationsClose').onclick=()=>$('#notificationsDialog').close();
   const agoText=at=>{const d=new Date(at),m=Math.floor((Date.now()-d)/60000);if(isNaN(m))return'';if(m<1)return'たった今';if(m<60)return`${m}分前`;if(m<1440)return`${Math.floor(m/60)}時間前`;return`${d.getMonth()+1}月${d.getDate()}日`};
@@ -1238,7 +1238,7 @@
       ++channelSettingsToken;channelSettingsLoaded=false;channelSettingsRevision='';if($('#youtubeChannelInput')){$('#youtubeChannelInput').value='';$('#youtubeChannelInput').disabled=true;$('#youtubeRegisteredChannels').replaceChildren();$('#youtubeChannelCount').textContent='';$('#youtubeChannelsDetails').open=false;}
       ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
-      if(!$('#accAdmin').hidden)showAcc('menu');
+      if(!$('#accAdmin').hidden||!$('#accAnnouncements').hidden)showAcc('menu');
     }
     renderZoom();renderMembers();
   }
@@ -1355,7 +1355,7 @@
   });
   function showApp(){
     $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
-    renderAll();fillForm();size();
+    renderAll();fillForm();size();ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});
   }
   // Brief opening curtain: leaves after 0.3s once data is ready; a tap skips it
   const curtain=(()=>{
@@ -1385,6 +1385,7 @@
     if(youtubeRecommendations)youtubeRecommendations.stop();
     if(inquiryUi)inquiryUi.stop();
     if(directMessages)directMessages.stop();
+    if(announcementsUi)announcementsUi.stop();
     clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
@@ -1552,6 +1553,14 @@
     else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,true)}
   }
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}});
+  let announcementsUi=null,announcementsLoading=null;
+  async function ensureAnnouncements(){
+    if(backend!=='cloud'||!uid||pending())return null;
+    if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+    }catch(e){announcementsLoading=null;throw e}}
+    return announcementsUi;
+  }
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
@@ -1572,15 +1581,17 @@
       if((which==='inquiry'&&!$('#accInquiry').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
   }
+  $('#announcementBack').onclick=()=>showAcc('admin');
   function showAcc(which){
-    if(!['menu','profile','settings','admin','inquiry'].includes(which))which='menu';
-    if(which==='admin'&&!isOwnerView)which='menu';
+    if(!['menu','profile','settings','admin','inquiry','announcements'].includes(which))which='menu';
+    if((which==='admin'||which==='announcements')&&!isOwnerView)which='menu';
     if(which!=='admin')++adminLoadToken;
-    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accInquiry').hidden=which!=='inquiry';$('#accAdmin').hidden=which!=='admin';
+    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accInquiry').hidden=which!=='inquiry';$('#accAdmin').hidden=which!=='admin';$('#accAnnouncements').hidden=which!=='announcements';
     if(which==='profile')fillForm();
     if(which==='settings')openPushSettings();
+    if(which==='announcements')ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementPublishStatus').textContent='配信画面を読み込めませんでした。'})
     if(which==='inquiry'||which==='admin')openInquiry(which);
-    if(which==='admin'){if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
+    if(which==='admin'){ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }
