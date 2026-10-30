@@ -766,7 +766,7 @@
     $('#hRfStatus').textContent=wDone?'今週分は記入済み':'未記入・日曜までに書こう';
     $('#hRfStatus').className=wDone?'':'due';
     $('#hRfCount').textContent=`${reflections.filter(r=>r.type==='week').length}件`;
-    $('#hRfWeek').innerHTML=[0,1,2,3,4,5,6].map(i=>{const d=addDays(mon,i);return`<i class="${isOn(iso(d))?'on':''} ${d>TODAY?'fut':''}" title="${md(d)}"></i>`}).join('');
+    $('#hRfWeek').innerHTML=[0,1,2,3,4,5,6].map(i=>{const d=addDays(mon,i);return`<i class="${isOn(iso(d))?'on':''} ${d>TODAY?'fut':''}" title="${md(d)}（${WD[d.getDay()]}）">${WD[d.getDay()]}</i>`}).join('');
     $('#hRfBtn').textContent=wDone?'見直す':'振り返る';$('#hRfBtn').classList.toggle('done',wDone);
     renderGoal();renderMap();
   }
@@ -1053,7 +1053,7 @@
     if(isW){
       const mon=parseIso(key);let on=0,past=0,strip='';
       for(let i=0;i<7;i++){const d=addDays(mon,i),k=iso(d),fut=d>TODAY;if(!fut){past++;if(isOn(k))on++}
-        strip+=`<div><span>${WD[d.getDay()]}</span><i class="${isOn(k)?'on':''} ${fut?'fut':''}">${d.getDate()}</i></div>`}
+        strip+=`<div><span>${d.getDate()}日</span><i class="${isOn(k)?'on':''} ${fut?'fut':''}" title="${md(d)}（${WD[d.getDay()]}）">${WD[d.getDay()]}</i></div>`}
       $('#rfSummary').innerHTML=`<div class="card-head"><b style="font-size:15px">この週の行動チェック</b><span class="mono">${on} / ${past} 日</span></div><div class="strip">${strip}</div>`;
     }
 
@@ -1101,7 +1101,7 @@
     {const t=new Date(Date.UTC(s0.getFullYear(),s0.getMonth(),s0.getDate()+3)),y=t.getUTCFullYear(),w=Math.ceil(((t-Date.UTC(y,0,1))/864e5+1)/7);$('#rfvWeekNo').textContent=`${y}年 第${w}週`}
     const av=$('#rfvAvatar');av.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(av,profile.avatar,profile.nick);$('#rfvName').textContent=profile.nick||'わたし';
     let on=0;const mon=parseIso(r.key);
-    $('#rfvWeek').innerHTML=[0,1,2,3,4,5,6].map(i=>{const d=addDays(mon,i),k=iso(d),c=isOn(k);if(c)on++;return`<i class="${c?'on':''}" title="${WD[d.getDay()]}">${d.getDate()}</i>`}).join('');
+    $('#rfvWeek').innerHTML=[0,1,2,3,4,5,6].map(i=>{const d=addDays(mon,i),k=iso(d),c=isOn(k);if(c)on++;return`<i class="${c?'on':''}" title="${md(d)}（${WD[d.getDay()]}）">${WD[d.getDay()]}</i>`}).join('');
     $('#rfvCount').textContent=`${on}/7`;
     const box=$('#rfvSecs');box.innerHTML='';
     Q[r.type].forEach(q=>{const c=document.createElement('div');c.className='card rfv-sec';c.innerHTML='<span class="lab2"></span><p></p>';
