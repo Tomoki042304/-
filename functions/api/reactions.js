@@ -19,7 +19,7 @@ export async function onRequest({request,env}){
  const targets=body.action==='set'?[body.target]:body.targets;
  if(!Array.isArray(targets)||targets.length>30||!targets.length||!targets.every(validTarget)||(body.action==='set'&&!['',...EMOJI].includes(body.emoji)))return reply(400,{message:'4種類のリアクションから選んでください。'});
  const user=await requireMemberRole(request);if(!user.ok)return reply(user.status,{message:user.message});if(!UUID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
- const storage=env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'リアクションの接続準備中です。'});
+ const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'リアクションの接続準備中です。'});
  try{
   let allowed;
   if(body.scope==='group'){

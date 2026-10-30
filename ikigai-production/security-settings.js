@@ -35,5 +35,21 @@ export function mountSecurity({request,active}){
   finally{busy=false;buttons.forEach(button=>button.disabled=false)}
  }
  buttons[0].onclick=()=>run('status');buttons[1].onclick=()=>run('migrate');buttons[2].onclick=()=>run('verify');
+ const transferButtons=['storageConfig','storageCopy','storageVerify'].map(id=>document.getElementById(id));
+ let transferring=false;
+ async function transfer(action){
+  if(transferring||busy||!active())return;transferring=true;[...buttons,...transferButtons].forEach(button=>button.disabled=true);const box=document.getElementById('storageStatus');
+  try{
+   const config=await request({action:'runtime-status'});if(!active())return;
+   if(action==='runtime-status'){box.textContent=`移行先：${config.targetReady?'準備済み':'未準備'} ／ 使用先：${config.active?'Supabase':'KV'} ／ 移行中の書き込み停止：${config.locked?'有効':'無効'}`;return}
+   if(!config.targetReady)throw Error('Supabaseの準備用SQLとサーバー秘密鍵の設定を確認してください。');
+   if(!config.locked)throw Error('移行中の書き込み停止設定が必要です。');
+   let cursor=null,total=0,missing=0;
+   do{if(!active())throw Error('移行を中断しました。同じ画面から再開できます。');const page=await request({action,cursor});total+=action==='runtime-copy'?page.copied:page.verified;missing+=page.missing||0;cursor=page.cursor;box.textContent=`処理中：${total}件。画面を開いたままお待ちください。`}while(cursor);
+   box.textContent=action==='runtime-copy'?`移行処理：${total}件。「移行先を照合」を押してください。`:missing?`未移行が${missing}件あります。「データを移行」を再実行してください。`:`${total}件の照合が完了しました。RUNTIME_STORAGEをsupabaseに設定し、RUNTIME_TRANSFER_LOCKを削除して再公開してください。`;
+  }catch(error){if(active())box.textContent=error.message||'処理を完了できませんでした。'}
+  finally{transferring=false;[...buttons,...transferButtons].forEach(button=>button.disabled=false)}
+ }
+ if(transferButtons.every(Boolean)){transferButtons[0].onclick=()=>transfer('runtime-status');transferButtons[1].onclick=()=>transfer('runtime-copy');transferButtons[2].onclick=()=>transfer('runtime-verify')}
  return {refresh:()=>run('status')};
 }

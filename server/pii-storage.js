@@ -1,3 +1,4 @@
+import {operationalStore} from './supabase-runtime.js';
 import {encryptPii,decryptPii} from './pii-crypto.js';
 const UUID='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 const profile=new RegExp('^data/users/'+UUID+'/profile$'),application=new RegExp('^applications/'+UUID+'$'),member=new RegExp('^members/'+UUID+'$');
@@ -28,12 +29,18 @@ export async function openDocument(env,path,value){
 }
 // Keep the existing key names and authorization decisions. No plaintext fallback on writes.
 export function privateKv(env){
-  const raw=env.YT_CACHE;
+  const raw=operationalStore(env);
   const protectedKey=key=>key.startsWith('inquiry:v1:')||key.startsWith('inquiry-history:v1:')||key.startsWith('dm:thread:v1:');
   return {
     get:async(key,type)=>{if(!protectedKey(key))return raw.get(key,type);const value=await raw.get(key,'json');if(value==null)return null;const data=value.format==='ikigai-pii'?await decryptPii(env,key,value):value;return type==='json'?data:JSON.stringify(data)},
     put:async(key,value,options)=>raw.put(key,protectedKey(key)?JSON.stringify(await encryptPii(env,key,JSON.parse(value))):value,options),
-    list:options=>raw.list(options),delete:key=>raw.delete(key)
+    list:async options=>{
+      try{return await raw.list(options)}catch(error){
+        const message=String(error?.message||'');
+        if(/(?:limit|quota|too many|exceed)/i.test(message))throw Error('KV_LIST_LIMIT');
+        throw error;
+      }
+    },delete:key=>raw.delete(key)
   };
 }
 export const KV_PRIVATE_PREFIXES=['inquiry:v1:','inquiry-history:v1:','dm:thread:v1:'];

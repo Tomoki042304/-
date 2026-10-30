@@ -1,3 +1,4 @@
+import {operationalStore} from '../../server/supabase-runtime.js';
 import {requireYoutubeMember,requireYoutubeHost} from '../../server/youtube-member.js';
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const key=id=>'announcement:item:v1:'+id;
@@ -10,7 +11,7 @@ export async function onRequest({request,env}){
  if(request.headers.get('Origin')!==new URL(request.url).origin)return reply(403,{message:'アプリから操作してください。'});
  let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error();const raw=await request.text();if(raw.length>20000)throw Error();body=JSON.parse(raw);if(!['list','publish'].includes(body?.action))throw Error()}catch{return reply(400,{message:'入力内容を確認してください。'})}
  const user=await (body.action==='publish'?requireYoutubeHost:requireYoutubeMember)(request);if(!user.ok)return reply(user.status,{message:user.message});if(!UUID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
- const kv=env.YT_CACHE;if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'お知らせ配信の接続準備中です。'});
+ const kv=operationalStore(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'お知らせ配信の接続準備中です。'});
  try{
   if(body.action==='list'){
    if(body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>2048))return reply(400,{message:'お知らせを更新してください。'});

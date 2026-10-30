@@ -4,7 +4,7 @@ const PUBLIC_KEY='sb_publishable_mJ6vFykk8ykbAmm2LaEEuA_Ea5n4yp8';
 export async function database(request,path,{method='GET',body,serviceKey}={}){
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
   try{
-    const response=await fetch(ROOT+'/rest/v1/'+path,{method,headers:{apikey:serviceKey||PUBLIC_KEY,Authorization:serviceKey?'Bearer '+serviceKey:request.headers.get('Authorization'),'Content-Type':'application/json',Prefer:'return=representation,resolution=merge-duplicates'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:controller.signal,redirect:'manual'});
+    const response=await fetch(ROOT+'/rest/v1/'+path,{method,headers:{apikey:serviceKey||PUBLIC_KEY,Authorization:serviceKey?'Bearer '+serviceKey:request?.headers.get('Authorization'),'Content-Type':'application/json',Prefer:'return=representation,resolution=merge-duplicates'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:controller.signal,redirect:'manual'});
     const result=await response.json().catch(()=>null);
     if(!response.ok){const error=Error('DATABASE_UNAVAILABLE');error.status=response.status;error.code=result?.code;throw error}
     return result;

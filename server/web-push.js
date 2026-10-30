@@ -1,3 +1,4 @@
+import {operationalStore} from './supabase-runtime.js';
 const encoder=new TextEncoder();
 export function b64url(bytes){return btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 export function unb64(value){if(typeof value!=='string'||value.length>1000||!/^[A-Za-z0-9_-]+$/.test(value))throw Error('base64');return Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')+'='.repeat((4-value.length%4)%4)),c=>c.charCodeAt(0))}
@@ -24,10 +25,10 @@ export async function encryptedPush(subscription,key,payload){
 }
 export async function digest(text){return b64url(await crypto.subtle.digest('SHA-256',encoder.encode(text)))}
 export async function deliverPush(env,uid,payload){
-  let cursor;do{
-    const page=await env.YT_CACHE.list({prefix:'push:subscription:v1:'+uid+':',limit:10,...(cursor?{cursor}:{})});
+  const store=operationalStore(env);let cursor;do{
+    const page=await store.list({prefix:'push:subscription:v1:'+uid+':',limit:10,...(cursor?{cursor}:{})});
     // Send a bounded batch; no notification content or subscription secrets are logged.
-    await Promise.all(page.keys.map(async item=>{try{const subscription=await env.YT_CACHE.get(item.name,'json');if(!subscription)return;const vapid=await env.YT_CACHE.get('push:key:v1:'+subscription.keyId,'json');if(!vapid||vapid.uid!==uid)return;const encrypted=await encryptedPush(subscription,vapid,payload),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);try{const response=await fetch(subscription.endpoint,{method:'POST',headers:encrypted.headers,body:encrypted.body,redirect:'manual',signal:controller.signal});if([404,410].includes(response.status)&&env.YT_CACHE.delete)await env.YT_CACHE.delete(item.name)}finally{clearTimeout(timer)}}catch{}}));
+    await Promise.all(page.keys.map(async item=>{try{const subscription=await store.get(item.name,'json');if(!subscription)return;const vapid=await store.get('push:key:v1:'+subscription.keyId,'json');if(!vapid||vapid.uid!==uid)return;const encrypted=await encryptedPush(subscription,vapid,payload),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);try{const response=await fetch(subscription.endpoint,{method:'POST',headers:encrypted.headers,body:encrypted.body,redirect:'manual',signal:controller.signal});if([404,410].includes(response.status)&&store.delete)await store.delete(item.name)}finally{clearTimeout(timer)}}catch{}}));
     cursor=page.list_complete?null:page.cursor;
   }while(cursor);
 }

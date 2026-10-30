@@ -1370,6 +1370,8 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <p class="muted admin-note">氏名・連絡先・問い合わせ内容の保存時暗号化を確認します。鍵の内容は表示しません。</p>
           <div class="btn-row"><button type="button" class="small-btn" id="securityRefresh">設定を確認</button><button type="button" class="small-btn" id="securityMigrate">既存データを暗号化</button><button type="button" class="small-btn" id="securityVerify">移行結果を確認</button></div>
           <p class="muted admin-note" id="securityStatus" role="status" aria-live="polite"></p>
+          <hr><b>保存先の移行（無料構成）</b><p class="muted admin-note">個人トーク・問い合わせ等をSupabaseへ移し、KVの一覧取得制限から切り離します。元データは削除しません。</p>
+          <div class="btn-row"><button type="button" class="small-btn" id="storageConfig">保存先を確認</button><button type="button" class="small-btn" id="storageCopy">データを移行</button><button type="button" class="small-btn" id="storageVerify">移行先を照合</button></div><p class="muted admin-note" id="storageStatus" role="status" aria-live="polite"></p>
         </details>
       </div>
       <div id="accAnnouncements" class="view" hidden>

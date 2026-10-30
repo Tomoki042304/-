@@ -1,6 +1,6 @@
 const EMOJIS=['👍','❤️‍🔥','😭','🙇‍♂️'],LABELS=['いいね','熱い応援','感動','感謝'];
 export function mountMessageReactions({request,account,notify}){
- const roots=[document.querySelector('#chatLog'),document.querySelector('#dmMessages')],cache=new Map(),busy=new Set();let started=false,epoch=0,timer=0,reading=false,openKey='',pressTimer=0,suppressClick=0;
+ const roots=[document.querySelector('#chatLog'),document.querySelector('#dmMessages')],cache=new Map(),busy=new Set();let started=false,epoch=0,timer=0,reading=false,openKey='',pressTimer=0,suppressClick=0,failures=0;
  const target=b=>({scope:b.dataset.reactionScope,threadId:b.dataset.reactionThread||'',senderUid:b.dataset.reactionSender,messageId:b.dataset.reactionMessage});
  const key=t=>JSON.stringify([t.scope,t.threadId,t.senderUid,t.messageId]),bubbles=()=>roots.flatMap(root=>[...root.querySelectorAll('[data-reaction-message]')]);
  const host=b=>b.dataset.reactionScope==='group'?b.closest('.body'):b.closest('.dm-row');
@@ -21,8 +21,8 @@ export function mountMessageReactions({request,account,notify}){
  async function refresh(){
   clearTimeout(timer);if(!started||reading||!account()||document.visibilityState!=='visible')return;const visible=bubbles().filter(b=>b.getClientRects().length).slice(-30),groups=new Map();for(const b of visible){const t=target(b),g=t.scope+'|'+t.threadId;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(t)}
   const token=epoch,uid=account();reading=true;
-  try{await Promise.all([...groups.values()].map(async targets=>{const first=targets[0],data=await request({action:'list',scope:first.scope,...(first.scope==='direct'?{threadId:first.threadId}:{}),targets:targets.map(({senderUid,messageId})=>({senderUid,messageId}))});if(token!==epoch||account()!==uid)return;if(!Array.isArray(data.states))return;for(const state of data.states){const k=key({...first,...state}),old=cache.get(k);if(!busy.has(k)&&!(old?.localUntil>Date.now()))cache.set(k,state)}}));if(token===epoch)decorate()}
-  catch{}finally{if(token===epoch){reading=false;if(started)timer=setTimeout(refresh,15000)}}
+  try{await Promise.all([...groups.values()].map(async targets=>{const first=targets[0],data=await request({action:'list',scope:first.scope,...(first.scope==='direct'?{threadId:first.threadId}:{}),targets:targets.map(({senderUid,messageId})=>({senderUid,messageId}))});if(token!==epoch||account()!==uid)return;if(!Array.isArray(data.states))return;for(const state of data.states){const k=key({...first,...state}),old=cache.get(k);if(!busy.has(k)&&!(old?.localUntil>Date.now()))cache.set(k,state)}}));if(token===epoch){failures=0;decorate()}}
+  catch{if(token===epoch)failures++}finally{if(token===epoch){reading=false;if(started)timer=setTimeout(refresh,failures?Math.min(300000,15000*Math.pow(2,failures)):15000)}}
  }
  for(const root of roots){
   root.addEventListener('click',event=>{const b=event.target.closest('[data-reaction-message]');if(!b||Date.now()<suppressClick)return;const k=key(target(b));openKey=openKey===k?'':k;decorate();void refresh()});
@@ -35,5 +35,5 @@ export function mountMessageReactions({request,account,notify}){
  document.addEventListener('click',event=>{if(!roots.some(root=>event.composedPath().includes(root))){openKey='';decorate()}});
  document.addEventListener('keydown',event=>{if(event.key==='Escape'){openKey='';decorate()}});
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(started&&document.visibilityState==='visible')void refresh()});
- return {start(){started=true;decorate();void refresh()},stop(){started=false;epoch++;clearTimeout(timer);clearTimeout(pressTimer);reading=false;openKey='';cache.clear();busy.clear();decorate()}};
+ return {start(){started=true;decorate();void refresh()},stop(){started=false;failures=0;epoch++;clearTimeout(timer);clearTimeout(pressTimer);reading=false;openKey='';cache.clear();busy.clear();decorate()}};
 }

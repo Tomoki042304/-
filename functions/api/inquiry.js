@@ -12,7 +12,7 @@ export async function onRequest({request,env}){
   const user=await (admin?requireYoutubeHost:requireAccountUser)(request);
   if(!user.ok)return reply(user.status,{message:user.status===403&&admin?'管理者専用の連絡欄です。':user.message});
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const storage=env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||(admin&&!kv?.list))return reply(503,{message:'問い合わせ機能は接続準備中です。'});
+  const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||(admin&&!kv?.list))return reply(503,{message:'問い合わせ機能は接続準備中です。'});
   let stage='STORE';
   try{
     if(admin&&reading){
@@ -56,7 +56,7 @@ export async function onRequest({request,env}){
   }catch(error){
     const keyFailure=typeof error?.message==='string'&&error.message.startsWith('PII_KEY_');
     const decryptFailure=error?.name==='OperationError';
-    const code=keyFailure?'INQUIRY_ENCRYPTION_KEY':decryptFailure?'INQUIRY_DECRYPT':'INQUIRY_'+stage;
+    const code=error?.message==='KV_LIST_LIMIT'?'INQUIRY_KV_LIST_LIMIT':keyFailure?'INQUIRY_ENCRYPTION_KEY':decryptFailure?'INQUIRY_DECRYPT':'INQUIRY_'+stage;
     return reply(503,{code,message:(keyFailure?'問い合わせの暗号鍵を確認できませんでした。管理者にご連絡ください。':'問い合わせを読み込み・保存できませんでした。管理者にこのコードをお知らせください。')+'（'+code+'）'});
   }
 }

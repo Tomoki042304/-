@@ -16,7 +16,7 @@ export async function onRequest(context){
   const user=await requireMemberRole(request);if(!user.ok)return reply(user.status,{message:user.message});
   try{user.chatSince=await readChatAccessSince(request)}catch{return reply(503,{message:'トークの利用情報を確認できませんでした。時間をおいてもう一度お試しください。'})}
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const storage=env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'個別トークは接続準備中です。'});
+  const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'個別トークは接続準備中です。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>8000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object'||Array.isArray(body))throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
   if(body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>2048))return reply(400,{message:'一覧を更新してください。'});
   let stage='STORE';
@@ -92,7 +92,7 @@ export async function onRequest(context){
     return reply(400,{message:'利用できない操作です。'});
   }catch(error){
     const keyFailure=typeof error?.message==='string'&&error.message.startsWith('PII_KEY_');
-    const code=keyFailure?'DM_ENCRYPTION_KEY':'DM_'+stage;
+    const code=error?.message==='KV_LIST_LIMIT'?'DM_KV_LIST_LIMIT':keyFailure?'DM_ENCRYPTION_KEY':'DM_'+stage;
     return reply(503,{code,message:(keyFailure?'個人トークの暗号鍵を確認できませんでした。管理者にご連絡ください。':'個別トークを読み込み・保存できませんでした。再試行してください。')+'（'+code+'）'});
   }
 }

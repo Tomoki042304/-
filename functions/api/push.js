@@ -1,3 +1,4 @@
+import {operationalStore} from '../../server/supabase-runtime.js';
 import {requireYoutubeMember,readNotificationDocument} from '../../server/youtube-member.js';
 import {newVapidKey,validateSubscription,digest,deliverPush} from '../../server/web-push.js';
 const UID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -6,7 +7,7 @@ export async function onRequest(context){
   const {request,env}=context;if(request.method!=='POST')return reply(405,{message:'POSTで利用してください。'});
   const user=await requireYoutubeMember(request);if(!user.ok)return reply(user.status,{message:user.message});
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const kv=env.YT_CACHE;if(!kv?.get||!kv?.put||!kv?.list||!kv?.delete)return reply(503,{message:'通知機能は接続準備中です。'});
+  const kv=operationalStore(env);if(!kv?.get||!kv?.put||!kv?.list||!kv?.delete)return reply(503,{message:'通知機能は接続準備中です。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>10000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object')throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
   try{
     if(body.action==='key'){

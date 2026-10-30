@@ -1,3 +1,4 @@
+import {transferStorage} from '../../server/storage-transfer.js';
 import {requireYoutubeHost} from '../../server/youtube-member.js';
 import {encryptPii,decryptPii} from '../../server/pii-crypto.js';
 import {privateFields,sealDocument,openDocument,KV_PRIVATE_PREFIXES} from '../../server/pii-storage.js';
@@ -10,6 +11,7 @@ export async function onRequest({request,env}){
  let body;try{const raw=await request.text();if(raw.length>5000)throw Error();body=JSON.parse(raw)}catch{return reply(400,{message:'操作を確認してください。'})}
  const kv=env.YT_CACHE;
  try{
+  if(['runtime-status','runtime-copy','runtime-verify'].includes(body?.action)){try{return reply(200,await transferStorage(env,body))}catch(error){return reply(503,{message:error.message||'保存先を移行できませんでした。'})}}
   let keyReady=false;try{const envelope=await encryptPii(env,'security:self-test',{test:true});keyReady=(await decryptPii(env,'security:self-test',envelope)).test===true}catch{}
   if(body?.action==='status'){
    if(env.PII_MIGRATION_MODE!=='locked'&&kv?.delete)await kv.delete(LOCK);
