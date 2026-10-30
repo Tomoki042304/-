@@ -16,6 +16,7 @@ export function mountDirectMessages({request,account,isAdmin}){
       const mine=m.senderUid===account(),row=document.createElement('div');row.className='dm-row'+(mine?' mine':'');row.dataset.messageId=m.id;
       const actionable=mine&&!m.unsent&&!m.pending&&!m.failed,text=document.createElement(actionable?'button':'div');if(actionable)text.type='button';
       text.className='dm-bubble'+(m.unsent?' dm-unsent':'');text.textContent=m.unsent?'送信を取り消しました':m.text;
+      if(!m.unsent&&!m.pending&&!m.failed){text.dataset.reactionScope='direct';text.dataset.reactionThread=active;text.dataset.reactionSender=m.senderUid;text.dataset.reactionMessage=m.id;text.tabIndex=0;text.setAttribute('role','button');text.setAttribute('aria-label','リアクションとメッセージ操作を開く');}
       if(actionable){text.setAttribute('aria-label','メッセージの操作を開く');text.setAttribute('aria-expanded','false');text.onclick=()=>{
         const old=row.querySelector('.dm-actions');if(old){old.remove();text.setAttribute('aria-expanded','false');return}
         box.querySelectorAll('.dm-actions').forEach(el=>el.remove());box.querySelectorAll('[aria-expanded=true]').forEach(el=>el.setAttribute('aria-expanded','false'));

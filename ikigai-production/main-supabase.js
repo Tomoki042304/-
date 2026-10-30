@@ -365,6 +365,11 @@ function start() {
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
       try{const response=await fetch('/api/direct-messages',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('個別トークに接続できませんでした。')}if(!response.ok){const error=Error(result.message||'個別トークを保存できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
     },
+    messageReactions: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+      try{const response=await fetch('/api/reactions',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('リアクションを読み込めませんでした。')}if(!response.ok)throw Error(result.message||'リアクションを更新できませんでした。');return result;}finally{clearTimeout(timer)}
+    },
     announcements: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);

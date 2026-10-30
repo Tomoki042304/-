@@ -59,6 +59,13 @@ img{max-width:100%}
 .announcement-item summary{cursor:pointer;overflow-wrap:anywhere}.announcement-item summary small{display:block;font-size:11px;color:#7a6266;margin-top:4px}
 .announcement-item p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.75;margin:12px 0 0}
 #announcementForm input,#announcementForm textarea{display:block;width:100%;margin-top:6px;padding:10px;font:inherit;font-size:16px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px}
+.message-reaction-picker,.message-reaction-counts{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;max-width:100%}
+.message-reaction-picker{padding:6px;border:1px solid #666;border-radius:20px;background:#292929;box-shadow:0 4px 14px #0005}
+.message-reaction-picker button{width:40px;height:40px;padding:2px;font-size:24px;border:1px solid transparent;border-radius:50%;background:transparent;line-height:1;touch-action:manipulation}
+.message-reaction-counts button{padding:3px 9px;border:1px solid #555;border-radius:14px;background:#292929;color:#eee;font-size:13px;line-height:1.5;min-height:30px;touch-action:manipulation}
+.message-reaction-picker button[aria-pressed=true],.message-reaction-counts button[aria-pressed=true]{background:#4a2933;border-color:#c7798c}
+.message-reaction-picker button:disabled,.message-reaction-counts button:disabled{opacity:.6}
+#dmMessages .message-reaction-picker,#dmMessages .message-reaction-counts{align-self:inherit}
 </style>
 <style>
 /* Layout: phone-width app shell — sticky header, scrolling card stack, fixed bottom tab bar */

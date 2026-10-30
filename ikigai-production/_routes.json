@@ -1,1 +1,1 @@
-{"version":1,"include":["/api/shin-ai","/api/youtube","/api/inquiry","/api/direct-messages","/api/push","/api/announcements"],"exclude":[]}
+{"version":1,"include":["/api/shin-ai","/api/youtube","/api/inquiry","/api/direct-messages","/api/push","/api/announcements","/api/reactions"],"exclude":[]}

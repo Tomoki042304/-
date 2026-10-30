@@ -563,6 +563,7 @@
       if(!me&&first){const f=document.createElement('span');f.className='from';f.textContent=nameOf(x.uid);body.append(f)}
       const line=document.createElement('div');line.className='line';
       const bub=document.createElement('div');bub.className='bubble'+(x.type==='give'?' give':'');
+      bub.dataset.reactionScope='group';bub.dataset.reactionSender=x.uid;bub.dataset.reactionMessage=x.id;bub.tabIndex=0;bub.setAttribute('role','button');bub.setAttribute('aria-label','メッセージのリアクションと操作を開く');
       if(me){bub.dataset.mine=x.id;bub.tabIndex=0;bub.setAttribute('aria-label','メッセージ（タップで送信取り消し・削除メニュー）')}
       if(x.type==='give'&&x.to){const g=document.createElement('span');g.className='gto';g.textContent=`→ ${nameOf(x.to)}へ`;bub.append(g,document.createTextNode(x.text))}
       else bub.textContent=x.text;
@@ -1386,6 +1387,7 @@
     if(inquiryUi)inquiryUi.stop();
     if(directMessages)directMessages.stop();
     if(announcementsUi)announcementsUi.stop();
+    if(messageReactions)messageReactions.stop();
     clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
@@ -1553,6 +1555,14 @@
     else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,true)}
   }
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}});
+  let messageReactions=null,messageReactionsLoading=null;
+  async function ensureMessageReactions(){
+    if(backend!=='cloud'||!uid||pending())return null;
+    if(!messageReactions){if(!messageReactionsLoading)messageReactionsLoading=import('./message-reactions.js');try{const module=await messageReactionsLoading;
+      if(!messageReactions)messageReactions=module.mountMessageReactions({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,notify:toast,request:payload=>{if(!window.appAuth?.messageReactions)throw Error('リアクションを使うには再読み込みしてください。');return window.appAuth.messageReactions(payload)}});
+    }catch(e){messageReactionsLoading=null;throw e}}
+    return messageReactions;
+  }
   let announcementsUi=null,announcementsLoading=null;
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
@@ -1633,7 +1643,7 @@
     if(tab==='timeline')renderFeed();
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
-    if(tab==='mates'){renderChat.stick=true;renderChat()}else if(directMessages)directMessages.leave();
+    if(tab==='mates'){renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
     if(backend==='cloud'&&uid&&!pending())ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();
