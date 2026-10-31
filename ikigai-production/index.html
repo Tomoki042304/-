@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>IKIGAI</title>
 <meta name="description" content="志ある仲間と、最高な朝を。IKIGAIアカデミーのメンバーアプリ">
 <meta name="theme-color" content="#1a1a1a">
@@ -20,6 +20,7 @@
 /* base reset (was supplied by the prototype host) */
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0}
+html,body{touch-action:pan-x pan-y}
 img{max-width:100%}
 [hidden]{display:none!important}
 
@@ -712,13 +713,13 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
 .splash-dawn{position:absolute;inset:0;background:radial-gradient(70% 50% at 50% 115%,rgba(214,120,110,.55),transparent 70%);opacity:0;animation:spFade .2s ease forwards;pointer-events:none}
 .splash small{position:relative;z-index:1;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:clamp(17px,2.3vw,28px);letter-spacing:.38em;padding-left:.38em;text-transform:uppercase;color:#E6CC8F;
   opacity:0;animation:spFade .12s ease .1s forwards}
-.splash.out{animation:spOut .12s ease forwards}
-.splash.skip{animation:spOut .08s ease forwards}
+.splash.out{animation:spOut .6s ease-in-out forwards}
+.splash.skip{animation:spOut .18s ease-out forwards}
 #app:not([hidden]),#onboard:not([hidden]){animation:spPageIn .25s ease both}
 @keyframes spFade{to{opacity:1}}
 @keyframes spOut{to{opacity:0;visibility:hidden}}
 @keyframes spPageIn{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.splash .iki,.splash small,.splash-dawn{animation:none;opacity:1}.splash.out,.splash.skip{animation:spOut .08s ease forwards}#app:not([hidden]),#onboard:not([hidden]){animation:none}}
+@media (prefers-reduced-motion:reduce){.splash .iki,.splash small,.splash-dawn{animation:none;opacity:1}.splash.out,.splash.skip{animation:spOut .18s ease-out forwards}#app:not([hidden]),#onboard:not([hidden]){animation:none}}
 .onboard{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:16px;padding-block:28px 48px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .ob-head{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
@@ -1473,6 +1474,11 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
 <div class="toast" id="toast" hidden></div>
 <div class="env-badge" id="envBadge" hidden></div>
 <script type="module">
+  // Keep touch scrolling, but suppress browser pinch zoom inside the app.
+  const preventPinch=event=>{if(event.cancelable)event.preventDefault()};
+  document.addEventListener('gesturestart',preventPinch,{passive:false});
+  document.addEventListener('gesturechange',preventPinch,{passive:false});
+  document.addEventListener('touchmove',event=>{if(event.touches.length>1)preventPinch(event)},{passive:false});
   // 通常は Supabase 版（main-supabase.js）。手元（localhost）でだけ、アドレスの最後に ?backend=firebase を付けると以前の版（main.js）を開きます。
   // パスワード再設定メールのリンクから開いたかどうかを、ログイン処理がリンクを読む前に覚えておく
   window.__recoveryLink = /type=recovery/.test(location.hash);

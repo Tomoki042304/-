@@ -274,7 +274,7 @@
   const FIRE='<svg class="i" viewBox="0 0 24 24"><path d="M12 22c4 0 7-2.8 7-7 0-3.5-2.4-6.2-4.2-8.2-.4 2-1.6 3.4-2.8 3.4 0-3-1-6-3.6-8.2C8.6 5.6 5 9 5 14.5 5 18.9 8 22 12 22z"/><path d="M12 22c-1.7 0-3-1.3-3-3.1 0-1.9 1.6-3.3 3-4.9 1.4 1.6 3 3 3 4.9 0 1.8-1.3 3.1-3 3.1z"/></svg>';
   const BUBBLE='<svg class="i" viewBox="0 0 24 24"><path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.6-5.4A8.5 8.5 0 1 1 21 12z"/></svg>';
   function avatarEl(id,cls){const a=document.createElement('div');a.className='avatar'+(cls?' '+cls:'');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
-  // A two-second preview rotates existing feed data only, never a second network feed.
+  // Rotate existing feed data every 2.5 seconds; no second network feed.
   const homeLogCard=$('#homeLogCard'),homeLogMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const HOME_LOG_INTERVAL=2500;
   let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogTouching=false,homeLogInView=!('IntersectionObserver' in window);
@@ -303,12 +303,12 @@
     const tags=$('#homeLogTags');tags.replaceChildren();postCategoriesOf(x).forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
     preview.dataset.postKey=homeLogKey(x);preview.setAttribute('aria-label',name+'の成長ログを開く');
     if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function'){
-      const options={duration:280,easing:'ease-out',fill:'both'};
+      const options={duration:450,easing:'ease-in-out',fill:'both'};
       if(old){
         old.removeAttribute('id');old.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));old.removeAttribute('href');old.tabIndex=-1;old.inert=true;old.setAttribute('aria-hidden','true');old.classList.add('home-log-ghost');viewport.append(old);
-        old.animate([{transform:'translateX(0)'},{transform:`translateX(${-direction*100}%)`}],options);
+        old.animate([{transform:'translateX(0)',opacity:1},{transform:`translateX(${-direction*100}%)`,opacity:0}],options);
       }
-      const animation=preview.animate([{transform:`translateX(${direction*100}%)`},{transform:'translateX(0)'}],options);
+      const animation=preview.animate([{transform:`translateX(${direction*100}%)`,opacity:0},{transform:'translateX(0)',opacity:1}],options);
       const done=()=>{if(old)old.remove()};animation.onfinish=done;animation.oncancel=done;
     }
 
@@ -1358,7 +1358,7 @@
     $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
     renderAll();fillForm();size();ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});
   }
-  // Brief opening curtain: leaves after 0.3s once data is ready; a tap skips it
+  // Opening curtain: wait for data readiness, then fade into the app; a tap skips quickly
   const curtain=(()=>{
     const sp=$('#splash');let minDone=false,ready=false,gone=false;
     const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1687,12 +1687,10 @@
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W,H,dots=[],t=0;
   function size(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);
-    dots=Array.from({length:40},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}))}
+    dots=Array.from({length:32},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}))}
   function draw(){if(!W||!H)return;   // canvas not measured yet (app still hidden)
     cx.clearRect(0,0,W,H);
     const g=cx.createRadialGradient(W*.85,H*.2,0,W*.85,H*.2,W*.6);g.addColorStop(0,'rgba(255,205,212,.35)');g.addColorStop(1,'rgba(255,205,212,0)');cx.fillStyle=g;cx.fillRect(0,0,W,H);
-    cx.strokeStyle='rgba(255,255,255,.08)';cx.lineWidth=1;
-    for(let k=0;k<5;k++){cx.beginPath();for(let x=0;x<=W;x+=8){const y=H*.72+k*10+Math.sin(x/40+t/900+k)*4;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()}
     cx.fillStyle='rgba(255,255,255,.7)';dots.forEach(d=>{d.y-=d.v;if(d.y<0)d.y=H;cx.beginPath();cx.arc(d.x,d.y,d.r,0,7);cx.fill()});
   }
   function loop(ts){t=ts;draw();if(!reduce)requestAnimationFrame(loop)}
