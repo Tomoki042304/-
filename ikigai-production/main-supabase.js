@@ -367,6 +367,11 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    shinKnowledge: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+      try{const response=await fetch('/api/shin-knowledge',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'知識を更新できませんでした。');return result}finally{clearTimeout(timer)}
+    },
     security: async payload => {
       const {data,error}=await supabase.auth.getSession();fail(error);if(!data.session)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);

@@ -1137,7 +1137,7 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
     <!-- SHIN AI: private, session-only conversation -->
     <section class="view" id="v-ai" hidden>
       <div class="shin-ai-head"><h1>SHIN AI</h1><button type="button" class="small-btn" data-goto="home">ホームへ</button></div>
-      <p class="shin-ai-note">志・目標の壁打ちも、成長ログの振り返りも。次の一歩を一緒に整理します。</p>
+      <p class="shin-ai-note">志・目標の壁打ちも、成長ログの振り返りも。運営が登録した考え方も参考に、次の一歩を一緒に整理します。</p>
       <div class="shin-ai-prompts"><button type="button" data-shin-prompt="自分の志を言葉にする手伝いをしてください。">志を整理する</button><button type="button" data-shin-prompt="目標に向けて、今日できる行動を一緒に考えてください。">今日の一歩</button><button type="button" data-shin-prompt="今日の出来事を振り返って、学びと次の行動を整理したいです。">振り返りを相談</button></div>
       <div class="shin-ai-log" id="shinAiLog" role="log" aria-label="SHIN AIとの会話" aria-live="polite" aria-relevant="additions"></div>
       <form id="shinAiForm">
@@ -1370,6 +1370,20 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <div id="inquiryAdminList" class="admin-roster"></div>
           <button type="button" class="small-btn" id="inquiryAdminMore" hidden>さらに読み込む</button>
         </section>
+        <details class="card admin-panel" id="knowledgeAdmin">
+          <summary>SHIN AIの知識登録</summary>
+          <p class="muted admin-note">Nottaの文字起こしや運営の考え方を、後から複数登録できます。回答に使ってよい内容だけを登録してください。原文一覧は会員に公開しませんが、回答には内容の要点が含まれます。個人情報は除いてください。</p>
+          <form id="knowledgeForm" class="admin-panel">
+            <label>タイトル<input id="knowledgeTitle" required maxlength="100" placeholder="例：志の見つけ方についての対話"></label>
+            <label>文字起こし・参考記録（1件50,000文字まで）<textarea id="knowledgeText" required maxlength="50000" rows="8" placeholder="Nottaから文字起こしをコピーして貼り付けてください。"></textarea></label>
+            <label>テキストファイルを読み込む<input id="knowledgeFile" type="file" accept=".txt,text/plain"></label>
+            <label><input id="knowledgeActive" type="checkbox" checked>会員への回答に使用する</label>
+            <div class="btn-row"><button type="submit" class="primary" id="knowledgeSave">追加する</button><button type="button" class="small-btn" id="knowledgeCancel">新規入力に戻る</button></div>
+          </form>
+          <p class="muted admin-note">Nottaとの自動同期ではなく、文字起こしを取り込む方式です。件数は固定せず、無料枠の保存容量の範囲で追加できます。AIは相談に関連する記録の一部を参考にします。</p>
+          <button type="button" class="small-btn" id="knowledgeReload">一覧を更新</button><p id="knowledgeStatus" class="muted admin-note" role="status"></p>
+          <div id="knowledgeList" class="admin-roster"></div><button type="button" class="small-btn" id="knowledgeMore" hidden>もっと見る</button>
+        </details>
         <details class="card admin-panel" id="securityAdmin">
           <summary>個人情報の保護設定</summary>
           <p class="muted admin-note">氏名・連絡先・問い合わせ内容の保存時暗号化を確認します。鍵の内容は表示しません。</p>

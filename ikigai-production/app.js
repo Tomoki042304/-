@@ -1385,6 +1385,7 @@
     if(shinAi)shinAi.reset();
     if(youtubeRecommendations)youtubeRecommendations.stop();
     if(inquiryUi)inquiryUi.stop();
+    if(knowledgeUi)knowledgeUi.reset();
     if(directMessages)directMessages.stop();
     if(announcementsUi)announcementsUi.stop();
     if(messageReactions)messageReactions.stop();
@@ -1592,9 +1593,10 @@
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
   }
   $('#announcementBack').onclick=()=>showAcc('admin');
-  let securityUi=null;
+  let securityUi=null,knowledgeUi=null;
   async function ensureSecurity(){
     if(!isOwnerView)return;
+    if(!knowledgeUi){const module=await import('./shin-knowledge.js');knowledgeUi=module.mountKnowledge({request:payload=>window.appAuth.shinKnowledge(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden})}
     if(!securityUi){const module=await import('./security-settings.js');securityUi=module.mountSecurity({request:payload=>window.appAuth.security(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden})}
   }
   function showAcc(which){
