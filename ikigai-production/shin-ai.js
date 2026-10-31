@@ -28,7 +28,7 @@ export function mountShinAI({request,getContext}) {
     if(text.length>2000){error.textContent='質問は2,000文字以内で入力してください。';error.hidden=false;return}
     busy=true;send.disabled=true;error.hidden=true;form.setAttribute('aria-busy','true');$('#shinAiStatus').textContent='考えています…';const token=epoch;controller=new AbortController();const activeController=controller;
     const candidates=[...history.slice(-8),{role:'user',content:text}],context=getContext({goal:$('#shinAiUseGoal').checked,logs:$('#shinAiUseLogs').checked});
-    view.dataset.conversation='true';$('#shinAiReferences').open=false;const row=message('user',text);const timer=setTimeout(()=>activeController.abort(),45000);
+    view.dataset.conversation='true';$('#shinAiReferences').open=false;const row=message('user',text);const timer=setTimeout(()=>activeController.abort(),60000);
     try {const reply=await request({messages:candidates,context},{signal:activeController.signal});if(token!==epoch)return;if(typeof reply!=='string'||!reply.trim())throw Error('回答を取得できませんでした。');history=[...candidates,{role:'assistant',content:reply.slice(0,3000)}];message('assistant',reply);if(input.value.trim()===text){input.value='';fitInput();}}
     catch(err){if(token!==epoch)return;row.remove();view.dataset.conversation=history.length?'true':'false';error.textContent=err?.name==='AbortError'?'回答に時間がかかっています。もう一度お試しください。':err?.message||'接続できませんでした。もう一度お試しください。';error.hidden=false;}
     finally {clearTimeout(timer);if(token===epoch){busy=false;controller=null;send.disabled=false;form.removeAttribute('aria-busy');$('#shinAiStatus').textContent='';}}
