@@ -1176,15 +1176,14 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
     <!-- SHIN AI: private, session-only conversation -->
     <section class="view" id="v-ai" hidden>
       <div class="shin-ai-head"><h1>SHIN AI</h1><div class="shin-ai-head-actions"><button type="button" class="small-btn" id="shinAiClear" aria-label="新しいチャット" title="新しいチャット"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7"/><path d="m16 3 5 5-10 10-6 1 1-6z"/></svg></button><button type="button" class="small-btn" data-goto="home">ホームへ</button></div></div>
-      <p class="shin-ai-note shin-ai-intro">志や目標、今日の一歩を一緒に整理しましょう。</p>
-      <div class="shin-ai-prompts"><button type="button" data-shin-prompt="自分の志を言葉にする手伝いをしてください。">志を整理する</button><button type="button" data-shin-prompt="目標に向けて、今日できる行動を一緒に考えてください。">今日の一歩</button><button type="button" data-shin-prompt="今日の出来事を振り返って、学びと次の行動を整理したいです。">振り返りを相談</button></div>
-      <div class="shin-ai-log" id="shinAiLog" role="log" aria-label="SHIN AIとの会話" aria-live="polite" aria-relevant="additions"></div>
+      <p class="shin-ai-note shin-ai-intro">登録されたSHINの考え方や知識をもとにお答えします。</p>
+      <div class="shin-ai-log" id="shinAiLog" role="log" aria-label="SHIN AIへの質問と回答" aria-live="polite" aria-relevant="additions"></div>
       <form id="shinAiForm">
         <div class="shin-ai-composer">
-          <label for="shinAiInput" class="sr-only">SHIN AIへの相談</label><textarea id="shinAiInput" rows="1" maxlength="2000" placeholder="SHIN AIに相談する"></textarea>
+          <label for="shinAiInput" class="sr-only">SHIN AIへの質問</label><textarea id="shinAiInput" rows="1" maxlength="2000" placeholder="質問を入力してください"></textarea>
           <div class="shin-ai-compose-tools">
             <details id="shinAiReferences"><summary>参考にする記録 <span aria-hidden="true">⌃</span></summary><div class="shin-ai-options"><label><input type="checkbox" id="shinAiUseGoal">自分の志・目標</label><label><input type="checkbox" id="shinAiUseLogs">自分の最新ログ3件</label></div></details>
-            <button type="submit" class="primary" id="shinAiSend" aria-label="相談を送信" title="送信"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
+            <button type="submit" class="primary" id="shinAiSend" aria-label="質問を送信" title="送信"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
           </div>
         </div>
         <p id="shinAiError" role="alert" hidden></p><span id="shinAiStatus" role="status"></span>

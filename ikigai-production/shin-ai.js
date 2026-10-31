@@ -21,12 +21,11 @@ export function mountShinAI({request,getContext}) {
   window.addEventListener('resize',scheduleFit);window.visualViewport?.addEventListener('resize',scheduleFit);window.visualViewport?.addEventListener('scroll',scheduleFit);
   input.addEventListener('input',fitInput);input.addEventListener('focus',scheduleFit);input.addEventListener('blur',scheduleFit);
   function message(role,text){const row=document.createElement('article');row.className='shin-ai-message '+role;row.setAttribute('aria-label',role==='user'?'あなたのメッセージ':'SHIN AIの回答');const name=document.createElement('b');name.textContent=role==='user'?'あなた':'SHIN AI';const body=document.createElement('p');body.textContent=text;row.append(name,body);log.append(row);log.scrollTop=log.scrollHeight;return row}
-  function reset(){$('#shinAiUseGoal').checked=false;$('#shinAiUseLogs').checked=false;epoch++;controller?.abort();controller=null;history=[];log.replaceChildren();view.dataset.conversation='false';message('assistant','今日はどんなことを相談したいですか？');input.value='';error.hidden=true;busy=false;send.disabled=false;$('#shinAiStatus').textContent='';form.removeAttribute('aria-busy');$('#shinAiReferences').open=false;fitInput();scheduleFit();}
+  function reset(){$('#shinAiUseGoal').checked=false;$('#shinAiUseLogs').checked=false;epoch++;controller?.abort();controller=null;history=[];log.replaceChildren();view.dataset.conversation='false';message('assistant','知りたいことを自由に質問してください。登録された知識をもとにお答えします。');input.value='';error.hidden=true;busy=false;send.disabled=false;$('#shinAiStatus').textContent='';form.removeAttribute('aria-busy');$('#shinAiReferences').open=false;fitInput();scheduleFit();}
   $('#shinAiClear').onclick=reset;
-  document.querySelectorAll('[data-shin-prompt]').forEach(b=>b.onclick=()=>{input.value=b.dataset.shinPrompt;fitInput();input.focus()});
   form.addEventListener('submit',async e=>{
     e.preventDefault();if(busy||e.isComposing)return;const text=input.value.trim();if(!text)return;
-    if(text.length>2000){error.textContent='相談は2,000文字以内で入力してください。';error.hidden=false;return}
+    if(text.length>2000){error.textContent='質問は2,000文字以内で入力してください。';error.hidden=false;return}
     busy=true;send.disabled=true;error.hidden=true;form.setAttribute('aria-busy','true');$('#shinAiStatus').textContent='考えています…';const token=epoch;controller=new AbortController();const activeController=controller;
     const candidates=[...history.slice(-8),{role:'user',content:text}],context=getContext({goal:$('#shinAiUseGoal').checked,logs:$('#shinAiUseLogs').checked});
     view.dataset.conversation='true';$('#shinAiReferences').open=false;const row=message('user',text);const timer=setTimeout(()=>activeController.abort(),45000);
