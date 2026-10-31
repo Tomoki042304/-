@@ -1258,7 +1258,8 @@
   // Administrator-only account screen. No roster data is kept in browser storage.
   let adminRows=[],adminLoadToken=0,adminLoaded=false;
   let adminNoticeUi=null,adminNoticeLoading=null;
-  const adminSectionOpen=id=>isOwnerView&&!$('#accAdmin').hidden&&!!$(id)?.open;
+  const adminAccountVisible=()=>isOwnerView&&!$('#app').hidden&&!$('#v-account').hidden;
+  const adminSectionOpen=id=>adminAccountVisible()&&!$('#accAdmin').hidden&&!!$(id)?.open;
   const memberNoticeRows=rows=>rows.map(r=>({id:r.user_id,version:JSON.stringify([r.member_plan,r.check_day,r.checked_today])}));
   const securityNoticeRows=state=>[{id:'status',version:JSON.stringify([state.keyReady,!!state.database,state.database?.enforced,state.database?.remaining])}];
   async function ensureAdminNotices(){
@@ -1268,7 +1269,7 @@
       const module=await adminNoticeLoading;if(!isOwnerView||!uid)return null;
       if(!adminNoticeUi)adminNoticeUi=module.mountAdminNotices({
         account:()=>uid,allowed:()=>isOwnerView&&backend==='cloud'&&!$('#app').hidden,
-        active:()=>isOwnerView&&!$('#app').hidden&&!$('#accAdmin').hidden,
+        active:()=>adminAccountVisible()&&!$('#accAdmin').hidden,
         getSeen:()=>profile.adminSectionSeen||{},saveSeen:seen=>{profile.adminSectionSeen=seen;void saveProfile(true)},
         load:()=>Promise.allSettled([renderApplicants({background:true}),pollMemberNotices(),$('#youtubeChannelsDetails').open?Promise.resolve():youtubeChannelSettings(),pollKnowledgeNotices(),pollSecurityNotices()])
       });
@@ -1669,7 +1670,7 @@
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
-      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }
