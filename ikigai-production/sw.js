@@ -1,5 +1,5 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v59-member-plans";
+const CACHE = "ikigai-v60-member-plan-route";
 const SHELL = ["./", "index.html", "main-supabase.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
