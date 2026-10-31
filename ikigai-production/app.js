@@ -1365,7 +1365,7 @@
     const leave=cls=>{if(gone)return;gone=true;if(reduce)sp.hidden=true;else sp.classList.add(cls)};
     sp.addEventListener('animationend',e=>{if(e.animationName==='spOut')sp.hidden=true});
     sp.addEventListener('click',()=>{if(ready)leave('skip');else minDone=true});
-    setTimeout(()=>{minDone=true;if(ready)leave('out')},reduce?0:800);
+    setTimeout(()=>{minDone=true;if(ready)leave('out')},reduce?0:1200);
     return{ready(){ready=true;if(minDone)leave('out')}};
   })();
   function boot(){curtain.ready();proceed()}
