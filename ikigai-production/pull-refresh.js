@@ -1,5 +1,10 @@
-import {refreshPublishedApp} from './update-manager.js';
-export function mountPullRefresh({refresh=refreshPublishedApp}={}){
+export async function refreshCurrentData(){
+  const tasks=[];window.dispatchEvent(new CustomEvent('ikigai-refresh-data',{detail:{tasks}}));
+  if(!tasks.length)throw Error('画面の準備中です。少し待ってからもう一度お試しください。');
+  const results=await Promise.allSettled(tasks);
+  if(results.some(result=>result.status==='rejected'))throw Error('一部のデータを更新できませんでした。通信状況を確認して再試行してください。');
+}
+export function mountPullRefresh({refresh=refreshCurrentData}={}){
   const indicator=document.createElement('div');indicator.id='pullRefresh';indicator.setAttribute('role','status');indicator.setAttribute('aria-live','polite');indicator.hidden=true;document.body.append(indicator);
   let start=null,busy=false,armed=false,hideTimer=0;
   const atTop=()=>Math.max(0,window.scrollY||document.scrollingElement?.scrollTop||0)<=1;
@@ -17,7 +22,7 @@ export function mountPullRefresh({refresh=refreshPublishedApp}={}){
       if(!navigator.onLine)throw Error('オフラインです。接続してからもう一度お試しください。');
       const guard=new Event('ikigai-before-refresh',{cancelable:true});
       if(!window.dispatchEvent(guard))throw Error('保存待ちの変更があります。保存してから更新してください。');
-      await refresh();
+      await refresh();show('更新しました');hideTimer=setTimeout(()=>indicator.hidden=true,1000);
     }catch(error){show(error.message||'更新できませんでした。もう一度お試しください。');hideTimer=setTimeout(()=>indicator.hidden=true,3500);}
     finally{busy=false;start=null;armed=false;}
   }

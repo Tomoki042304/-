@@ -280,8 +280,10 @@ function start() {
       let alive=true;const run=()=>{if(alive)reload().catch(e=>error&&error(e))};
       const signal=supabase.channel('chat-access-'+(++chan)).on('postgres_changes',{event:'*',schema:'public',table:'ikigai_chat_activity_v1'},()=>{if(document.visibilityState==='visible')run()}).subscribe();
       const timer=setInterval(()=>{if(document.visibilityState==='visible'&&!document.querySelector('#v-mates')?.hidden)run()},15000);
-      const resume=()=>{if(document.visibilityState==='visible')run()};document.addEventListener('visibilitychange',resume);run();
-      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);supabase.removeChannel(signal)};
+      const resume=()=>{if(document.visibilityState==='visible')run()};
+      const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(Promise.resolve().then(reload).catch(e=>{if(error)error(e);throw e}))};
+      window.addEventListener('ikigai-refresh-data',refresh);document.addEventListener('visibilitychange',resume);run();
+      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh);supabase.removeChannel(signal)};
     }
     let timer = 0, alive = true;
     const run = () => { clearTimeout(timer); timer = setTimeout(() => alive && reload().catch(e => error && error(e)), 250); };
@@ -289,9 +291,11 @@ function start() {
       .on("postgres_changes", { event: "*", schema: "public", table: T, filter }, run)
       .subscribe();
     const onVis = () => { if (document.visibilityState === "visible") run(); };
+    const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(Promise.resolve().then(reload).catch(e=>{if(error)error(e);throw e}))};
+    window.addEventListener('ikigai-refresh-data',refresh);
     document.addEventListener("visibilitychange", onVis);
     reload().catch(e => error && error(e));
-    return () => { alive = false; clearTimeout(timer); document.removeEventListener("visibilitychange", onVis); supabase.removeChannel(ch); };
+    return () => { alive = false; clearTimeout(timer); document.removeEventListener("visibilitychange", onVis); window.removeEventListener("ikigai-refresh-data",refresh); supabase.removeChannel(ch); };
   }
   function docRef(path) {
     return {

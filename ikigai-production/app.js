@@ -137,6 +137,21 @@
   // closing or reloading now would lose the changes: let the browser ask first
   // (Safari asks only when returnValue is a non-empty string; the browser shows its own wording, not this text)
   addEventListener('ikigai-before-refresh',e=>{if(hasUnsaved())e.preventDefault()});
+  addEventListener('ikigai-refresh-data',event=>{
+    if(!Array.isArray(event.detail?.tasks)||backend!=='cloud'||!uid||$('#app').hidden)return;
+    const account=uid,before=JSON.stringify(profile);
+    event.detail.tasks.push((async()=>{
+      if(hasUnsaved())throw Error('unsaved');
+      const [p,ph,rs]=await Promise.all([pRef().get(),phRef().get(),rCol().get()]);
+      if(uid!==account||backend!=='cloud'||$('#app').hidden)throw Error('account changed');
+      if(!p.exists)throw Error('profile unavailable');
+      if(hasUnsaved())throw Error('unsaved');
+      // A local action during the fetch wins over an older server snapshot.
+      if(JSON.stringify(profile)===before){profile=Object.assign(defaultProfile(),clone(p.data()));photo=ph.exists?ph.data().src||'':'';reflections=rs.docs.map(x=>clone(x.data()))}
+      renderHome();renderCheck();if(!$('#v-timeline').hidden)renderFeed();
+      if(!$('#v-rfview').hidden)renderRfView();
+    })());
+  });
   addEventListener('beforeunload',e=>{
     if(!hasUnsaved())return;
     const msg='保存できていない変更があります。このまま離れると失われます。';
