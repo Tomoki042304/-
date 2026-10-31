@@ -276,7 +276,7 @@
   function avatarEl(id,cls){const a=document.createElement('div');a.className='avatar'+(cls?' '+cls:'');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
   // A two-second preview rotates existing feed data only, never a second network feed.
   const homeLogCard=$('#homeLogCard'),homeLogMotion=matchMedia('(prefers-reduced-motion: reduce)');
-  const HOME_LOG_INTERVAL=2000;
+  const HOME_LOG_INTERVAL=2500;
   let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogTouching=false,homeLogInView=!('IntersectionObserver' in window);
   const homeLogKey=x=>x?x.uid+':'+x.id:'';
   function homeLogCanRun(){

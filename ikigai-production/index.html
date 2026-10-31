@@ -36,7 +36,7 @@ img{max-width:100%}
 .template-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px}
 .template-actions button{background:#7a1f33;color:#fff;border-color:#7a1f33;padding:10px 20px}
 #heroLine .hero-goal-label{display:block;margin-bottom:8px;font-family:"Zen Antique Soft",var(--display);font-size:clamp(14px,4vw,18px);font-weight:400;line-height:1.5;letter-spacing:.06em}
-#heroLine .hero-goal-text{display:block;font-family:"Zen Antique Soft",var(--display);font-size:clamp(14px,4vw,18px);font-weight:400;line-height:1.65;overflow-wrap:anywhere}
+#heroLine .hero-goal-text{display:block;font-family:"Zen Antique Soft",var(--display);font-size:clamp(18px,5vw,22px);font-weight:400;line-height:1.65;overflow-wrap:anywhere}
 .header-check{position:absolute;right:max(57px,calc(env(safe-area-inset-right,0px) + 41px));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:40px;min-height:44px;padding:3px;background:#292929;color:#eee;border:1px solid #494949;border-radius:12px;cursor:pointer}
 .header-check .i{width:20px;height:20px}.header-check span{font-size:9px;line-height:1.2;letter-spacing:.04em}
 .header-check:focus-visible{outline:2px solid #e6cc8f;outline-offset:3px}
@@ -152,7 +152,7 @@ svg.i{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .hero .rule::before,.hero .rule::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,transparent,#E9C46A)}
 .hero .rule::after{background:linear-gradient(270deg,transparent,#E9C46A)}
 .hero .rule i{width:7px;height:7px;border:1px solid #E9C46A;transform:rotate(45deg);flex:none}
-.hero h1{font-family:"Zen Antique Soft",var(--display);font-weight:400;font-size:clamp(22px,6.4vw,28px);line-height:1.6;letter-spacing:.06em;margin:0 0 14px;text-wrap:balance;max-width:16em;
+.hero h1{font-family:"Zen Antique Soft",var(--display);font-weight:400;font-size:clamp(24px,7vw,32px);line-height:1.6;letter-spacing:.06em;margin:0 0 14px;text-wrap:balance;max-width:16em;
   background:linear-gradient(170deg,#FFF3D0 0%,#F0CF7A 45%,#D3A447 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero .meta{font-size:12px;line-height:1.8;color:rgba(243,236,224,.85);letter-spacing:.06em}
 .hero .meta b{font-family:var(--mono);font-size:15px;color:#E9C46A;font-weight:500}
@@ -1029,6 +1029,11 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
           <div class="field"><label for="zMemo">メモ（ミーティングID・パスコードなど）</label><textarea id="zMemo" rows="2" maxlength="200"></textarea></div>
           <div class="btn-row"><button type="button" class="ghost" id="zCancel">キャンセル</button><button type="submit" class="primary">保存する</button></div>
         </form>
+      </div>
+
+      <div class="card zoom" id="journalPurchaseCard">
+        <div class="card-head"><h2 style="margin:0;font-size:18px">志動録ジャーナル購入</h2></div>
+        <div class="z-actions"><a class="z-join" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">購入ページへ</a></div>
       </div>
 
       <figure class="card quote" id="quoteCard" hidden>
