@@ -2,7 +2,7 @@ import {knowledgeContext} from '../../server/shin-knowledge.js';
 // Cloudflare Pages Function. Binding: AI (Workers AI). No model key reaches the browser.
 const PROJECT_URL = 'https://ebozxwiuujrnvmxienat.supabase.co';
 const PUBLIC_KEY = 'sb_publishable_mJ6vFykk8ykbAmm2LaEEuA_Ea5n4yp8';
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
 const INSTRUCTIONS = `あなたはIKIGAIの「SHIN AI」。日本語で、志・目標の壁打ちと成長ログの振り返りを支援する。
 相手の言葉を尊重し、短く読みやすく、決めつけずに話す。必要な確認は一度に1つ。
 目標の相談では、望む状態、障害、今日できる小さな一歩を一緒に整理する。
@@ -69,6 +69,7 @@ export async function onRequest({request, env}) {
       diagnostic=diagnostic.replace(/Bearer\s+[^\s"']+/gi,'Bearer [redacted]').replace(/https?:\/\/[^\s"']+/gi,'[url]').replace(/[\r\n\t]+/g,' ').slice(0,700);
       const numericCode=String(error?.code||'').match(/^\d{3,6}$/)?.[0]||detail.match(/(?:^|\b)(\d{4,5})\s*:/)?.[1]||'';
       console.error('SHIN_AI_DIAGNOSTIC',JSON.stringify({stage:'provider',model:MODEL,status:Number.isFinite(status)?status:null,code:numericCode,message:diagnostic}));
+      if(numericCode==='5028'||/\bdeprecated\b/i.test(detail))return answer(503,'SHIN_MODEL_RETIRED','AIモデルの提供が終了しています。管理者に接続先の更新を依頼してください。（SHIN_MODEL_RETIRED）');
       const limited=status===429||/quota|daily.*limit|neurons.*limit|too many requests|rate.?limit/i.test(detail);
       const providerCode=numericCode?' / '+numericCode:'';
       return answer(limited?429:503,limited?'SHIN_AI_LIMIT':'SHIN_AI_PROVIDER',limited?'AIの利用上限に達しています。（SHIN_AI_LIMIT）時間を置いてお試しください。':'AIの応答でエラーが発生しました。（SHIN_AI_PROVIDER'+providerCode+'）管理者にこのコードをお知らせください。');
