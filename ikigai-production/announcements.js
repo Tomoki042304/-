@@ -1,4 +1,4 @@
-export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange}){
+export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange,onRows=()=>{}}){
  const $=s=>document.querySelector(s);let rows=[],timer=0,started=false,reading=false,publishing=false,epoch=0,draftId=crypto.randomUUID(),attempt=null;
  const visible=()=>document.visibilityState==='visible';
  const unread=()=>{const seen=new Set(getSeen());return rows.filter(r=>!seen.has(r.id)).length};
@@ -6,7 +6,7 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
  function render(){
   const list=$('#announcementList'),seen=new Set(getSeen()),opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));list.replaceChildren();
   for(const row of rows){const box=document.createElement('details');box.className='announcement-item';box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.open&&!new Set(getSeen()).has(row.id)){markSeen(row.id);head.querySelector('.inquiry-notice-dot')?.remove();onChange()}});list.append(box)}
-  const history=$('#announcementHistory');history.replaceChildren();for(const row of rows.slice(0,10)){const item=document.createElement('p');item.className='muted admin-note';item.textContent=date(row.at)+' · '+row.title;history.append(item)}onChange();
+  const history=$('#announcementHistory');history.replaceChildren();for(const row of rows.slice(0,10)){const item=document.createElement('p');item.className='muted admin-note';item.textContent=date(row.at)+' · '+row.title;history.append(item)}onRows(rows.slice(0,10));onChange();
  }
  async function refresh(){
   clearTimeout(timer);if(reading||!started||!account()||!visible())return;reading=true;const token=epoch,uid=account();

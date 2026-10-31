@@ -1,20 +1,20 @@
 const TYPES={note:'志動録ノート購入',training:'企業研修について',withdrawal:'退会について'};
-export function mountInquiry({request,account,isAdmin,name}){
+export function mountInquiry({request,account,isAdmin,name,onNotice,viewing=()=>false}){
   const $=s=>document.querySelector(s),form=$('#inquiryForm'),type=$('#inquiryType'),reason=$('#inquiryReason'),confirm=$('#inquiryConfirm'),submit=$('#inquirySubmit');
   let selfToken=0,adminToken=0,selfBusy=false,adminBusy=false,current=null,rows=[],cursor=null,draftKey='',draftSignature='';
   let noticeTimer=0,noticeToken=0,noticeBusy=false,noticesStarted=false;const handledIds=new Set();
-  function noticeDot(on){for(const id of ['#inquiryAdminDot','#inquiryEntryDot']){const dot=$(id);if(dot)dot.hidden=!on}}
+  function noticeDot(on){if(onNotice)return;for(const id of ['#inquiryAdminDot','#inquiryEntryDot']){const dot=$(id);if(dot)dot.hidden=!on}}
   async function pollNotices(){
     clearTimeout(noticeTimer);if(noticeBusy||!noticesStarted||!account()||!isAdmin()||document.visibilityState!=='visible')return;
     const token=++noticeToken,uid=account();noticeBusy=true;
     try{
-      let next,found=false;const cursors=new Set();
+      let next,found=false;const all=[],cursors=new Set();
       do{const data=await request('admin',undefined,next);if(token!==noticeToken||account()!==uid||!isAdmin())return;
         if(!Array.isArray(data.requests))throw Error('invalid inbox');
-        found=data.requests.some(r=>r.status==='pending'&&!handledIds.has(r.requestId));next=data.cursor;
+        all.push(...data.requests.filter(r=>r.status==='pending'&&!handledIds.has(r.requestId)));found=all.length>0;next=data.cursor;
         if(next){if(cursors.has(next))throw Error('invalid cursor');cursors.add(next)}
-      }while(!found&&next);
-      noticeDot(found);
+      }while(next&&(onNotice||!found));
+      if(onNotice)onNotice(all,{complete:true,viewed:false});else noticeDot(found);
     }catch{}finally{if(token===noticeToken){noticeBusy=false;if(noticesStarted&&account()&&isAdmin())noticeTimer=setTimeout(pollNotices,30000)}}
   }
   function startNotices(){if(!isAdmin())return;noticesStarted=true;void pollNotices()}
@@ -47,7 +47,7 @@ export function mountInquiry({request,account,isAdmin,name}){
   async function loadAdmin(more=false){
     if(!account()||!isAdmin()||adminBusy)return;
     const token=++adminToken,uid=account();adminBusy=true;$('#inquiryAdminRefresh').disabled=true;$('#inquiryAdminMore').disabled=true;$('#inquiryAdminStatus').textContent='読み込んでいます…';
-    try{const data=await request('admin',undefined,more?cursor:undefined);if(token!==adminToken||account()!==uid||!isAdmin())return;if(!Array.isArray(data.requests))throw Error('一覧を読み込めませんでした。');rows=[...new Map([...(more?rows:[]),...data.requests].map(r=>[r.requestId,r])).values()];cursor=data.cursor;renderAdmin();if(rows.some(r=>r.status==='pending'&&!handledIds.has(r.requestId)))noticeDot(true);if(noticesStarted)void pollNotices();}
+    try{const data=await request('admin',undefined,more?cursor:undefined);if(token!==adminToken||account()!==uid||!isAdmin())return;if(!Array.isArray(data.requests))throw Error('一覧を読み込めませんでした。');rows=[...new Map([...(more?rows:[]),...data.requests].map(r=>[r.requestId,r])).values()];cursor=data.cursor;renderAdmin();if(onNotice)onNotice(pendingRows(),{complete:!cursor,viewed:viewing()});if(rows.some(r=>r.status==='pending'&&!handledIds.has(r.requestId)))noticeDot(true);if(noticesStarted)void pollNotices();}
     catch(e){if(token===adminToken)$('#inquiryAdminStatus').textContent=e.message||'一覧を読み込めませんでした。'}
     finally{if(token===adminToken){adminBusy=false;$('#inquiryAdminRefresh').disabled=false;$('#inquiryAdminMore').disabled=false}}
   }

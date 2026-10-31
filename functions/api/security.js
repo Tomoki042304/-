@@ -13,8 +13,8 @@ export async function onRequest({request,env}){
  try{
   if(['runtime-status','runtime-copy','runtime-verify'].includes(body?.action)){try{return reply(200,await transferStorage(env,body))}catch(error){return reply(503,{message:error.message||'保存先を移行できませんでした。'})}}
   let keyReady=false;try{const envelope=await encryptPii(env,'security:self-test',{test:true});keyReady=(await decryptPii(env,'security:self-test',envelope)).test===true}catch{}
-  if(body?.action==='status'){
-   if(env.PII_MIGRATION_MODE!=='locked'&&kv?.delete)await kv.delete(LOCK);
+  if(['status','notice-status'].includes(body?.action)){
+   if(body.action==='status'&&env.PII_MIGRATION_MODE!=='locked'&&kv?.delete)await kv.delete(LOCK);
    let db=null;try{db=await database(request,'rpc/ikigai_pii_status_v1',{method:'POST',body:{p_enforce:false}})}catch{}
    return reply(200,{keyReady,database:db,migrationKeyReady:typeof env.SUPABASE_MIGRATION_SERVICE_ROLE_KEY==='string'&&env.SUPABASE_MIGRATION_SERVICE_ROLE_KEY.startsWith('eyJ'),maintenance:env.PII_MIGRATION_MODE==='locked'});
   }

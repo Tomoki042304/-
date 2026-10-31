@@ -1313,7 +1313,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           <button type="button" class="acc-row" data-acc="settings"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span><b>各種設定</b><small>公開範囲・通知・データ</small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
         </div>
       <div class="card acc-list" id="adminEntry" hidden>
-        <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利 <span id="inquiryEntryDot" class="inquiry-notice-dot" aria-label="未確認の問い合わせがあります" hidden></span></b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+        <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利 <span id="inquiryEntryDot" class="inquiry-notice-dot" aria-label="管理者向けの新しい情報があります" hidden></span></b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
       </div>
       </div>
       <div id="accInquiry" class="view" hidden><button type="button" class="back-link" data-acc="menu">‹ アカウント</button><h2 class="view-title">問い合わせ</h2>
@@ -1380,10 +1380,10 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
       <details class="card" id="appCard" hidden>
-        <summary class="channel-summary"><span><b style="font-size:16px">入会申込の一覧</b><span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span> <span class="mono" id="appCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary>
+        <summary class="channel-summary"><span><b style="font-size:16px">入会申込の一覧 <span id="applicationsAdminDot" class="inquiry-notice-dot" aria-label="新しい入会申込があります" hidden></span></b><span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span> <span class="mono" id="appCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary>
         <div class="box-list" id="appList" style="margin-top:14px"><p class="muted">読み込んでいます…</p></div>
       </details>
-        <details class="card" id="adminMembersDetails"><summary class="channel-summary"><b>メンバー情報</b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px">
+        <details class="card" id="adminMembersDetails"><summary class="channel-summary"><b>メンバー情報 <span id="membersAdminDot" class="inquiry-notice-dot" aria-label="新しいメンバー情報があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px">
           <div class="card-head"><b id="adminRosterTitle">在籍メンバー・行動チェック</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
           <p class="muted" id="adminCheckDay"></p>
           <p id="adminSummary" role="status" aria-live="polite">読み込んでいます…</p>
@@ -1394,10 +1394,10 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           <div id="adminRoster" class="admin-roster"></div>
           <p class="muted admin-note" id="adminUpdated"></p>
         </div></details>
-        <section class="card admin-panel" id="announcementAdmin"><button type="button" class="channel-summary" data-acc="announcements" style="background:none;border:0;padding:0;color:inherit;text-align:left;width:100%"><b>お知らせ配信</b><span class="channel-expand" aria-hidden="true"></span></button></section>
+        <section class="card admin-panel" id="announcementAdmin"><button type="button" class="channel-summary" data-acc="announcements" style="background:none;border:0;padding:0;color:inherit;text-align:left;width:100%"><b>お知らせ配信 <span id="announcementsAdminDot" class="inquiry-notice-dot" aria-label="新しい配信情報があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></button></section>
         <form class="card admin-panel" id="youtubeChannelsForm">
           <details id="youtubeChannelsDetails">
-            <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
+            <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span> <span id="channelsAdminDot" class="inquiry-notice-dot" aria-label="新しいチャンネル情報があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
             <div class="admin-panel" style="margin-top:14px">
               <p class="muted admin-note">テーマ分けはありません。おすすめしたいチャンネルを1つずつ追加できます。登録したチャンネルの動画を全メンバーに表示します。</p>
               <label>チャンネルURL・@ユーザー名・チャンネルID<input type="text" id="youtubeChannelInput" maxlength="300" placeholder="https://www.youtube.com/@channel" autocomplete="off" spellcheck="false" disabled></label>
@@ -1407,15 +1407,17 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
             </div>
           </details>
         </form>
-        <section class="card admin-panel" id="inquiryAdmin">
-          <div class="card-head"><b>問い合わせ連絡 <span id="inquiryAdminDot" class="inquiry-notice-dot" aria-label="未確認の問い合わせがあります" hidden></span></b><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button></div>
+        <details class="card admin-panel" id="inquiryAdmin">
+          <summary class="channel-summary"><b>問い合わせ連絡 <span id="inquiryAdminDot" class="inquiry-notice-dot" aria-label="新しい問い合わせがあります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
+          <div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button>
           <p class="muted admin-note">購入・研修・退会についての連絡欄です。「確認済み」にすると一覧から非表示になります。履歴は保持され、退会処理は行いません。</p>
           <p id="inquiryAdminStatus" class="muted admin-note" role="status" aria-live="polite"></p>
           <div id="inquiryAdminList" class="admin-roster"></div>
           <button type="button" class="small-btn" id="inquiryAdminMore" hidden>さらに読み込む</button>
-        </section>
+          </div>
+        </details>
         <details class="card admin-panel" id="knowledgeAdmin">
-          <summary>SHIN AIの知識登録</summary>
+          <summary class="channel-summary"><b>SHIN AIの知識登録 <span id="knowledgeAdminDot" class="inquiry-notice-dot" aria-label="新しい知識情報があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
           <p class="muted admin-note">Nottaの文字起こしや運営の考え方を、後から複数登録できます。回答に使ってよい内容だけを登録してください。原文一覧は会員に公開しませんが、回答には内容の要点が含まれます。個人情報は除いてください。</p>
           <form id="knowledgeForm" class="admin-panel">
             <label>タイトル<input id="knowledgeTitle" required maxlength="100" placeholder="例：志の見つけ方についての対話"></label>
@@ -1429,7 +1431,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           <div id="knowledgeList" class="admin-roster"></div><button type="button" class="small-btn" id="knowledgeMore" hidden>もっと見る</button>
         </details>
         <details class="card admin-panel" id="securityAdmin">
-          <summary>個人情報の保護設定</summary>
+          <summary class="channel-summary"><b>個人情報の保護設定 <span id="securityAdminDot" class="inquiry-notice-dot" aria-label="保護設定に新しい情報があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
           <p class="muted admin-note">氏名・連絡先・問い合わせ内容の保存時暗号化を確認します。鍵の内容は表示しません。</p>
           <div class="btn-row"><button type="button" class="small-btn" id="securityRefresh">設定を確認</button><button type="button" class="small-btn" id="securityMigrate">既存データを暗号化</button><button type="button" class="small-btn" id="securityVerify">移行結果を確認</button></div>
           <p class="muted admin-note" id="securityStatus" role="status" aria-live="polite"></p>

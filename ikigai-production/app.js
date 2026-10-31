@@ -1257,9 +1257,52 @@
 
   // Administrator-only account screen. No roster data is kept in browser storage.
   let adminRows=[],adminLoadToken=0,adminLoaded=false;
+  let adminNoticeUi=null,adminNoticeLoading=null;
+  const adminSectionOpen=id=>isOwnerView&&!$('#accAdmin').hidden&&!!$(id)?.open;
+  const memberNoticeRows=rows=>rows.map(r=>({id:r.user_id,version:JSON.stringify([r.member_plan,r.check_day,r.checked_today])}));
+  const securityNoticeRows=state=>[{id:'status',version:JSON.stringify([state.keyReady,!!state.database,state.database?.enforced,state.database?.remaining])}];
+  async function ensureAdminNotices(){
+    if(!isOwnerView||!uid)return null;
+    if(!adminNoticeUi){
+      if(!adminNoticeLoading)adminNoticeLoading=import('./admin-notices.js');
+      const module=await adminNoticeLoading;if(!isOwnerView||!uid)return null;
+      if(!adminNoticeUi)adminNoticeUi=module.mountAdminNotices({
+        account:()=>uid,allowed:()=>isOwnerView&&backend==='cloud'&&!$('#app').hidden,
+        active:()=>isOwnerView&&!$('#app').hidden&&!$('#accAdmin').hidden,
+        getSeen:()=>profile.adminSectionSeen||{},saveSeen:seen=>{profile.adminSectionSeen=seen;void saveProfile(true)},
+        load:()=>Promise.allSettled([renderApplicants({background:true}),pollMemberNotices(),$('#youtubeChannelsDetails').open?Promise.resolve():youtubeChannelSettings(),pollKnowledgeNotices(),pollSecurityNotices()])
+      });
+    }
+    return adminNoticeUi;
+  }
+  function noticeSection(key,items,options){
+    const who=uid;if(!isOwnerView)return;
+    if(adminNoticeUi){adminNoticeUi.update(key,items,options);return}
+    ensureAdminNotices().then(ui=>{if(uid===who&&isOwnerView)ui?.update(key,items,options)}).catch(()=>{});
+  }
+  async function pollMemberNotices(){
+    const editing=[...document.querySelectorAll('#adminRoster [data-member-plan-id]')].some(select=>select.value!==adminRows.find(r=>r.user_id===select.dataset.memberPlanId)?.member_plan);
+    if(!editing)await loadAdminMembers();
+  }
+  async function pollKnowledgeNotices(){
+    const who=uid;if(!isOwnerView||!window.appAuth?.shinKnowledge)return;
+    const items=[],cursors=new Set();let cursor;
+    do{const data=await window.appAuth.shinKnowledge({action:'list',...(cursor?{cursor}:{})});if(uid!==who||!isOwnerView)return;
+      if(!Array.isArray(data.records))throw Error('Invalid knowledge list');
+      items.push(...data.records.map(r=>({id:r.id,version:r.updatedAt})));cursor=data.cursor;
+      if(cursor){if(cursors.has(cursor))throw Error('Invalid cursor');cursors.add(cursor)}
+    }while(cursor);
+    noticeSection('knowledge',items);
+  }
+  async function pollSecurityNotices(){
+    const who=uid;if(!isOwnerView||!window.appAuth?.security)return;
+    const state=await window.appAuth.security({action:'notice-status'});
+    if(who===uid&&isOwnerView)noticeSection('security',securityNoticeRows(state));
+  }
   function setOwnerView(owner){
     isOwnerView=!!owner;
-    if(isOwnerView)void openInquiry('notify');
+    if(isOwnerView){ensureAdminNotices().then(ui=>ui?.start()).catch(()=>{});void openInquiry('notify')}
+    else adminNoticeUi?.stop();
     if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
@@ -1276,6 +1319,7 @@
     const done=adminRows.filter(r=>r.checked_today===true).length,unknown=adminRows.filter(r=>r.checked_today!==true&&r.checked_today!==false).length;
     $('#adminSummary').textContent=`在籍 ${adminRows.length}人 ／ チェック済み ${done}人 ／ 未チェック ${adminRows.length-done-unknown}人 ／ 未取得 ${unknown}人`;
     const rows=adminRows.filter(r=>(filter==='all'||(filter==='done'&&r.checked_today===true)||(filter==='pending'&&r.checked_today===false)||(filter==='unknown'&&r.checked_today!==true&&r.checked_today!==false)));
+    if(adminSectionOpen('#adminMembersDetails'))noticeSection('members',memberNoticeRows(rows),{complete:false,viewed:true});
     box.replaceChildren();
     if(!rows.length){const p=document.createElement('p');p.className='muted admin-note';p.textContent=adminRows.length?'条件に合うメンバーはいません。':'在籍メンバーはまだいません。';box.append(p);return}
     rows.forEach(r=>{
@@ -1288,7 +1332,7 @@
       const planBox=document.createElement('div');planBox.className='btn-row';
       if(r.is_admin){const label=document.createElement('small');label.textContent='プレミアムプラン';planBox.append(label)}
       else if(['basic','premium'].includes(r.member_plan)){
-        const select=document.createElement('select');select.className='member-plan-select';select.setAttribute('aria-label',name+'の会員プラン');
+        const select=document.createElement('select');select.className='member-plan-select';select.dataset.memberPlanId=r.user_id;select.setAttribute('aria-label',name+'の会員プラン');
         for(const [value,label] of [['basic','ベーシック'],['premium','プレミアム']]){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option)}
         select.value=r.member_plan;
         const save=document.createElement('button');save.type='button';save.className='small-btn';save.textContent='プランを保存';
@@ -1313,6 +1357,7 @@
       const days=[...new Set(adminRows.map(r=>r.check_day).filter(Boolean))];
       if(days.length>1)throw Error('Mismatched check dates');
       $('#adminCheckDay').textContent=days.length?String(days[0]).replace(/-/g,'/')+' の行動チェック（日本時間）':'今日の行動チェック（日本時間）';
+      noticeSection('members',memberNoticeRows(adminRows));
       adminLoaded=true;renderAdminRoster();$('#adminUpdated').textContent='最終取得：'+postTimeText(new Date().toISOString());
     }catch(err){
       if(!active())return;
@@ -1322,6 +1367,9 @@
     }finally{if(token===adminLoadToken)$('#adminRefresh').disabled=false}
   }
   $('#adminMembersDetails').addEventListener('toggle',()=>{if($('#adminMembersDetails').open){if(adminLoaded)renderAdminRoster();else loadAdminMembers()}});
+  $('#appCard').addEventListener('toggle',()=>{if($('#appCard').open)renderApplicants()});
+  $('#inquiryAdmin').addEventListener('toggle',()=>{if($('#inquiryAdmin').open)openInquiry('admin')});
+  $('#securityAdmin').addEventListener('toggle',()=>{if($('#securityAdmin').open)ensureSecurity().then(()=>securityUi?.refresh()).catch(()=>{})});
   $('#adminRefresh').onclick=()=>{loadAdminMembers();renderApplicants()};
   $('#adminFilter').addEventListener('change',renderAdminRoster);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('#accAdmin').hidden)loadAdminMembers()});
@@ -1330,15 +1378,17 @@
   // Hosts remove only explicitly declined applications. Pending and approved records stay.
   // Access is still decided by the host-only approval list; Auth and personal records are untouched.
   let appArmed='';
-  async function renderApplicants(){
+  async function renderApplicants({background=false}={}){
     const box=$('#appList');if(!box||$('#appCard').hidden||$('#accAdmin').hidden||!isOwnerView||!db)return;
+    if(adminSectionOpen('#appCard')&&[...box.querySelectorAll('[data-approval-plan]')].some(select=>select.value!=='basic'))return;
+    const reader=uid;
     try{
       const snap=await db.collection('applications').get();
       const ap=userNs&&userNs.approvals;
       const okIds=ap?new Set((await ap.list()).map(x=>x.user_id)):null;
-      if(!isOwnerView||$('#accAdmin').hidden)return;
+      if(reader!==uid||!isOwnerView||$('#accAdmin').hidden)return;
       let rows=snap.docs.map(d=>{const v=d.data();return v?{...v,_id:d.id}:null}).filter(Boolean).sort((p,q)=>String(q.at||'').localeCompare(String(p.at||'')));
-      if(okIds&&ap.removeDeclined){
+      if(!background&&okIds&&ap.removeDeclined){
         const removed=new Set();let failed=false;
         for(const r of rows.filter(r=>r.status==='declined'&&!okIds.has(r._id))){
           try{if(await ap.removeDeclined(r._id))removed.add(r._id)}catch(err){failed=true}
@@ -1346,12 +1396,14 @@
         rows=rows.filter(r=>!removed.has(r._id));
         if(failed)toast('見送った申込の削除を再試行してください');
       }
-      if(!isOwnerView||$('#accAdmin').hidden)return;
+      if(reader!==uid||!isOwnerView||$('#accAdmin').hidden)return;
+      noticeSection('applications',rows.filter(r=>r.status!=='declined'&&!okIds?.has(r._id)).map(r=>({id:r._id,version:String(r.at||'pending')})),{viewed:adminSectionOpen('#appCard')});
       $('#appCount').textContent=`${rows.length}件`;
       if(!rows.length){box.innerHTML='<p class="muted">まだ申込はありません。</p>';return}
+      const openedApplications=new Set([...box.querySelectorAll('details[open][data-application-id]')].map(el=>el.dataset.applicationId));
       box.innerHTML='';
       rows.forEach(r=>{
-        const d=document.createElement('details');d.className='past';
+        const d=document.createElement('details');d.className='past';d.dataset.applicationId=r._id;d.open=openedApplications.has(r._id);
         d.innerHTML='<summary><span class="lbl"><b></b><small></small></span><svg class="i chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></summary><dl></dl>';
         d.querySelector('b').textContent=String(r.name||'（名前なし）');
         const st=okIds?(okIds.has(r._id)?'承認済み':r.status==='declined'?'見送り':'承認待ち'):'';
@@ -1381,9 +1433,9 @@
     const b=e.target.closest('[data-app-act]');if(!b||!isOwnerView||$('#accAdmin').hidden||!userNs||!userNs.approvals)return;
     const act=b.dataset.appAct,id=b.dataset.appId,key=act+':'+id;
     if(act!=='approve'&&appArmed!==key){appArmed=key;b.textContent='もう一度押して確定';setTimeout(()=>{if(appArmed===key){appArmed='';renderApplicants()}},3000);return}
-    appArmed='';b.disabled=true;
+    appArmed='';b.disabled=true;let approvalSaved=false;
     try{
-      if(act==='approve'){const plan=b.parentElement.querySelector('[data-approval-plan]')?.value||'basic';await userNs.approvals.approve(id,plan);toast((plan==='premium'?'プレミアム':'ベーシック')+'プランで承認しました')}
+      if(act==='approve'){const plan=b.parentElement.querySelector('[data-approval-plan]')?.value||'basic';await userNs.approvals.approve(id,plan);approvalSaved=true;toast((plan==='premium'?'プレミアム':'ベーシック')+'プランで承認しました')}
       else if(act==='revoke'){await userNs.approvals.revoke(id);toast('承認を取り消しました')}
       else{
         const ref=db.doc('applications/'+id),cur=await ref.get();
@@ -1394,6 +1446,8 @@
         toast('見送りにして申込記録を削除しました');
       }
     }catch(err){toast(err.message||'変更できませんでした。通信状況を確認してください')}
+    b.disabled=false;
+    if(approvalSaved&&b.isConnected){const choice=b.parentElement.querySelector('[data-approval-plan]');if(choice)choice.value='basic'}
     renderApplicants();loadAdminMembers();
   });
   function showApp(){
@@ -1431,6 +1485,7 @@
     if(youtubeRecommendations)youtubeRecommendations.stop();
     if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
+    adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();
     if(announcementsUi)announcementsUi.stop();
     if(messageReactions)messageReactions.stop();
@@ -1580,6 +1635,7 @@
       if(token!==channelSettingsToken||!isOwnerView)return;
       if(!Array.isArray(data.channels))throw Error('最新の画面を表示するには再読み込みしてください。');
       channelSettingsLoaded=true;channelSettingsRevision=data.revision;renderRegisteredChannels(data.channels);
+      noticeSection('channels',data.channels.map(c=>({id:c.id,version:String(data.revision||c.id)})),{viewed:adminSectionOpen('#youtubeChannelsDetails')});
       if(change?.op==='add'&&!data.duplicate)input.value='';
       status.textContent=data.duplicate?'このチャンネルは登録済みです。':change?'保存しました。反映まで約1分かかる場合があります。':'';
       if(change&&youtubeRecommendations)youtubeRecommendations.invalidate();
@@ -1587,7 +1643,7 @@
     finally{channelSettingsBusy=false;if(token===channelSettingsToken&&isOwnerView){form.querySelectorAll('button,input').forEach(e=>e.disabled=false);input.disabled=!channelSettingsLoaded;$('#youtubeChannelsSave').disabled=!channelSettingsLoaded}}
   }
   const channelForm=$('#youtubeChannelsForm');
-  if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings({op:'add',channel:$('#youtubeChannelInput').value.trim()})};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();$('#youtubeChannelsDetails').addEventListener('toggle',()=>{if($('#youtubeChannelsDetails').open&&!channelSettingsLoaded)youtubeChannelSettings()});}
+  if(channelForm){channelForm.onsubmit=e=>{e.preventDefault();youtubeChannelSettings({op:'add',channel:$('#youtubeChannelInput').value.trim()})};$('#youtubeChannelsReload').onclick=()=>youtubeChannelSettings();$('#youtubeChannelsDetails').addEventListener('toggle',()=>{if($('#youtubeChannelsDetails').open)youtubeChannelSettings()});}
 
   let pushUi=null;
   async function openPushSettings(){try{if(!pushUi){const module=await import('./push-notifications.js');pushUi=module.mountPushNotifications({request:payload=>{if(!window.appAuth?.push)throw Error('通知を更新するには再読み込みしてください。');return window.appAuth.push(payload)},allowed:()=>backend==='cloud'&&!!uid&&!pending()})}await pushUi.refresh()}catch{$('#pushStatus').textContent='通知の設定を開けませんでした。再読み込みしてください。'}}
@@ -1613,7 +1669,7 @@
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
-      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }
@@ -1632,7 +1688,7 @@
     if(!['inquiry','admin','notify'].includes(which))return;
     try{
       if(!inquiryUi){if(!inquiryLoading)inquiryLoading=import('./inquiry.js');const module=await inquiryLoading;
-        if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||''});}
+        if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||'',onNotice:(rows,options)=>noticeSection('inquiries',rows.filter(r=>r.status==='pending').map(r=>({id:r.requestId,version:r.submittedAt})),options),viewing:()=>adminSectionOpen('#inquiryAdmin')});}
       if(which==='notify'){inquiryUi.startNotices();return}
       if((which==='inquiry'&&!$('#accInquiry').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
@@ -1641,8 +1697,8 @@
   let securityUi=null,knowledgeUi=null;
   async function ensureSecurity(){
     if(!isOwnerView)return;
-    if(!knowledgeUi){const module=await import('./shin-knowledge.js');knowledgeUi=module.mountKnowledge({request:payload=>window.appAuth.shinKnowledge(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden})}
-    if(!securityUi){const module=await import('./security-settings.js');securityUi=module.mountSecurity({request:payload=>window.appAuth.security(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden})}
+    if(!knowledgeUi){const module=await import('./shin-knowledge.js');knowledgeUi=module.mountKnowledge({request:payload=>window.appAuth.shinKnowledge(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden,onRecords:rows=>noticeSection('knowledge',rows.map(r=>({id:r.id,version:r.updatedAt})),{complete:false,viewed:adminSectionOpen('#knowledgeAdmin')})})}
+    if(!securityUi){const module=await import('./security-settings.js');securityUi=module.mountSecurity({request:payload=>window.appAuth.security(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden,onState:state=>noticeSection('security',securityNoticeRows(state),{viewed:adminSectionOpen('#securityAdmin')})})}
   }
   function showAcc(which){
     if(!['menu','profile','settings','admin','inquiry','announcements'].includes(which))which='menu';
@@ -1652,8 +1708,8 @@
     if(which==='profile')fillForm();
     if(which==='settings')openPushSettings();
     if(which==='announcements')ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementPublishStatus').textContent='配信画面を読み込めませんでした。'})
-    if(which==='inquiry'||which==='admin')openInquiry(which);
-    if(which==='admin'){ensureSecurity().catch(()=>{});ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
+    if(which==='inquiry'||(which==='admin'&&$('#inquiryAdmin').open))openInquiry(which);
+    if(which==='admin'){ensureAdminNotices().then(ui=>ui?.refresh()).catch(()=>{});ensureSecurity().catch(()=>{});ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }

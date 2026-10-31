@@ -1,11 +1,11 @@
-export function mountSecurity({request,active}){
+export function mountSecurity({request,active,onState=()=>{}}){
  const status=document.querySelector('#securityStatus'),buttons=['securityRefresh','securityMigrate','securityVerify'].map(id=>document.getElementById(id));let busy=false;
  async function run(action){
   if(busy||!active())return;busy=true;buttons.forEach(button=>button.disabled=true);
   try{
    const state=await request({action:'status'});if(!active())return;
    if(action==='status'){
-    status.textContent=`暗号鍵：${state.keyReady?'確認済み':'未確認'} ／ DB準備：${state.database?'完了':'未完了'} ／ 未移行：${state.database?.remaining??'未確認'}件 ／ 平文保存の制限：${state.database?.enforced?'有効':'準備中'}`;return;
+    status.textContent=`暗号鍵：${state.keyReady?'確認済み':'未確認'} ／ DB準備：${state.database?'完了':'未完了'} ／ 未移行：${state.database?.remaining??'未確認'}件 ／ 平文保存の制限：${state.database?.enforced?'有効':'準備中'}`;onState(state);return;
    }
    if(!state.keyReady)throw Error('暗号鍵の設定を確認してください。');
    if(!state.database)throw Error('先にSupabaseの準備用SQLを実行してください。');
