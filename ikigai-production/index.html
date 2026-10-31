@@ -1379,10 +1379,10 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
 
         <button type="button" class="back-link" data-acc="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>アカウント</button>
         <h2 class="view-title" style="margin:0">管理者権利</h2>
-      <div class="card" id="appCard" hidden>
-        <div class="card-head"><b style="font-size:16px">入会申込の一覧<span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span></b><span class="mono" id="appCount"></span></div>
-        <div class="box-list" id="appList"><p class="muted">読み込んでいます…</p></div>
-      </div>
+      <details class="card" id="appCard" hidden>
+        <summary class="channel-summary"><span><b style="font-size:16px">入会申込の一覧</b><span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span> <span class="mono" id="appCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary>
+        <div class="box-list" id="appList" style="margin-top:14px"><p class="muted">読み込んでいます…</p></div>
+      </details>
         <details class="card" id="adminMembersDetails"><summary class="channel-summary"><b>メンバー情報</b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px">
           <div class="card-head"><b id="adminRosterTitle">在籍メンバー・行動チェック</b><button type="button" class="small-btn" id="adminRefresh">更新</button></div>
           <p class="muted" id="adminCheckDay"></p>
@@ -1394,7 +1394,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           <div id="adminRoster" class="admin-roster"></div>
           <p class="muted admin-note" id="adminUpdated"></p>
         </div></details>
-        <section class="card admin-panel" id="announcementAdmin"><button type="button" class="channel-summary" data-acc="announcements" style="background:none;border:0;padding:0;color:inherit;text-align:left"><b>お知らせ配信</b><span aria-hidden="true">›</span></button></section>
+        <section class="card admin-panel" id="announcementAdmin"><button type="button" class="channel-summary" data-acc="announcements" style="background:none;border:0;padding:0;color:inherit;text-align:left;width:100%"><b>お知らせ配信</b><span class="channel-expand" aria-hidden="true"></span></button></section>
         <form class="card admin-panel" id="youtubeChannelsForm">
           <details id="youtubeChannelsDetails">
             <summary class="channel-summary"><b>おすすめチャンネル <span id="youtubeChannelCount"></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
