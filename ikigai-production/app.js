@@ -657,7 +657,7 @@
       if(!d||!u)return none();
       const id=await u.id();if(!id)return none();
       db=d;base='data/users/'+id;uid=id;userNs=u;
-      const [p,ph,rs]=await Promise.all([pRef().get(),phRef().get(),rCol().get()]);
+      const [p,ph,rs,member]=await Promise.all([pRef().get(),phRef().get(),rCol().get(),u.isMember?u.isMember().catch(()=>false):Promise.resolve(true)]);
       backend='cloud';
       if(STRICT){
         // only this account's own records; this browser's leftovers are offered, never copied on their own
@@ -673,12 +673,13 @@
         else for(const r of reflections)await rCol().doc(r.id).set(clone(r));
       }
       // the Firebase adapter has no approval step, so everyone there counts as approved
-      approved=u.isMember?await u.isMember().catch(()=>false):true;
-      if(p.exists)await migrateActionCheckCycle();
-      renderAll();fillForm();
-      if(approved)openShared();else watchApproval();
-      syncMember();
-      u.isOwner().then(setOwnerView).catch(()=>setOwnerView(false));
+      approved=member;
+      if(p.exists)void migrateActionCheckCycle();
+      // Paint the account's own home before loading shared panels and background notices.
+      requestAnimationFrame(()=>{
+        const background=()=>{if(uid!==id||backend!=='cloud')return;if(approved)openShared();else watchApproval();syncMember();u.isOwner().then(owner=>{if(uid===id)setOwnerView(owner)}).catch(()=>{if(uid===id)setOwnerView(false)})};
+        if(window.requestIdleCallback)requestIdleCallback(background,{timeout:400});else setTimeout(background,0);
+      });
     }catch(e){backend='local';db=null;uid=null;if(STRICT){loadFailed=true;return}}
     setStatus();renderMembers();
   }
@@ -1365,7 +1366,9 @@
     const leave=cls=>{if(gone)return;gone=true;if(reduce)sp.hidden=true;else sp.classList.add(cls)};
     sp.addEventListener('animationend',e=>{if(e.animationName==='spOut')sp.hidden=true});
     sp.addEventListener('click',()=>{if(ready)leave('skip');else minDone=true});
-    setTimeout(()=>{minDone=true;if(ready)leave('out')},reduce?0:1200);
+    const openingStarted=Number.isFinite(window.__ikigaiOpeningStartedAt)?window.__ikigaiOpeningStartedAt:performance.now();
+    const remaining=reduce?0:Math.max(0,1200-(performance.now()-openingStarted));
+    setTimeout(()=>{minDone=true;if(ready)leave('out')},remaining);
     return{ready(){ready=true;if(minDone)leave('out')}};
   })();
   function boot(){curtain.ready();proceed()}
@@ -1685,15 +1688,19 @@
   // ---------- hero ambience ----------
   const cv=$('#heroCanvas'),cx=cv.getContext('2d');
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let W,H,dots=[],t=0;
+  let W,H,dots=[],heroInView=true,lastHeroFrame=-Infinity;
   function size(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);
-    dots=Array.from({length:20},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}))}
+    dots=Array.from({length:20},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}));if(reduce)draw()}
   function draw(){if(!W||!H)return;   // canvas not measured yet (app still hidden)
     cx.clearRect(0,0,W,H);
     const g=cx.createRadialGradient(W*.85,H*.2,0,W*.85,H*.2,W*.6);g.addColorStop(0,'rgba(255,205,212,.35)');g.addColorStop(1,'rgba(255,205,212,0)');cx.fillStyle=g;cx.fillRect(0,0,W,H);
     cx.fillStyle='rgba(255,255,255,.7)';dots.forEach(d=>{d.y-=d.v;if(d.y<0)d.y=H;cx.beginPath();cx.arc(d.x,d.y,d.r,0,7);cx.fill()});
   }
-  function loop(ts){t=ts;draw();if(!reduce)requestAnimationFrame(loop)}
+  if('IntersectionObserver' in window)new IntersectionObserver(entries=>{heroInView=entries[0].isIntersecting},{threshold:0}).observe(cv.parentElement);
+  function loop(ts){
+    if(document.visibilityState==='visible'&&!$('#app').hidden&&!$('#v-home').hidden&&$('#splash').hidden&&heroInView&&ts-lastHeroFrame>=1000/30){lastHeroFrame=ts;draw()}
+    if(!reduce)requestAnimationFrame(loop);
+  }
 
   function renderAll(){renderHome();renderCheck();if(!$('#v-reflect').hidden)renderReflect();else renderBox()}
 

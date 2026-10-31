@@ -10,6 +10,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="IKIGAI">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="preload" href="app.js" as="script">
+<link rel="modulepreload" href="main-supabase.js">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -713,13 +715,13 @@ textarea,input[type=text],input[type=password],input[type=search],input[type=mon
 .splash-dawn{position:absolute;inset:0;background:radial-gradient(70% 50% at 50% 115%,rgba(214,120,110,.55),transparent 70%);opacity:0;animation:spFade .2s ease forwards;pointer-events:none}
 .splash small{position:relative;z-index:1;font-family:"Cormorant Garamond","Times New Roman",serif;font-weight:600;font-size:clamp(17px,2.3vw,28px);letter-spacing:.38em;padding-left:.38em;text-transform:uppercase;color:#E6CC8F;
   opacity:0;animation:spFade .7s ease-out .3s forwards}
-.splash.out{animation:spOut .9s ease-in-out forwards}
-.splash.skip{animation:spOut .18s ease-out forwards}
+.splash.out{animation:spOut .9s ease-in-out forwards;will-change:opacity;pointer-events:none}
+.splash.skip{animation:spOut .18s ease-out forwards;will-change:opacity;pointer-events:none}
 #app:not([hidden]),#onboard:not([hidden]){animation:spPageIn .25s ease both}
 @keyframes spFade{to{opacity:1}}
 @keyframes spOut{to{opacity:0;visibility:hidden}}
 @keyframes spPageIn{from{opacity:0}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.splash .iki,.splash small,.splash-dawn{animation:none;opacity:1}.splash.out,.splash.skip{animation:spOut .18s ease-out forwards}#app:not([hidden]),#onboard:not([hidden]){animation:none}}
+@media (prefers-reduced-motion:reduce){.splash .iki,.splash small,.splash-dawn{animation:none;opacity:1}.splash.out,.splash.skip{animation:spOut .18s ease-out forwards;will-change:opacity;pointer-events:none}#app:not([hidden]),#onboard:not([hidden]){animation:none}}
 .onboard{max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:16px;padding-block:28px 48px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .ob-head{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
@@ -1474,6 +1476,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
 <div class="toast" id="toast" hidden></div>
 <div class="env-badge" id="envBadge" hidden></div>
 <script type="module">
+  window.__ikigaiOpeningStartedAt=performance.now();
   // Keep touch scrolling, but suppress browser pinch zoom inside the app.
   const preventPinch=event=>{if(event.cancelable)event.preventDefault()};
   document.addEventListener('gesturestart',preventPinch,{passive:false});
