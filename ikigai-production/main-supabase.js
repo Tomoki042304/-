@@ -248,8 +248,22 @@ function start() {
       const result=await response.json();if(!response.ok)throw Error(result.message||'保護された情報に接続できませんでした。');return result;
     }finally{clearTimeout(timer)}
   }
+  async function planRequest(payload) {
+    const {data,error}=await supabase.auth.getSession();fail(error);
+    if(!data.session)throw Error('ログインし直してください。');
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+    try{
+      const response=await fetch('/api/member-plans',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});
+      const result=await response.json();if(!response.ok)throw Error(result.message||'プラン情報を取得できませんでした。');return result;
+    }finally{clearTimeout(timer)}
+  }
   async function readDoc(path) {
     fault("read");
+    if(path==='config/meeting'){
+      const result=await planRequest({action:'meeting-read'});
+      if(!result.membership||typeof result.membership.can_zoom!=='boolean')throw Error('プランを確認できませんでした。');
+      return {path,data:{...(result.membership.can_zoom?result.meeting||{}:{}),_membership:result.membership}};
+    }
     if(protectedPath(path))return (await protectedRequest({action:"read",path})).row;
     if(path.startsWith("chats/"))return (await readChatRows()).find(row=>row.path===path)||null;
     const { data, error } = await supabase.from(T).select("path,data").eq("path", path).maybeSingle();
@@ -257,6 +271,7 @@ function start() {
   }
   async function writeDoc(path, data) {
     fault("write");
+    if(path==='config/meeting'){await planRequest({action:'meeting-write',meeting:data});return;}
     if(protectedPath(path)){await protectedRequest({action:"write",path,data});return;}
     if(path.startsWith('chats/')){
       if(!currentUser||path!=='chats/'+currentUser.id)throw Error('自分のメッセージだけ保存できます。');
@@ -275,6 +290,15 @@ function start() {
   // live updates: on any change, read again (the payload itself is not trusted or used)
   let chan = 0;
   function watch(filter, reload, error) {
+    if(filter==='path=eq.config/meeting'){
+      // Private Zoom content never travels through public documents realtime payloads.
+      let alive=true;const run=()=>{if(alive)return reload().catch(e=>{if(error)error(e)})};
+      const resume=()=>{if(document.visibilityState==='visible')run()};
+      const timer=setInterval(resume,60000);
+      const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(Promise.resolve().then(reload).catch(e=>{if(error)error(e);throw e}))};
+      document.addEventListener('visibilitychange',resume);window.addEventListener('ikigai-refresh-data',refresh);run();
+      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh)};
+    }
     if(filter==='coll=eq.chats'||filter.startsWith('path=eq.chats/')){
       // Raw document realtime payloads can contain history. Only poll the guarded RPC.
       let alive=true;const run=()=>{if(alive)reload().catch(e=>error&&error(e))};
@@ -337,19 +361,20 @@ function start() {
         fault("read");
         const { rows: data } = await protectedRequest({action:'roster'});
         if (!Array.isArray(data)) throw new Error("Invalid administrator roster response");
-        return data;
+        let plans;try{plans=(await planRequest({action:'list'})).rows}catch{return data.map(row=>({...row,member_plan:null}))}
+        if(!Array.isArray(plans))throw Error('プラン一覧を確認できませんでした。');
+        const byId=new Map(plans.map(row=>[row.user_id,row.plan]));
+        return data.map(row=>({...row,member_plan:byId.get(row.user_id)||null}));
       }
     },
+    memberPlans:{set:(id,plan)=>planRequest({action:'set',user_id:id,plan})},
     // host-only: RLS refuses these for everyone else
     approvals: {
       list: async () => {
         const { data, error } = await supabase.from("approved_members").select("user_id,approved_at");
         fail(error); return data || [];
       },
-      approve: async uid => {
-        const { error } = await supabase.from("approved_members").upsert({ user_id: uid }, { onConflict: "user_id", ignoreDuplicates: true });
-        fail(error);
-      },
+      approve: (uid,plan='basic') => planRequest({action:'approve',user_id:uid,plan}),
       // Conditional DELETE targets one declined application only; never Auth or private data.
       removeDeclined: async uid => {
         fault("write");

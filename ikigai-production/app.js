@@ -815,11 +815,18 @@
     return read;
   }
 
-  // ---------- morning meeting link: set by the owner in config/meeting, shown to everyone ----------
-  let meeting={url:'',when:'',memo:''},isOwnerView=false;
+  // ---------- morning meeting: server checks the account plan before returning private Zoom settings ----------
+  let meeting={url:'',when:'',memo:''},isOwnerView=false,zoomMembership=null,zoomReadFailed=false;
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
-    if(pending()){$('#zoomView').hidden=true;$('#zoomEmpty').hidden=false;$('#zoomEmpty').textContent='ホストの承認後に、朝会のリンクが表示されます。';$('#zoomEditBtn').hidden=true;return}
+    if(!zoomMembership?.can_zoom||pending()){
+      $('#zoomView').hidden=true;$('#zoomJoin').removeAttribute('href');$('#zoomUrl').textContent='';$('#zoomWhen').textContent='';$('#zoomMemo').textContent='';
+      $('#zoomJoin').hidden=true;$('#zoomCopy').hidden=true;$('#zoomEditBtn').hidden=true;$('#zoomForm').hidden=true;
+      $('#zUrl').value='';$('#zWhen').value='';$('#zMemo').value='';
+      $('#zoomEmpty').hidden=false;
+      $('#zoomEmpty').textContent=pending()?'ホストの承認後に、プランに応じて朝会をご利用いただけます。':zoomReadFailed?'朝会の情報を取得できませんでした。画面を下に引いて更新してください。':zoomMembership?.plan==='basic'?'ベーシックプランをご利用中です。朝会への参加はプレミアムプランの特典です。':'プランを確認しています…';
+      return;
+    }
     const url=safeUrl(meeting.url),has=!!url||!!meeting.when;
     $('#zoomView').hidden=!has;$('#zoomEmpty').hidden=has;
     $('#zoomEmpty').textContent=isOwnerView?'「編集」から朝会のZoomリンクを登録してください。':'朝会のZoomリンクはまだ登録されていません。';
@@ -833,9 +840,10 @@
   function subscribeMeeting(){
     db.doc('config/meeting').onSnapshot(snap=>{
       const v=snap.exists?snap.data():{};
+      zoomMembership=v._membership||null;zoomReadFailed=false;
       meeting={url:typeof v.url==='string'?v.url:'',when:typeof v.when==='string'?v.when:'',memo:typeof v.memo==='string'?v.memo:''};
       renderZoom();
-    },()=>{});
+    },()=>{meeting={url:'',when:'',memo:''};zoomMembership=null;zoomReadFailed=true;renderZoom()});
   }
   $('#zoomEditBtn').onclick=()=>{$('#zUrl').value=meeting.url;$('#zWhen').value=meeting.when;$('#zMemo').value=meeting.memo;$('#zoomForm').hidden=false;$('#zoomView').hidden=true;$('#zoomEmpty').hidden=true;$('#zoomEditBtn').hidden=true;$('#zUrl').focus()};
   $('#zCancel').onclick=()=>{$('#zoomForm').hidden=true;renderZoom()};
@@ -1277,6 +1285,17 @@
       const state=document.createElement('span');state.className='admin-check'+(r.checked_today===true?' done':'');state.textContent=r.checked_today===true?'✓ チェック済み':r.checked_today===false?'未チェック':'未取得';
       if(r.checked_today!==true&&r.checked_today!==false)state.title='行動チェックの記録をまだ取得できていません。未チェックの人数には含めません。';
       if(r.user_id!==uid){const button=document.createElement('button');button.type='button';button.className='small-btn dm-start-btn';button.textContent='チャット';button.onclick=()=>startDirectMessage(r.user_id);person.append(button)}
+      const planBox=document.createElement('div');planBox.className='btn-row';
+      if(r.is_admin){const label=document.createElement('small');label.textContent='プレミアムプラン';planBox.append(label)}
+      else if(['basic','premium'].includes(r.member_plan)){
+        const select=document.createElement('select');select.className='member-plan-select';select.setAttribute('aria-label',name+'の会員プラン');
+        for(const [value,label] of [['basic','ベーシック'],['premium','プレミアム']]){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option)}
+        select.value=r.member_plan;
+        const save=document.createElement('button');save.type='button';save.className='small-btn';save.textContent='プランを保存';
+        save.onclick=async()=>{save.disabled=true;select.disabled=true;try{await userNs.memberPlans.set(r.user_id,select.value);r.member_plan=select.value;toast('会員プランを保存しました');if(r.user_id===uid)window.dispatchEvent(new CustomEvent('ikigai-refresh-data',{detail:{tasks:[]}}))}catch(error){select.value=r.member_plan;toast(error.message||'プランを保存できませんでした')}finally{save.disabled=false;select.disabled=false}};
+        planBox.append(select,save);
+      }else{const label=document.createElement('small');label.textContent='プラン設定の準備中';planBox.append(label)}
+      person.append(planBox);
       row.append(av,person,state);box.append(row);
     });
   }
@@ -1347,7 +1366,11 @@
           const row=document.createElement('div');row.className='btn-row';row.style.marginTop='10px';
           const mk=(label,act,warn)=>{const b=document.createElement('button');b.type='button';b.className='small-btn'+(warn?' warn':'');b.textContent=label;b.dataset.appAct=act;b.dataset.appId=r._id;row.append(b)};
           if(okIds.has(r._id))mk('承認を取り消す','revoke',true);
-          else{mk('承認する','approve');mk(r.status==='declined'?'申込記録を削除':'見送る','decline',true)}
+          else{
+            const select=document.createElement('select');select.className='member-plan-select';select.dataset.approvalPlan=r._id;select.setAttribute('aria-label','承認する会員プラン');
+            for(const [value,label] of [['basic','ベーシックプラン'],['premium','プレミアムプラン']]){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option)}
+            row.append(select);mk('承認する','approve');mk(r.status==='declined'?'申込記録を削除':'見送る','decline',true);
+          }
           d.append(row);
         }
         box.append(d);
@@ -1360,7 +1383,7 @@
     if(act!=='approve'&&appArmed!==key){appArmed=key;b.textContent='もう一度押して確定';setTimeout(()=>{if(appArmed===key){appArmed='';renderApplicants()}},3000);return}
     appArmed='';b.disabled=true;
     try{
-      if(act==='approve'){await userNs.approvals.approve(id);toast('承認しました')}
+      if(act==='approve'){const plan=b.parentElement.querySelector('[data-approval-plan]')?.value||'basic';await userNs.approvals.approve(id,plan);toast((plan==='premium'?'プレミアム':'ベーシック')+'プランで承認しました')}
       else if(act==='revoke'){await userNs.approvals.revoke(id);toast('承認を取り消しました')}
       else{
         const ref=db.doc('applications/'+id),cur=await ref.get();
@@ -1370,7 +1393,7 @@
         if(!userNs.approvals.removeDeclined||!await userNs.approvals.removeDeclined(id))throw Error('application not removed');
         toast('見送りにして申込記録を削除しました');
       }
-    }catch(err){toast('変更できませんでした。通信状況を確認してください')}
+    }catch(err){toast(err.message||'変更できませんでした。通信状況を確認してください')}
     renderApplicants();loadAdminMembers();
   });
   function showApp(){
