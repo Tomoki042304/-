@@ -136,6 +136,7 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')retryUnsaved()});
   // closing or reloading now would lose the changes: let the browser ask first
   // (Safari asks only when returnValue is a non-empty string; the browser shows its own wording, not this text)
+  addEventListener('ikigai-before-refresh',e=>{if(hasUnsaved())e.preventDefault()});
   addEventListener('beforeunload',e=>{
     if(!hasUnsaved())return;
     const msg='保存できていない変更があります。このまま離れると失われます。';
@@ -314,10 +315,12 @@
 
   }
   function updateNewLogBadge(){
-    const badge=$('#homeLogNew');if(!badge)return;
+    const badge=$('#homeLogNew'),dot=$('#growthLogTabDot');if(!badge)return;
+    if(backend!=='cloud'||pending()||!uid){badge.hidden=true;if(dot)dot.hidden=true;return}
+    if(!feedReady||homeLogError)return; // Keep the last known unread state on a transient failure.
     const seen=Date.parse(profile.growthLogSeenAt||'')||0;
-    const count=backend==='cloud'&&!pending()&&feedReady&&!homeLogError?feedAll.filter(x=>x.uid!==uid&&Number.isFinite(Date.parse(x.at))&&Date.parse(x.at)>seen&&Date.parse(x.at)<=Date.now()).length:0;
-    const label=count?'新着 '+count+'件':'';if(badge.textContent!==label)badge.textContent=label;badge.hidden=!count;
+    const count=feedAll.filter(x=>x.uid!==uid&&Number.isFinite(Date.parse(x.at))&&Date.parse(x.at)>seen&&Date.parse(x.at)<=Date.now()).length;
+    const label=count?'新着 '+count+'件':'';if(badge.textContent!==label)badge.textContent=label;badge.hidden=!count;if(dot)dot.hidden=!count;
   }
   function markGrowthLogsSeen(){
     if(backend!=='cloud'||pending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
