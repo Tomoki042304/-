@@ -303,12 +303,12 @@
     const tags=$('#homeLogTags');tags.replaceChildren();postCategoriesOf(x).forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
     preview.dataset.postKey=homeLogKey(x);preview.setAttribute('aria-label',name+'の成長ログを開く');
     if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function'){
-      const options={duration:450,easing:'ease-in-out',fill:'both'};
+      const options={duration:220,easing:'ease-in-out',fill:'both'};
       if(old){
         old.removeAttribute('id');old.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));old.removeAttribute('href');old.tabIndex=-1;old.inert=true;old.setAttribute('aria-hidden','true');old.classList.add('home-log-ghost');viewport.append(old);
-        old.animate([{transform:'translateX(0)',opacity:1},{transform:`translateX(${-direction*100}%)`,opacity:0}],options);
+        old.animate([{opacity:1},{opacity:0}],options);
       }
-      const animation=preview.animate([{transform:`translateX(${direction*100}%)`,opacity:0},{transform:'translateX(0)',opacity:1}],options);
+      const animation=preview.animate([{opacity:0},{opacity:1}],{...options,delay:old?220:0});
       const done=()=>{if(old)old.remove()};animation.onfinish=done;animation.oncancel=done;
     }
 
