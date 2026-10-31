@@ -1383,6 +1383,7 @@
   const LOGOUT_KEY='ikigai.loggedOut';
   function showEnd(title,text,btn){
     if(shinAi)shinAi.reset();
+    document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
     if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
@@ -1643,6 +1644,8 @@
   function go(tab){
     if(tab==='ai'&&(!shinAi||backend!=='cloud'||!uid||pending()))tab='home';
     refreshDayClock();
+    document.body.classList.toggle('shin-chat-open',tab==='ai');
+    if(tab!=='ai')document.body.classList.remove('shin-chat-keyboard');
     views.forEach(v=>{const view=$('#v-'+v);if(view)view.hidden=v!==tab});
     const navTab=(tab==='check'||tab==='reflect'||tab==='rfview'||tab==='ai')?'home':tab;
     document.querySelectorAll('nav.tabs button').forEach(b=>{if(b.dataset.tab===navTab)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});

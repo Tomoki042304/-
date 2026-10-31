@@ -850,19 +850,47 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
 .dm-thread{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#2b1418;text-align:left}
 .dm-thread .unread{width:9px;height:9px;border-radius:50%;background:#ed414f;flex:none}
 .dm-start-btn{margin-top:6px;min-height:32px}
-/* SHIN AI uses the same palette as member conversations. */
-#v-ai .shin-ai-head h1{color:#f4f4f4}
-#v-ai .shin-ai-prompts button{background:#2a2a2a;color:#fff;border-color:#494949}
+/* SHIN AI: centered thread with a composer anchored below it. */
+body.shin-chat-open{overflow:hidden}
+body.shin-chat-open .app{max-width:900px}
+body.shin-chat-keyboard nav.tabs{visibility:hidden;pointer-events:none}
+body.shin-chat-keyboard #v-ai .shin-ai-intro,body.shin-chat-keyboard #v-ai .shin-ai-prompts,body.shin-chat-keyboard #v-ai .shin-ai-footnote{display:none}
+body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
+#v-ai{position:fixed;z-index:10;top:var(--shin-top,90px);height:var(--shin-height,calc(100dvh - 170px));left:50%;transform:translateX(-50%);width:min(100%,800px);padding:0 20px;background:#1a1a1a;gap:0;min-height:0}
+#v-ai .shin-ai-head{flex:none;padding:8px 0 16px}
+#v-ai .shin-ai-head h1{font-size:20px;color:#f4f4f4}
+#v-ai .shin-ai-head-actions{display:flex;align-items:center;gap:8px}
+#v-ai #shinAiClear{padding:8px;width:38px;height:38px;display:grid;place-items:center;background:transparent;color:#eee;border-color:#494949}
+#v-ai .shin-ai-intro{flex:none;margin:0 0 14px;color:#bcbcbc}
+#v-ai .shin-ai-prompts{flex:none;margin-bottom:18px}
+#v-ai .shin-ai-prompts button{background:#2a2a2a;color:#fff;border-color:#494949;font-size:12px}
 #v-ai .shin-ai-prompts button:hover{background:#363636}
-#v-ai .shin-ai-log{background:#1a1a1a;border-color:#3a3a3a}
-#v-ai .shin-ai-message{background:#2a2a2a;color:#fff;border-color:#2a2a2a}
-#v-ai .shin-ai-message.user{background:#65e576;color:#111;border-color:#65e576}
-#v-ai .shin-ai-message b{color:inherit}
-#v-ai .shin-ai-options{color:#bcbcbc}
-#v-ai .shin-ai-options input{accent-color:#65e576}
-#v-ai #shinAiInput{background:#fff;color:#2b1418;border-color:#d7d7d7;caret-color:#7a1f33;color-scheme:light}
+#v-ai[data-conversation="true"] .shin-ai-intro,#v-ai[data-conversation="true"] .shin-ai-prompts{display:none}
+#v-ai .shin-ai-log{flex:1;min-height:0;max-height:none;overflow-y:auto;gap:26px;padding:16px 2px 28px;background:transparent;border:0;border-radius:0;scrollbar-width:thin}
+#v-ai .shin-ai-message{flex:none;max-width:100%;padding:0;background:transparent;color:#fff;border:0;border-radius:0;width:100%}
+#v-ai .shin-ai-message.user{width:auto;max-width:85%;align-self:flex-end;padding:12px 18px;background:#65e576;color:#111;border:0;border-radius:24px}
+#v-ai .shin-ai-message b{display:none}
+#v-ai .shin-ai-message p{font-size:16px;line-height:1.8}
+#v-ai #shinAiForm{flex:none;gap:4px;padding-top:10px}
+#v-ai .shin-ai-composer{background:#fff;border:1px solid #d7d7d7;border-radius:26px;padding:12px 14px 10px;box-shadow:0 -8px 24px #1a1a1a}
+#v-ai .shin-ai-composer:focus-within{border-color:#999}
+#v-ai #shinAiInput{display:block;min-height:44px;max-height:160px;height:44px;margin:0;padding:6px 4px;width:100%;resize:none;overflow-y:auto;background:transparent;color:#2b1418;border:0;border-radius:0;outline:none;caret-color:#7a1f33;color-scheme:light;font-size:16px;line-height:1.65}
 #v-ai #shinAiInput::placeholder{color:#7a6266;opacity:1}
-
+#v-ai .shin-ai-compose-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+#v-ai #shinAiSend{display:grid;place-items:center;flex:none;width:38px;height:38px;min-height:38px;padding:0;border:0;border-radius:50%;background:#65e576;color:#111}
+#v-ai #shinAiSend .i{width:24px;height:24px}
+#v-ai #shinAiSend:disabled{opacity:.45;cursor:wait}
+#v-ai #shinAiReferences{position:relative;min-width:0;color:#5b5052;font-size:12px}
+#v-ai #shinAiReferences summary{cursor:pointer;list-style:none;padding:6px 4px}
+#v-ai #shinAiReferences summary::-webkit-details-marker{display:none}
+#v-ai .shin-ai-options{position:absolute;left:0;bottom:calc(100% + 14px);width:240px;display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #555;border-radius:16px;background:#2a2a2a;color:#fff;box-shadow:0 8px 25px #0006;z-index:2}
+#v-ai .shin-ai-options input{accent-color:#65e576}
+#v-ai #shinAiStatus:empty{display:none}
+#v-ai #shinAiError{padding:4px 2px;max-height:80px;overflow:auto;color:#ff998e}
+#v-ai .shin-ai-footnote{flex:none;color:#aaa;text-align:center;font-size:10px;padding:8px 0 6px;max-height:100px;overflow:auto}
+#v-ai .shin-ai-footnote summary{cursor:pointer}
+#v-ai .shin-ai-footnote p{text-align:left;margin:6px 0;line-height:1.6}
+@media(max-width:480px){#v-ai{padding:0 12px}#v-ai .shin-ai-head{padding:5px 0 10px}#v-ai .shin-ai-prompts{gap:5px;margin-bottom:10px}#v-ai .shin-ai-prompts button{padding:6px 9px;font-size:11px}#v-ai .shin-ai-message.user{max-width:88%}}
 </style>
 <style>#reactionDot{right:3px;top:3px}#notificationsDialog{width:calc(100% - 32px);max-width:440px;max-height:75svh;overflow-y:auto}#notificationsDialog::backdrop{background:rgba(0,0,0,.55)}.reaction-notice{padding:12px;text-align:left;border:1px solid var(--line);background:#fff;color:#2b1418;border-radius:12px;font:inherit;font-size:14px;line-height:1.6;overflow-wrap:anywhere}.reaction-notice small{display:block;color:#7a6266}</style>
 </head>
@@ -1144,17 +1172,21 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
 
     <!-- SHIN AI: private, session-only conversation -->
     <section class="view" id="v-ai" hidden>
-      <div class="shin-ai-head"><h1>SHIN AI</h1><button type="button" class="small-btn" data-goto="home">ホームへ</button></div>
-      <p class="shin-ai-note">志・目標の壁打ちも、成長ログの振り返りも。運営が登録した考え方も参考に、次の一歩を一緒に整理します。</p>
+      <div class="shin-ai-head"><h1>SHIN AI</h1><div class="shin-ai-head-actions"><button type="button" class="small-btn" id="shinAiClear" aria-label="新しいチャット" title="新しいチャット"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-7"/><path d="m16 3 5 5-10 10-6 1 1-6z"/></svg></button><button type="button" class="small-btn" data-goto="home">ホームへ</button></div></div>
+      <p class="shin-ai-note shin-ai-intro">志や目標、今日の一歩を一緒に整理しましょう。</p>
       <div class="shin-ai-prompts"><button type="button" data-shin-prompt="自分の志を言葉にする手伝いをしてください。">志を整理する</button><button type="button" data-shin-prompt="目標に向けて、今日できる行動を一緒に考えてください。">今日の一歩</button><button type="button" data-shin-prompt="今日の出来事を振り返って、学びと次の行動を整理したいです。">振り返りを相談</button></div>
       <div class="shin-ai-log" id="shinAiLog" role="log" aria-label="SHIN AIとの会話" aria-live="polite" aria-relevant="additions"></div>
       <form id="shinAiForm">
-        <div class="shin-ai-options"><label><input type="checkbox" id="shinAiUseGoal">自分の志・目標を参考にする</label><label><input type="checkbox" id="shinAiUseLogs">自分の最新ログ3件を参考にする</label></div>
-        <label for="shinAiInput" class="sr-only">SHIN AIへの相談</label><textarea id="shinAiInput" rows="3" maxlength="2000" placeholder="相談したいことを入力してください"></textarea>
-        <p id="shinAiError" role="alert" hidden></p><div class="card-head"><span id="shinAiStatus" role="status"></span><button type="submit" class="primary" id="shinAiSend">相談する</button></div>
+        <div class="shin-ai-composer">
+          <label for="shinAiInput" class="sr-only">SHIN AIへの相談</label><textarea id="shinAiInput" rows="1" maxlength="2000" placeholder="SHIN AIに相談する"></textarea>
+          <div class="shin-ai-compose-tools">
+            <details id="shinAiReferences"><summary>参考にする記録 <span aria-hidden="true">⌃</span></summary><div class="shin-ai-options"><label><input type="checkbox" id="shinAiUseGoal">自分の志・目標</label><label><input type="checkbox" id="shinAiUseLogs">自分の最新ログ3件</label></div></details>
+            <button type="submit" class="primary" id="shinAiSend" aria-label="相談を送信" title="送信"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
+          </div>
+        </div>
+        <p id="shinAiError" role="alert" hidden></p><span id="shinAiStatus" role="status"></span>
       </form>
-      <p class="shin-ai-note">送信した文章と、チェックを付けた自分の記録をCloudflareのAIで処理します。会話はこのページ内だけに保持し、再読み込みすると消えます。AIの回答には誤りが含まれる場合があります。無料枠には利用上限があります。</p>
-      <button type="button" class="ghost" id="shinAiClear">会話をクリア</button>
+      <details class="shin-ai-footnote"><summary>SHIN AIについて</summary><p>運営が登録した参考記録と、送信した文章・選択した自分の記録をCloudflareのAIで処理します。会話はこの画面内だけに保持し、再読み込みすると消えます。回答には誤りが含まれる場合があります。無料枠には利用上限があります。</p></details>
     </section>
 
     <!-- MATES -->
