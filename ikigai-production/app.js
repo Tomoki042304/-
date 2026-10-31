@@ -1687,7 +1687,7 @@
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
   let W,H,dots=[],t=0;
   function size(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);
-    dots=Array.from({length:32},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}))}
+    dots=Array.from({length:20},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}))}
   function draw(){if(!W||!H)return;   // canvas not measured yet (app still hidden)
     cx.clearRect(0,0,W,H);
     const g=cx.createRadialGradient(W*.85,H*.2,0,W*.85,H*.2,W*.6);g.addColorStop(0,'rgba(255,205,212,.35)');g.addColorStop(1,'rgba(255,205,212,0)');cx.fillStyle=g;cx.fillRect(0,0,W,H);
