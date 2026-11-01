@@ -1,5 +1,5 @@
 const EMOJIS=['👍','❤️‍🔥','😭','🙇‍♂️'],LABELS=['いいね','熱い応援','感動','感謝'];
-export function mountMessageReactions({request,account,notify}){
+export function mountMessageReactions({request,account,notify,reply=null}){
  const roots=[document.querySelector('#chatLog'),document.querySelector('#dmMessages'),document.querySelector('#groupMessages')].filter(Boolean),cache=new Map(),busy=new Set();let started=false,epoch=0,timer=0,reading=false,openKey='',pressTimer=0,suppressClick=0,failures=0;
  const target=b=>({scope:b.dataset.reactionScope,threadId:b.dataset.reactionThread||'',senderUid:b.dataset.reactionSender,messageId:b.dataset.reactionMessage});
  const key=t=>JSON.stringify([t.scope,t.threadId,t.senderUid,t.messageId]),bubbles=()=>roots.flatMap(root=>[...root.querySelectorAll('[data-reaction-message]')]);
@@ -7,9 +7,9 @@ export function mountMessageReactions({request,account,notify}){
  function decorate(){
   for(const b of bubbles()){
    const t=target(b),k=key(t),box=host(b);if(!box)continue;const state=cache.get(k)||{counts:[],mine:''},signature=JSON.stringify([state.counts,state.mine,busy.has(k),openKey===k]);
-   if(box.dataset.reactionSignature===signature)continue;box.dataset.reactionSignature=signature;box.querySelectorAll(':scope > .message-reaction-counts,:scope > .message-reaction-picker').forEach(el=>el.remove());
+   if(box.dataset.reactionSignature===signature)continue;box.dataset.reactionSignature=signature;box.querySelectorAll(':scope > .message-reaction-counts,:scope > .message-reaction-picker,:scope > .message-reply-action').forEach(el=>el.remove());
    if(state.counts?.length){const counts=document.createElement('div');counts.className='message-reaction-counts';for(const r of state.counts){if(!EMOJIS.includes(r.emoji)||!Number.isFinite(r.count)||r.count<1)continue;const chip=document.createElement('button');chip.type='button';chip.textContent=r.emoji+' '+r.count;chip.setAttribute('aria-label',LABELS[EMOJIS.indexOf(r.emoji)]+' '+r.count+'人');chip.setAttribute('aria-pressed',String(state.mine===r.emoji));chip.disabled=busy.has(k);chip.onclick=()=>change(t,r.emoji);counts.append(chip)}box.append(counts)}
-   if(openKey===k){const picker=document.createElement('div');picker.className='message-reaction-picker';picker.setAttribute('role','group');picker.setAttribute('aria-label','リアクションを選ぶ');EMOJIS.forEach((emoji,i)=>{const button=document.createElement('button');button.type='button';button.textContent=emoji;button.setAttribute('aria-label',LABELS[i]);button.setAttribute('aria-pressed',String(state.mine===emoji));button.disabled=busy.has(k);button.onclick=()=>change(t,emoji);picker.append(button)});box.append(picker)}
+   if(openKey===k){const picker=document.createElement('div');picker.className='message-reaction-picker';picker.setAttribute('role','group');picker.setAttribute('aria-label','リアクションを選ぶ');EMOJIS.forEach((emoji,i)=>{const button=document.createElement('button');button.type='button';button.textContent=emoji;button.setAttribute('aria-label',LABELS[i]);button.setAttribute('aria-pressed',String(state.mine===emoji));button.disabled=busy.has(k);button.onclick=()=>change(t,emoji);picker.append(button)});box.append(picker);if(reply&&t.scope!=='direct'&&t.senderUid!==account()){const action=document.createElement('button');action.type='button';action.className='small-btn message-reply-action';action.textContent='返信';action.setAttribute('aria-label','このメッセージに返信');action.onclick=()=>{openKey='';decorate();reply(t)};box.append(action)}}
   }
  }
  async function change(t,emoji){

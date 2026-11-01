@@ -617,7 +617,7 @@
     const groupError=groupUi?.invitationError?.()||'',syncNotice=[!chatReady?'トークを読み込んでいます…':chatLoadFailed?'通常のトークを更新できませんでした。': '',groupError].filter(Boolean).join(' ');
     const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
     const hiddenMessages=new Set(Array.isArray(profile.hiddenChatMessages)?profile.hiddenChatMessages:[]);
-    const list=[...chatAll.filter(x=>!hiddenMessages.has(chatHideKey(x))),...(groupUi?.invitations?.()||[])].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).slice(-150);
+    const list=[...chatAll.filter(x=>!x.unsent&&!hiddenMessages.has(chatHideKey(x))),...(groupUi?.invitations?.()||[])].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).slice(-150);
     if(!list.length&&syncNotice){log.replaceChildren();appendChatSyncNotice(log,syncNotice,chatLoadFailed||!!groupError);return}
     if(!list.length){log.innerHTML=chatMode==='give'
       ?`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><b style="color:var(--ink)">最初のGIVEを贈ろう</b>仲間への感謝や称賛を、ひとこと送ってみましょう。</div>`
@@ -627,7 +627,6 @@
       const day=dayLabel(x.at);
       if(day&&day!==lastDay){const dd=document.createElement('div');dd.className='chat-day';dd.textContent=day;log.append(dd);lastDay=day;prevU=''}
       if(x.groupInvite){const invite=groupUi.renderInvitation(x.room);invite.classList.add('chat-group-invite');log.append(invite);prevU='';return}
-      if(x.unsent){const n=document.createElement('div');n.className='chat-sys';n.textContent=(x.uid===uid?'あなた':nameOf(x.uid))+'がメッセージの送信を取り消しました';log.append(n);prevU='';return}
       const me=x.uid===uid,tm=new Date(x.at).getTime(),first=x.uid!==prevU||tm-prevT>5*60000;
       prevU=x.uid;prevT=tm;
       const row=document.createElement('div');row.className='msg'+(me?' me':'')+(first?' first':' cont');
@@ -642,7 +641,6 @@
       const meta=document.createElement('div');meta.className='meta';
       if(me){const n=readCount(x.at);if(n){const r=document.createElement('span');r.className='read';r.textContent=`既読 ${n}`;meta.append(r)}}
       const t=document.createElement('time');t.textContent=hhmm(x.at);meta.append(t);
-      if(!me){const reply=document.createElement('button');reply.type='button';reply.className='chat-reply';reply.dataset.chatReply=chatHideKey(x);reply.textContent='返信';reply.setAttribute('aria-label',nameOf(x.uid)+'のメッセージに返信');meta.append(reply)}
       line.append(bub,meta);body.append(line);
       if(!me){if(first)row.append(mkAvatar(x.uid));else{const sp=document.createElement('span');sp.className='av-sp';row.append(sp)}}
       row.append(body);log.append(row);
@@ -696,7 +694,7 @@
     setChatComposeMode('free');$('#composer').scrollIntoView({block:'nearest'});
   }
   $('#giveTemplateTab').onclick=()=>setChatComposeMode('template');$('#giveFreeTab').onclick=()=>setChatComposeMode('free');
-  $('#giveFreeText').addEventListener('input',updateFreeChat);$('#giveReplyCancel').onclick=()=>{chatReply=null;updateFreeChat();setChatComposeMode('template',false)};
+  $('#giveFreeText').addEventListener('input',updateFreeChat);$('#giveReplyCancel').onclick=()=>{chatReply=null;updateFreeChat();setChatComposeMode('free',false)};
 
   function templateMessage(placeholders=false){
     const [occupation,name,challenge,content]=templateFields.map((id,i)=>$(id).value.trim()||(placeholders?['［職業］','［名前］','［新たな試み］','［事業内容］'][i]:''));
@@ -708,7 +706,7 @@
   }
   templateFields.forEach(id=>$(id).addEventListener('input',fitChatInput));
   $('#giveTemplate').addEventListener('toggle',()=>{if($('#giveTemplate').open)fitChatInput()});
-  fitChatInput();setChatComposeMode('template',false);
+  fitChatInput();setChatComposeMode('free',false);
   $('#composer').addEventListener('submit',async e=>{
     e.preventDefault();if(chatSubmitting||chatComposeMode==='group')return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
@@ -742,7 +740,7 @@
       else{$('#giveChallenge').value='';$('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;if(giveMode)setGive(chatMode==='give','')}
       renderChat.stick=true;renderChat();renderBuddies();
     }catch(error){toast(error.message||'送信できませんでした。入力は残っています。もう一度お試しください。')}
-    finally{chatSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled);if(free&&!$('#giveFreeText').value&&uid===who)setChatComposeMode('template',false)}
+    finally{chatSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled)}
   });
   document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{
     const t=b.dataset.mt;document.querySelectorAll('[data-mt]').forEach(x=>x.setAttribute('aria-selected',x===b));
@@ -1762,7 +1760,7 @@
   async function ensureMessageReactions(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!messageReactions){if(!messageReactionsLoading)messageReactionsLoading=import('./message-reactions.js');try{const module=await messageReactionsLoading;
-      if(!messageReactions)messageReactions=module.mountMessageReactions({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,notify:toast,request:payload=>{if(payload.scope==='private-group'){if(!window.appAuth?.groups)throw Error('アプリを開き直してください。');return window.appAuth.groups({action:payload.action==='set'?'reaction-set':'reaction-list',groupId:payload.threadId,...(payload.action==='set'?{target:payload.target,emoji:payload.emoji}:{targets:payload.targets})})}if(!window.appAuth?.messageReactions)throw Error('リアクションを使うには再読み込みしてください。');return window.appAuth.messageReactions(payload)}});
+      if(!messageReactions)messageReactions=module.mountMessageReactions({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,notify:toast,reply:target=>{if(target.scope==='private-group'){groupUi?.replyTo?.(target.messageId,target.threadId)}else if(target.scope==='group'){const source=chatAll.find(m=>m.uid===target.senderUid&&m.id===target.messageId&&!m.unsent);if(source)beginChatReply(chatHideKey(source))}},request:payload=>{if(payload.scope==='private-group'){if(!window.appAuth?.groups)throw Error('アプリを開き直してください。');return window.appAuth.groups({action:payload.action==='set'?'reaction-set':'reaction-list',groupId:payload.threadId,...(payload.action==='set'?{target:payload.target,emoji:payload.emoji}:{targets:payload.targets})})}if(!window.appAuth?.messageReactions)throw Error('リアクションを使うには再読み込みしてください。');return window.appAuth.messageReactions(payload)}});
     }catch(e){messageReactionsLoading=null;throw e}}
     return messageReactions;
   }
