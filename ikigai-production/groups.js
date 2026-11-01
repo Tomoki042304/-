@@ -4,6 +4,8 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  const drafts=new Map();let createDraft={id:crypto.randomUUID(),signature:''};
  const visible=()=>account()&&document.visibilityState==='visible'&&!$('#v-mates').hidden&&!$('#mtChat').hidden;
  const button=(text,fn)=>{const el=document.createElement('button');el.type='button';el.className='small-btn';el.textContent=text;el.onclick=fn;return el};
+ // A tab opened before this release may load the new module with the previous markup.
+ if(!$('#groupReplyContext')&&$('#groupComposer')){const context=document.createElement('div');context.id='groupReplyContext';context.className='give-reply-context';context.hidden=true;const label=document.createElement('span');label.id='groupReplyLabel';const cancel=button('返信を解除',()=>{});cancel.id='groupReplyCancel';context.append(label,cancel);$('#groupComposer').before(context)}
  function status(text){$('#groupStatus').textContent=text}
  function remember(){if(active){const old=drafts.get(active.id)||{};drafts.set(active.id,{...old,text:$('#groupText').value,reply:replyTo})}}
  function leave(){remember();++roomEpoch;menuId='';replyTo=null;renderReply();active=null;messages=[];older=null;$('#groupMessages').replaceChildren();$('#groupParticipants').replaceChildren();$('#groupRoomCount').textContent='';$('#groupParticipantsStatus').textContent='';$('#groupRoom').hidden=true;$('#groupCommon').hidden=false;$('#groupText').value='';status('')}
