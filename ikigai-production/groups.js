@@ -7,9 +7,9 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  function remember(){if(active){const old=drafts.get(active.id)||{};drafts.set(active.id,{...old,text:$('#groupText').value})}}
  function leave(){remember();++roomEpoch;active=null;messages=[];older=null;$('#groupMessages').replaceChildren();$('#groupRoom').hidden=true;$('#groupCommon').hidden=false;$('#groupText').value='';status('')}
  function renderInvites(){
-  const box=$('#groupInviteList');box.replaceChildren();$('#groupInviteCount').textContent=rooms.length?'（'+rooms.length+'件）':'';
-  for(const room of [...rooms].sort((a,b)=>b.at.localeCompare(a.at))){const entry=button(room.name,()=>join(room));entry.className='group-list-item';entry.dataset.groupId=room.id;box.append(entry)}
-  $('#groupInviteStatus').textContent=rooms.length?'':'グループの招待はまだありません。下のテンプレートからグループを作成できます。';
+  const box=$('#groupInviteList'),joinedRooms=rooms.filter(room=>room.joined);box.replaceChildren();$('#groupInviteCount').textContent=joinedRooms.length?'（'+joinedRooms.length+'件）':'';
+  for(const room of [...joinedRooms].sort((a,b)=>b.at.localeCompare(a.at))){const entry=button(room.name,()=>join(room));entry.className='group-list-item';entry.dataset.groupId=room.id;box.append(entry)}
+  $('#groupInviteStatus').textContent=joinedRooms.length?'':'参加中のグループはありません。全体トークの「賛同する」から参加できます。';
   $('#groupInvitesMore').hidden=!listCursor;onChange();
  }
  function invitationCard(room){
@@ -17,7 +17,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   const title=document.createElement('b');title.textContent=room.name;const text=document.createElement('p');text.textContent=room.description||'仲間を募集しています。';
   const meta=document.createElement('small');meta.textContent=nameOf(room.ownerUid)+'からのグループ招待';
   const state=document.createElement('p');state.className='group-invite-state';state.textContent=room.joined?'参加済み':'参加を募集しています';
-  const actions=document.createElement('div');actions.className='group-actions';const enter=button(room.joined?'グループを開く':'参加する',()=>join(room));enter.dataset.groupJoin=room.id;actions.append(enter);
+  const actions=document.createElement('div');actions.className='group-actions';const enter=button(room.joined?'グループを開く':'賛同する',()=>join(room));enter.dataset.groupJoin=room.id;actions.append(enter);
   if(isAdmin){const del=button('削除',()=>remove(room));del.classList.add('group-delete');actions.append(del)}
   card.append(meta,title,text,state,actions);return card;
  }
