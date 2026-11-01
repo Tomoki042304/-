@@ -19,12 +19,26 @@ async function participants(kv,room,env,directory){
  for(const [id,at] of candidates)if(approved.has(id)&&Date.parse(at)>=approved.get(id))ids.add(id);
  return [...ids];
 }
+const GROUP_EMOJIS=['👍','❤️‍🔥','😭','🙇‍♂️'];
+async function groupReadWatermarks(kv,id,earliest){
+ const watermarks=new Map();let cursor,done=false;
+ do{const page=await kv.list({prefix:'group:read:v1:'+id+':',limit:200,...(cursor?{cursor}:{})});const rows=await Promise.all(page.keys.map(k=>kv.get(k.name,'json')));
+ for(const row of rows){const at=Date.parse(row?.at);if(!uuid(row?.uid)||!Number.isFinite(at))continue;if(at<earliest){done=true;continue}watermarks.set(row.uid,Math.max(watermarks.get(row.uid)||0,at))}cursor=page.list_complete?null:page.cursor;
+ }while(cursor&&!done);return watermarks;
+}
+async function groupReactionSummary(kv,id,messageId,actor,override){
+ const prefix='group:reaction:v1:'+id+':'+messageId+':',records=[];let cursor;
+ do{const page=await kv.list({prefix,limit:200,...(cursor?{cursor}:{})});records.push(...await Promise.all(page.keys.map(async k=>({uid:k.name.slice(prefix.length),value:await kv.get(k.name,'json')}))));cursor=page.list_complete?null:page.cursor}while(cursor);
+ const counts=new Map(GROUP_EMOJIS.map(emoji=>[emoji,0]));let mine='';
+ for(const row of records){if(!uuid(row.uid)||!GROUP_EMOJIS.includes(row.value?.emoji)||(override!==undefined&&row.uid===actor))continue;counts.set(row.value.emoji,counts.get(row.value.emoji)+1);if(row.uid===actor)mine=row.value.emoji}
+ if(override!==undefined){mine=override;if(GROUP_EMOJIS.includes(override))counts.set(override,counts.get(override)+1)}return {counts:GROUP_EMOJIS.filter(emoji=>counts.get(emoji)).map(emoji=>({emoji,count:counts.get(emoji)})),mine};
+}
 export function createGroupHandler({authenticate=requireMemberRole,admission=readChatAccessSince,store=operationalStore,directory=participantDirectory}={}){
  return async function({request,env}){
   const url=new URL(request.url);
   if(request.method!=='POST'||url.protocol!=='https:'||url.hostname!=='ikigai-shidoroku.pages.dev'||request.headers.get('Origin')!==url.origin)return reply(403,{message:'アプリから利用してください。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error();const raw=await request.text();if(raw.length>10000)throw Error();body=JSON.parse(raw);if(!body||Array.isArray(body))throw Error()}catch{return reply(400,{message:'入力内容を確認してください。'})}
-  if(!['list','create','join','messages','send','unsend','delete','members'].includes(body.action)||body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>4096))return reply(400,{message:'操作内容を確認してください。'});
+  if(!['list','create','join','messages','send','unsend','delete','members','read','reaction-list','reaction-set'].includes(body.action)||body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>4096))return reply(400,{message:'操作内容を確認してください。'});
   const user=await authenticate(request);if(!user.ok)return reply(user.status,{message:user.message});
   try{
    const since=await admission(request),kv=store(env);if(!kv)throw Error();
@@ -64,6 +78,21 @@ export function createGroupHandler({authenticate=requireMemberRole,admission=rea
     return reply(200,{group:{...room,joined:true},isAdmin:user.isHost});
    }
    if(!access.joined)return reply(403,{message:'「賛同する」を押した会員と管理者だけが利用できます。'});
+   if(body.action==='read'){
+    if(!Array.isArray(body.ids)||!body.ids.length||body.ids.length>40||!body.ids.every(uuid))return reply(400,{message:'既読情報を確認してください。'});
+    const rows=await Promise.all(body.ids.map(mid=>kv.get(messageKey(id,mid),'json')));
+    if(rows.some(m=>!m||m.groupId!==id||m.senderUid===user.uid||!Number.isFinite(Date.parse(m.at))||Date.parse(m.at)<access.since))return reply(403,{message:'閲覧できる受信メッセージだけ既読にできます。'});
+    const latest=Math.max(...rows.map(m=>Date.parse(m.at))),order=String(9999999999999-latest).padStart(13,'0');
+    // Immutable timestamp markers keep read state monotonic across simultaneous devices.
+    await kv.put('group:read:v1:'+id+':'+order+':'+user.uid,JSON.stringify({uid:user.uid,at:new Date(latest).toISOString()}));return reply(200,{ok:true});
+   }
+   if(body.action==='reaction-list'||body.action==='reaction-set'){
+    const setting=body.action==='reaction-set',targets=setting?[body.target]:body.targets;
+    if(!Array.isArray(targets)||!targets.length||targets.length>30||!targets.every(t=>t&&uuid(t.senderUid)&&uuid(t.messageId))||(setting&&!['',...GROUP_EMOJIS].includes(body.emoji)))return reply(400,{message:'4種類のリアクションから選んでください。'});
+    const states=await Promise.all(targets.map(async target=>{const m=await kv.get(messageKey(id,target.messageId),'json'),cancelled=await kv.get(cancelKey(id,target.messageId));const allowed=m&&m.groupId===id&&m.senderUid===target.senderUid&&!cancelled&&Number.isFinite(Date.parse(m.at))&&Date.parse(m.at)>=access.since;
+     if(!allowed)return {...target,counts:[],mine:'',denied:true};if(setting)await kv.put('group:reaction:v1:'+id+':'+target.messageId+':'+user.uid,JSON.stringify({emoji:body.emoji,at:new Date().toISOString()}));return {...target,...await groupReactionSummary(kv,id,target.messageId,user.uid,setting?body.emoji:undefined)};
+    }));if(setting&&states[0].denied)return reply(403,{message:'閲覧できるメッセージだけリアクションできます。'});return reply(200,{states});
+   }
    if(body.action==='members'){
     const ids=await participants(kv,room,env,directory);
     if(await kv.get(deletedKey(id)))return reply(410,{message:'このグループは削除されました。'});
@@ -73,7 +102,8 @@ export function createGroupHandler({authenticate=requireMemberRole,admission=rea
     const prefix='group:timeline:v1:'+id+':',page=await kv.list({prefix,limit:40,...(body.cursor?{cursor:body.cursor}:{})});
     const rows=await Promise.all(page.keys.map(async key=>{const mid=key.name.split(':').at(-1);if(!uuid(mid))throw Error();const m=await kv.get(messageKey(id,mid),'json');if(!m||m.groupId!==id||!uuid(m.senderUid)||typeof m.text!=='string'||!Number.isFinite(Date.parse(m.at)))throw Error();if(Date.parse(m.at)<access.since)return null;return {...m,...(await kv.get(cancelKey(id,mid))?{text:'',unsent:true}:{})}}));
     if(await kv.get(deletedKey(id)))return reply(410,{message:'このグループは削除されました。'});
-    return reply(200,{group:{...room,joined:true},isAdmin:user.isHost,messages:[...new Map(rows.filter(Boolean).map(m=>[m.id,m])).values()].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)),cursor:page.list_complete?null:page.cursor});
+    const visible=[...new Map(rows.filter(Boolean).map(m=>[m.id,m])).values()].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)),watermarks=visible.length?await groupReadWatermarks(kv,id,Math.min(...visible.map(m=>Date.parse(m.at)))):new Map();
+    return reply(200,{group:{...room,joined:true},isAdmin:user.isHost,messages:visible.map(m=>({...m,readCount:[...watermarks].filter(([uid,at])=>uid!==m.senderUid&&at>=Date.parse(m.at)).length})),cursor:page.list_complete?null:page.cursor});
    }
    if(!uuid(body.id))return reply(400,{message:'メッセージを確認してください。'});
    const key=messageKey(id,body.id),existing=await kv.get(key,'json');

@@ -1762,7 +1762,7 @@
   async function ensureMessageReactions(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!messageReactions){if(!messageReactionsLoading)messageReactionsLoading=import('./message-reactions.js');try{const module=await messageReactionsLoading;
-      if(!messageReactions)messageReactions=module.mountMessageReactions({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,notify:toast,request:payload=>{if(!window.appAuth?.messageReactions)throw Error('リアクションを使うには再読み込みしてください。');return window.appAuth.messageReactions(payload)}});
+      if(!messageReactions)messageReactions=module.mountMessageReactions({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,notify:toast,request:payload=>{if(payload.scope==='private-group'){if(!window.appAuth?.groups)throw Error('アプリを開き直してください。');return window.appAuth.groups({action:payload.action==='set'?'reaction-set':'reaction-list',groupId:payload.threadId,...(payload.action==='set'?{target:payload.target,emoji:payload.emoji}:{targets:payload.targets})})}if(!window.appAuth?.messageReactions)throw Error('リアクションを使うには再読み込みしてください。');return window.appAuth.messageReactions(payload)}});
     }catch(e){messageReactionsLoading=null;throw e}}
     return messageReactions;
   }
@@ -1778,7 +1778,7 @@
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};
