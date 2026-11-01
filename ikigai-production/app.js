@@ -676,13 +676,13 @@
     $('#giveReplyContext').hidden=!chatReply;
     $('#giveReplyLabel').textContent=chatReply?nameOf(chatReply.uid)+'さんへ返信：'+chatReply.quote:'';
   }
-  function setChatComposeMode(mode){
+  function setChatComposeMode(mode,focus=true){
     if(chatSubmitting)return;chatComposeMode=['free','group'].includes(mode)?mode:'template';const free=chatComposeMode==='free',group=chatComposeMode==='group';
     $('#giveTemplatePane').hidden=free||group;$('#giveFreePane').hidden=!free;$('#giveGroupPane').hidden=!group;
     $('#giveTemplateTab').setAttribute('aria-pressed',String(!free&&!group));$('#giveGroupTab').setAttribute('aria-pressed',String(group));$('#giveFreeTab').setAttribute('aria-pressed',String(free));
     $('#giveTemplatePane').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=free||group);$('#giveGroupPane').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=!group);
     $('#giveFreeText').disabled=!free;$('#giveFreeSend').disabled=!free;
-    if(group){$('#groupName').focus()}else if(free){updateFreeChat();$('#giveFreeText').focus()}else{$('#giveTemplate').open=true;fitChatInput()}
+    if(group){if(focus)$('#groupName').focus()}else if(free){updateFreeChat();if(focus)$('#giveFreeText').focus()}else{$('#giveTemplate').open=true;fitChatInput()}
   }
   function beginChatReply(key){
     if(pending()||!chatReady||chatLoadFailed)return;
@@ -703,7 +703,7 @@
   }
   templateFields.forEach(id=>$(id).addEventListener('input',fitChatInput));
   $('#giveTemplate').addEventListener('toggle',()=>{if($('#giveTemplate').open)fitChatInput()});
-  fitChatInput();
+  fitChatInput();setChatComposeMode('free',false);
   $('#composer').addEventListener('submit',async e=>{
     e.preventDefault();if(chatSubmitting||chatComposeMode==='group')return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
@@ -1764,17 +1764,18 @@
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }
+  import('./talk-layout.js').then(module=>module.mountTalkLayout()).catch(()=>{});
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,compose:setChatComposeMode,request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,compose:setChatComposeMode,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
     return directMessages;
   }
   async function startDirectMessage(memberUid){

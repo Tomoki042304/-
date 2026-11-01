@@ -918,6 +918,16 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
 <style>#reactionDot{right:3px;top:3px}#notificationsDialog{width:calc(100% - 32px);max-width:440px;max-height:75svh;overflow-y:auto}#notificationsDialog::backdrop{background:rgba(0,0,0,.55)}.reaction-notice{padding:12px;text-align:left;border:1px solid var(--line);background:#fff;color:#2b1418;border-radius:12px;font:inherit;font-size:14px;line-height:1.6;overflow-wrap:anywhere}.reaction-notice small{display:block;color:#7a6266}
 .give-composer-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}.give-composer-tabs button{min-width:0;padding-inline:6px;font-size:12px}
 #giveGroupPane label,#groupComposer label{display:block;margin:10px 0 6px;color:#eee}#groupName,#groupDescription,#groupText{box-sizing:border-box;width:100%;padding:12px;border:1px solid #555;border-radius:12px;background:#2a2a2a;color:#fff;font:inherit;font-size:16px;line-height:1.6}#groupDescription,#groupText{resize:vertical}.group-invite{border:1px solid #555;border-radius:14px;padding:14px;margin:12px 0;color:#eee;background:#252525}.group-invite p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.group-invite small{color:#bbb}.group-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.group-delete{color:#e29aa9!important}.group-room-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.group-room-head h2{flex:1;min-width:120px;margin:0;font-size:18px;overflow-wrap:anywhere;color:#fff}#groupRoom{background:#1a1a1a;color:#eee}#groupMessages{max-height:55dvh;min-height:180px;overflow-y:auto;overscroll-behavior:contain;padding:12px 0}.group-message{display:flex;flex-direction:column;align-items:flex-start;margin:12px 0;gap:4px}.group-message.mine{align-items:flex-end}.group-message small{color:#aaa;font-size:11px}.group-bubble{white-space:pre-wrap;overflow-wrap:anywhere;max-width:88%;padding:12px 15px;margin:0;border-radius:18px;background:#333;color:white}.group-message.mine .group-bubble{background:#65e576;color:#142418}.group-message button{font-size:11px;padding:4px 8px}#groupComposer{display:grid;gap:8px}#groupComposer button{justify-self:end}#groupInvites{background:#202020;color:#eee}#groupInvites .channel-summary{color:#eee}
+
+/* A bounded chat viewport: only conversation history and expanded lists scroll. */
+body.talk-open{overflow:hidden}body.talk-keyboard nav.tabs,body.talk-keyboard header.top{visibility:hidden;pointer-events:none}
+#v-mates{position:fixed;top:var(--talk-top,80px);height:var(--talk-height,calc(100dvh - 155px));left:50%;transform:translateX(-50%);width:min(480px,100%);padding:0 12px;min-height:0;background:#1a1a1a;z-index:21;overflow:hidden;gap:0}
+#v-mates > .card:first-child{flex:none;margin:0;padding:6px 0 10px}#v-mates .talk-desc{max-height:32dvh;overflow:auto}#v-mates #mtChat{flex:1;min-height:0;margin:0;overflow:hidden}#groupCommon{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}#groupCommon #buddyCard{flex:none}
+#v-mates #chatLog{flex:1;min-height:60px;max-height:none;height:auto;margin:0;padding:12px 6px;overflow-y:auto;overscroll-behavior-y:contain}
+#mtChat #composer{flex:none;position:static;margin:0;padding:8px 0 0;border:0;border-top:1px solid #383838;border-radius:0;max-height:60%;overflow-y:auto;overscroll-behavior-y:contain}#composer .give-composer-tabs{position:sticky;top:0;z-index:2;background:#1a1a1a;margin-bottom:6px;gap:6px}#composer .give-composer-tabs button{min-height:34px;padding:6px 4px}
+#giveFreePane label,#groupComposer label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}#giveFreePane #giveFreeText,#groupComposer #groupText,#dmInput{min-height:42px;max-height:96px;height:42px;resize:none;padding:8px 12px;border-radius:20px}#giveFreePane .template-note{font-size:10px;margin:4px 0}#giveFreePane .template-actions{margin:4px 0 0}#giveFreeSend{padding:6px 14px}#giveReplyContext{max-height:60px;overflow:auto;font-size:11px}
+#v-mates #dmPanel{position:absolute;inset:52px 0 0;z-index:25;margin:0;padding:14px;overflow-y:auto;overscroll-behavior-y:contain;border-radius:12px 12px 0 0;background:#202020;color:#eee}#dmPanel #groupInvites{padding:12px 0;margin:14px 0 0;border:0;border-top:1px solid #555;border-radius:0;box-shadow:none}#dmPanel .card-head{gap:8px;flex-wrap:wrap}
+#v-mates #groupRoom,#v-mates #dmConversation{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;margin:0;padding:8px 0;border:0;border-radius:0;gap:4px}#v-mates #groupMessages,#v-mates #dmMessages{flex:1;min-height:50px;max-height:none;height:auto;margin:0;overflow-y:auto;overscroll-behavior-y:contain}#groupRoom>.template-note,#dmConversation>.dm-note{font-size:10px;margin:2px 0}#groupRoom .group-room-head h2{font-size:15px}#groupComposer,#dmForm{flex:none;margin:0;padding:6px 0 0}#groupComposer{grid-template-columns:1fr auto;align-items:end}#groupComposer #groupText{grid-column:1}#groupSend{grid-column:2}#groupStatus:empty,#dmStatus:empty{display:none}#dmConversation .dm-heading{margin:0;flex:none}
 </style>
 </head>
 <body>
@@ -1223,7 +1233,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
     <section class="view" id="v-mates" hidden>
       <div class="card">
         <span class="pill gold">トーク</span>
-        <div class="talk-about-head"><div class="talk-title-wrap"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" id="dmToggle" aria-expanded="false" aria-controls="dmPanel" aria-label="個別トーク一覧を開く">＋<span id="dmUnreadDot" class="notice-dot" hidden></span></button></div><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">説明</button></div>
+        <div class="talk-about-head"><div class="talk-title-wrap"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" id="dmToggle" aria-expanded="false" aria-controls="dmPanel" aria-label="グループ・個別トーク一覧を開く">＋<span id="dmUnreadDot" class="notice-dot" hidden></span></button></div><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">説明</button></div>
         <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
           <div class="body">
@@ -1233,7 +1243,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           <p class="cta"><span>GIVEから始まる</span><span>成幸の循環をつくろう！</span></p>
         </div>
       </div>
-      <section id="dmPanel" class="card admin-panel" hidden><div class="card-head"><b>個別トーク</b><button type="button" class="small-btn" id="dmRefresh">更新</button></div><p class="muted admin-note" id="dmInboxStatus" role="status"></p><div id="dmInbox" class="admin-roster"></div></section>
+      <section id="dmPanel" class="card admin-panel" hidden><div class="card-head"><b>グループ・個別トーク</b><button type="button" id="talkListClose" class="small-btn">閉じる</button><button type="button" class="small-btn" id="dmRefresh">更新</button></div><p class="muted admin-note" id="dmInboxStatus" role="status"></p><div id="dmInbox" class="admin-roster"></div>        <details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループ <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details></section>
       <section id="dmConversation" hidden>
         <div class="dm-heading"><button type="button" id="dmBack" class="small-btn">‹ 全体トークへ</button><b id="dmPeer"></b></div>
         <p class="dm-note">この個別トークは、相手とあなたのみ閲覧できます。</p>
@@ -1247,7 +1257,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           <div class="card-head" style="margin-bottom:10px"><b style="font-size:13px">GIVE BUDDY</b><span class="muted" style="font-size:11px">アイコンを押して贈る</span></div>
           <div class="buddy-strip" id="buddyStrip"></div>
         </div>
-        <details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループへの招待 <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details>
+
         <div class="card chat-log" id="chatLog" aria-live="polite"></div>
         <form class="composer" id="composer">
           <div class="give-composer-tabs" aria-label="入力方法"><button type="button" class="small-btn" id="giveTemplateTab" aria-pressed="true">テンプレート</button><button type="button" class="small-btn" id="giveFreeTab" aria-pressed="false">自由入力</button><button type="button" class="small-btn" id="giveGroupTab" aria-pressed="false">グループ作成</button></div>
@@ -1266,7 +1276,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           </details></div>
           <div id="giveFreePane" hidden>
             <div id="giveReplyContext" class="give-reply-context" hidden><span id="giveReplyLabel"></span><button type="button" class="small-btn" id="giveReplyCancel">返信を解除</button></div>
-            <label for="giveFreeText">自由入力・返信</label><textarea id="giveFreeText" rows="4" maxlength="300" placeholder="返信やメッセージを入力してください" disabled></textarea>
+            <label for="giveFreeText">自由入力・返信</label><textarea id="giveFreeText" rows="1" maxlength="300" placeholder="返信やメッセージを入力してください" disabled></textarea>
             <p class="template-note">送信内容はGIVE BUDDIESの会員全員に表示されます。</p>
             <div class="template-actions"><span id="giveFreeCount" class="template-note" role="status">0 / 300文字</span><button type="submit" class="small-btn" id="giveFreeSend" disabled>送信する</button></div>
           </div>
@@ -1284,7 +1294,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
         <div class="group-room-head"><button type="button" id="groupBack" class="small-btn">全体に戻る</button><h2 id="groupRoomTitle"></h2><button type="button" id="groupDelete" class="small-btn group-delete" hidden>グループ削除</button></div>
         <p class="template-note">参加者と管理者のみ閲覧できます。管理者は自動参加します。参加する前のメッセージは表示されません。</p>
         <button type="button" id="groupOlder" class="small-btn" hidden>以前のメッセージ</button><div id="groupMessages" aria-live="polite"></div><p id="groupStatus" class="template-note" role="status"></p>
-        <form id="groupComposer"><label for="groupText">メッセージ</label><textarea id="groupText" maxlength="2000" rows="3" placeholder="グループにメッセージを送る" required></textarea><button id="groupSend" type="submit" class="small-btn">送信する</button></form>
+        <form id="groupComposer"><label for="groupText">メッセージ</label><textarea id="groupText" maxlength="2000" rows="1" placeholder="グループにメッセージを送る" required></textarea><button id="groupSend" type="submit" class="small-btn">送信する</button></form>
       </section>
       </div>
       <div id="mtMembers" class="view" hidden>

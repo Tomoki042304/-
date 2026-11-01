@@ -1,4 +1,4 @@
-export function mountGroups({request,account,nameOf,compose}){
+export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{}}){
  const $=s=>document.querySelector(s);let rooms=[],active=null,messages=[],older=null,isAdmin=false,timer=0,started=false,epoch=0,roomEpoch=0,busy=false,loading=false,listCursor=null,listPages=1;
  const drafts=new Map();let createDraft={id:crypto.randomUUID(),signature:''};
  const visible=()=>account()&&document.visibilityState==='visible'&&!$('#v-mates').hidden&&!$('#mtChat').hidden;
@@ -45,7 +45,7 @@ export function mountGroups({request,account,nameOf,compose}){
   }catch(error){if(uid!==account()||version!==roomEpoch)return;if([403,404,410].includes(error.status)){leave();rooms=rooms.filter(r=>r.id!==id);renderInvites();$('#groupInviteStatus').textContent=error.message}else status(error.message||'会話を読み込めませんでした。')}
  }
  async function open(room){
-  remember();++roomEpoch;active=room;messages=[];older=null;$('#groupCommon').hidden=true;$('#groupRoom').hidden=false;$('#groupRoomTitle').textContent=room.name;$('#groupDelete').hidden=!isAdmin;$('#groupMessages').replaceChildren();$('#groupText').value=drafts.get(room.id)?.text||'';status('読み込んでいます…');await loadMessages();
+  beforeOpen();$('#dmPanel').hidden=true;$('#dmToggle').setAttribute('aria-expanded','false');remember();++roomEpoch;active=room;messages=[];older=null;$('#groupCommon').hidden=true;$('#groupRoom').hidden=false;$('#groupRoomTitle').textContent=room.name;$('#groupDelete').hidden=!isAdmin;$('#groupMessages').replaceChildren();$('#groupText').value=drafts.get(room.id)?.text||'';status('読み込んでいます…');await loadMessages();
  }
  async function join(room){
   if(busy)return;busy=true;const uid=account(),version=epoch;$('#groupInviteStatus').textContent='グループを開いています…';
