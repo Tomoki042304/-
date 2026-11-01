@@ -396,6 +396,15 @@ function start() {
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them
     strict: true,
     email: () => currentUser?.email || "",
+    growthPhoto: async ({action,id,author,blob})=>{
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+      try{
+        const response=await fetch('/api/growth-photos?action='+encodeURIComponent(action)+(action==='upload'?'&id='+encodeURIComponent(id):''),{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':action==='upload'?'image/jpeg':'application/json'},body:action==='upload'?blob:JSON.stringify({id,author}),signal:controller.signal,cache:'no-store',redirect:'error'});
+        if(!response.ok){const result=await response.json().catch(()=>({}));throw Error(result.message||'写真を処理できませんでした。')}
+        return action==='read'?response.blob():response.json();
+      }finally{clearTimeout(timer)}
+    },
     shinKnowledge: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);

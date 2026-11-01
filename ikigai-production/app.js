@@ -240,6 +240,21 @@
   // ---------- timeline (成長ログ): each person keeps posts, reactions and comments in posts/<uid> ----------
   const POST_CATEGORIES=['仕事','日常','トレーニング','挑戦','成長','努力','継続','学び','達成','気づき','感謝','交流','健康','その他'];
   const postCategoriesOf=x=>[...new Set((Array.isArray(x.categories)?x.categories:[x.category]).filter(c=>POST_CATEGORIES.includes(c)))].slice(0,3);
+  let growthPhotosUi=null,growthPhotosLoading=null,postSubmitting=false,postSavePromise=null,postDraftId='',postDraftSignature='';
+  const hasPostPhoto=x=>typeof x?.photoId==='string'&&x.photoId===x.id&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x.photoId);
+  async function ensureGrowthPhotos(){
+    if(!growthPhotosUi){
+      if(!growthPhotosLoading)growthPhotosLoading=import('./growth-photos.js');
+      const module=await growthPhotosLoading;
+      if(!growthPhotosUi)growthPhotosUi=module.mountGrowthPhotos({request:payload=>{if(!window.appAuth?.growthPhoto)throw Error('写真を利用するには再読み込みしてください。');return window.appAuth.growthPhoto(payload)},account:()=>uid,allowed:()=>backend==='cloud'&&!!uid&&!pending()&&!$('#app').hidden,notify:toast});
+    }
+    return growthPhotosUi;
+  }
+  function renderPostPhoto(container,x,small=false){
+    container.replaceChildren();const key=x.uid+':'+x.id;container.dataset.photoKey=key;
+    if(!hasPostPhoto(x))return;
+    const who=uid;ensureGrowthPhotos().then(ui=>{if(uid===who&&container.isConnected&&container.dataset.photoKey===key)ui.attach(container,{author:x.uid,id:x.photoId,preview:small})}).catch(()=>{});
+  }
   let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myLikeTimes={},myCmts=[],postWriting=false,postAgain=false,feedReady=false,homeLogError=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
   const MAX_POSTS=100,MAX_LIKES=500,MAX_CMTS=300;
@@ -248,7 +263,7 @@
       const all=[],likes=[],cmts=[];
       snap.docs.forEach(d=>{
         const v=d.data()||{};
-        if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id,categories:postCategoriesOf(x)})});
+        if(Array.isArray(v.posts))v.posts.forEach(x=>{if(x&&typeof x.text==='string'&&typeof x.at==='string')all.push({id:String(x.id||''),text:x.text.slice(0,500),at:x.at,uid:d.id,categories:postCategoriesOf(x),...(hasPostPhoto(x)?{photoId:x.photoId}:{})})});
         if(Array.isArray(v.likes))v.likes.forEach(k=>{if(typeof k==='string')likes.push({by:d.id,key:k,at:typeof v.likeTimes?.[k]==='string'?v.likeTimes[k]:''})});
         if(Array.isArray(v.comments))v.comments.forEach(c=>{if(c&&typeof c.text==='string'&&typeof c.key==='string'&&typeof c.at==='string')cmts.push({id:String(c.id||''),key:c.key,text:c.text.slice(0,300),at:c.at,uid:d.id})});
         if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myLikeTimes=v.likeTimes&&typeof v.likeTimes==='object'?clone(v.likeTimes):{};myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
@@ -258,11 +273,13 @@
     },()=>{feedReady=true;homeLogError=true;renderFeed()});
   }
   async function flushPosts(){
-    if(postWriting){postAgain=true;return}
+    if(postWriting){postAgain=true;return postSavePromise}
     postWriting=true;
-    try{do{postAgain=false;await db.doc('posts/'+uid).set({posts:clone(myPosts),likes:clone(myLikes),likeTimes:Object.fromEntries(myLikes.filter(k=>typeof myLikeTimes[k]==='string').map(k=>[k,myLikeTimes[k]])),comments:clone(myCmts)})}while(postAgain);dispatchReactionPushes()}
-    catch(e){toast('保存できませんでした。通信状況を確認してください')}
-    finally{postWriting=false}
+    postSavePromise=(async()=>{
+      try{do{postAgain=false;await db.doc('posts/'+uid).set({posts:clone(myPosts),likes:clone(myLikes),likeTimes:Object.fromEntries(myLikes.filter(k=>typeof myLikeTimes[k]==='string').map(k=>[k,myLikeTimes[k]])),comments:clone(myCmts)})}while(postAgain);dispatchReactionPushes();return true}
+      catch(e){toast('保存できませんでした。通信状況を確認してください');return false}
+      finally{postWriting=false;postSavePromise=null}
+    })();return postSavePromise;
   }
   const pendingReactionPushes=new Map();let reactionPushBusy=false,reactionPushTimer=0;
   function queueReactionPush(event){if(event.postKey.startsWith(uid+':'))return;const key=event.kind+'|'+event.postKey+'|'+(event.eventId||myLikeTimes[event.postKey]||'');pendingReactionPushes.set(key,{event,attempts:0})}
@@ -315,7 +332,7 @@
     const old=animate&&!homeLogMotion.matches&&viewport&&preview.dataset.postKey?preview.cloneNode(true):null;
     const name=nameOf(x.uid),av=$('#homeLogAvatar');av.style.backgroundColor=colorOf(x.uid);av.setAttribute('role','img');av.setAttribute('aria-label',name+'のプロフィール');paintAvatar(av,avatarOf(x.uid),name);
     $('#homeLogName').textContent=name;$('#homeLogTime').textContent=postTimeText(x.at);$('#homeLogTime').dateTime=x.at;
-    $('#homeLogText').textContent=x.text;
+    $('#homeLogText').textContent=x.text;preview.classList.toggle('with-photo',hasPostPhoto(x));renderPostPhoto($('#homeLogPhoto'),x,true);
     const tags=$('#homeLogTags');tags.replaceChildren();postCategoriesOf(x).forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
     preview.dataset.postKey=homeLogKey(x);preview.setAttribute('aria-label',name+'の成長ログを開く');
     if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function'){
@@ -350,7 +367,7 @@
     const previous=homeLogItems[homeLogIndex],first=homeLogKey(homeLogItems[0]);
     if(!allowed||!feedReady||homeLogError||!feedAll.length){
       homeLogItems=[];homeLogIndex=0;stopHomeLogTimer();$('#homeLogPreview').hidden=true;
-      $('#homeLogText').textContent='';$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
+      $('#homeLogText').textContent='';$('#homeLogPhoto').replaceChildren();$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
       $('#homeLogEmpty').hidden=!allowed;$('#homeLogEmpty').textContent=!feedReady?'読み込んでいます…':homeLogError?'投稿を取得できませんでした。通信状況を確認してください。':'まだ成長ログの投稿はありません。';return;
     }
     homeLogItems=feedAll.slice(0,10);
@@ -415,6 +432,7 @@
       el.querySelector('b').textContent=nameOf(x.uid);
       el.querySelector('.head span').textContent=postTimeText(x.at);
       el.querySelector('.text').textContent=x.text;
+      if(hasPostPhoto(x)){const photos=document.createElement('div');el.querySelector('.text').after(photos);renderPostPhoto(photos,x)}
       const categories=postCategoriesOf(x);
       if(categories.length){const tags=document.createElement('div');tags.className='post-tags';categories.forEach(category=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=category;tags.append(tag)});el.querySelector('.text').before(tags)}
       if(open){
@@ -436,29 +454,45 @@
     $('#postCategoryHint').textContent=`1〜3つ選んでください（${count} / 3）`;
   }
   $('#postCategories').addEventListener('change',updatePostCategories);
-  const openComposer=on=>{$('#postForm').hidden=!on;$('#writeBtn').hidden=on;if(on)$('#postText').focus()};
+  const openComposer=on=>{$('#postForm').hidden=!on;$('#writeBtn').hidden=on;if(on){$('#postText').focus();ensureGrowthPhotos().catch(()=>toast('写真機能を読み込めませんでした。再読み込みしてください。'))}};
   $('#writeBtn').onclick=()=>{if(backend!=='cloud'||!uid){toast('ログインすると投稿できます');return}if(pending()){toast('ホストの承認後に投稿できます');return}openComposer(true)};
   $('#postCancel').onclick=()=>openComposer(false);
   $('#tlSearch').addEventListener('input',e=>{tlQuery=e.target.value.trim();renderFeed()});
   $('#tlMine').onclick=()=>{tlMine=!tlMine;$('#tlMine').setAttribute('aria-pressed',tlMine);renderFeed()};
   $('#postText').addEventListener('input',e=>{$('#postCount').textContent=`${e.target.value.length} / 500`});
-  $('#postForm').addEventListener('submit',e=>{
-    e.preventDefault();
+  $('#postForm').addEventListener('submit',async e=>{
+    e.preventDefault();if(postSubmitting)return;
     if(backend!=='cloud'||!uid){toast('ログインすると投稿できます');return}
     if(pending()){toast('ホストの承認後に投稿できます');return}
-    const text=$('#postText').value.trim();
-    if(!text){toast('投稿する内容を書いてください');return}
-    const categories=selectedPostCategories();
-    if(categories.length<1||categories.length>3||categories.some(c=>!POST_CATEGORIES.includes(c))){toast('記録の種類は1〜3つ選んでください');$('#postCategories input:checked, #postCategories input:not(:disabled)').focus();return}
-    const post={categories,category:categories[0],id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),text:text.slice(0,500),at:new Date().toISOString()};
-    myPosts.push(post);if(myPosts.length>MAX_POSTS)myPosts=myPosts.slice(-MAX_POSTS);
-    feedAll=[{...post,uid},...feedAll];
-    document.querySelectorAll('#postCategories input:checked').forEach(x=>{x.checked=false});updatePostCategories();
-    $('#postText').value='';$('#postCount').textContent='0 / 500';openComposer(false);
-    renderFeed();flushPosts();toast('投稿しました');
+    let photos=growthPhotosUi;
+    try{if($('#postPhotoFile').files?.length&&!photos)photos=await ensureGrowthPhotos()}catch{toast('写真機能を読み込めませんでした。再度お試しください。');return}
+    if(photos?.isPreparing()){toast('写真の準備が終わってから投稿してください');return}
+    const picture=photos?.getDraft(),text=$('#postText').value.trim(),categories=selectedPostCategories();
+    if(!text&&!picture){toast('文章または写真を追加してください');return}
+    if(categories.length<1||categories.length>3||categories.some(c=>!POST_CATEGORIES.includes(c))){toast('記録の種類は1〜3つ選んでください');$('#postCategories input').focus();return}
+    const signature=JSON.stringify([text,categories,picture?.id||'']);
+    if(signature!==postDraftSignature||!postDraftId){postDraftSignature=signature;postDraftId=crypto.randomUUID()}
+    const who=uid,id=postDraftId,form=$('#postForm'),controls=[...form.querySelectorAll('input,textarea,button')].map(el=>[el,el.disabled]),button=form.querySelector('[type=submit]');
+    postSubmitting=true;controls.forEach(([el])=>el.disabled=true);button.textContent='投稿中…';
+    try{
+      if(postSavePromise&&!(await postSavePromise))throw Error('先の変更を保存できませんでした。もう一度お試しください。');
+      if(picture){await window.appAuth.growthPhoto({action:'upload',id,blob:picture.blob});photos.uploaded(id)}
+      if(uid!==who)throw Error('ログインし直してください。');
+      const ref=db.doc('posts/'+who),snapshot=await ref.get();if(uid!==who)throw Error('ログインし直してください。');
+      const data=snapshot.exists?snapshot.data():{},old=Array.isArray(data.posts)?data.posts:[],existing=old.find(p=>p.id===id);
+      const post=existing||{categories,category:categories[0],id,text:text.slice(0,500),at:new Date().toISOString(),...(picture?{photoId:id}:{})};
+      const next=existing?old:[...old,post].slice(-MAX_POSTS);
+      if(!existing)await ref.set({...data,posts:next,likes:Array.isArray(data.likes)?data.likes:[],likeTimes:data.likeTimes||{},comments:Array.isArray(data.comments)?data.comments:[]});
+      if(uid!==who)return;
+      myPosts=clone(next);const keep=new Set(next.map(p=>p.id));feedAll=feedAll.filter(p=>p.uid!==who||keep.has(p.id));if(!feedAll.some(p=>p.uid===who&&p.id===id))feedAll.unshift({...post,uid:who});
+      for(const removed of old.filter(p=>hasPostPhoto(p)&&!keep.has(p.id)))void window.appAuth.growthPhoto({action:'delete',id:removed.photoId}).catch(()=>{});
+      document.querySelectorAll('#postCategories input:checked').forEach(el=>el.checked=false);
+      $('#postText').value='';$('#postCount').textContent='0 / 500';photos?.clear(true,id);postDraftId='';postDraftSignature='';openComposer(false);renderFeed();toast('投稿しました');
+    }catch(error){toast(error.message||'投稿を保存できませんでした。文章と写真は残っています。もう一度お試しください。')}
+    finally{postSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled);button.textContent='投稿する';updatePostCategories()}
   });
   $('#feed').addEventListener('submit',e=>{
-    const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();
+    const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();if(postSubmitting)return;
     const input=f.querySelector('input'),text=input.value.trim();if(!text)return;
     const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
     myCmts.push(c);if(myCmts.length>MAX_CMTS)myCmts=myCmts.slice(-MAX_CMTS);
@@ -466,6 +500,7 @@
   });
   let delArmed='';
   $('#feed').addEventListener('click',e=>{
+    if(postSubmitting)return;
     const lk=e.target.closest('[data-like]');
     if(lk){
       if(backend!=='cloud'||!uid||pending())return;
@@ -481,8 +516,9 @@
     if(dp){
       const id=dp.dataset.delPost;
       if(delArmed!==id){delArmed=id;dp.textContent='本当に削除';setTimeout(()=>{if(delArmed===id){delArmed='';dp.textContent='削除'}},3000);return}
+      const removedPhoto=myPosts.find(p=>p.id===id);
       delArmed='';myPosts=myPosts.filter(p=>p.id!==id);feedAll=feedAll.filter(p=>!(p.uid===uid&&p.id===id));
-      renderFeed();flushPosts();toast('投稿を削除しました');
+      renderFeed();flushPosts().then(ok=>{if(ok&&hasPostPhoto(removedPhoto))void window.appAuth.growthPhoto({action:'delete',id:removedPhoto.photoId}).catch(()=>{})});toast('投稿を削除しました');
     }
   });
 
@@ -1490,6 +1526,7 @@
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();
     if(announcementsUi)announcementsUi.stop();
+    growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
     clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;

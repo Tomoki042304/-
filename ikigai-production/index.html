@@ -799,6 +799,13 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 .home-announcement summary b{font-size:14px;overflow-wrap:anywhere}
 .home-announcement time{display:block;margin-top:5px;color:var(--muted);font-size:11px}
 .home-announcement p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;font-size:14px;margin:14px 0}
+.post-photo-tools{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:12px 0}.post-photo-tools .muted{font-size:12px}
+#postPhotoPreview img{display:block;max-height:200px;border-radius:12px;margin:8px 0;object-fit:contain}
+.growth-photo{display:block;position:relative;width:100%;min-height:80px;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);color:var(--muted);margin:12px 0;text-align:center}
+.growth-photo img{display:block;width:100%;max-height:480px;object-fit:contain}.growth-photo span{display:block;padding:22px 12px;font-size:12px}
+.home-log-preview.with-photo{position:relative;padding-right:112px}.home-log-preview.with-photo .home-log-photo{position:absolute;right:0;top:52px;width:100px}.home-log-preview.with-photo .growth-photo.small img{height:98px}
+.growth-photo.small{margin:8px 0 0;min-height:48px}.growth-photo.small img{max-height:130px;object-fit:cover}
+#growthPhotoDialog{width:min(94vw,900px);max-height:92dvh}#growthPhotoFull{display:block;max-height:78dvh;width:100%;object-fit:contain}
 .channel-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}
 .channel-summary::-webkit-details-marker{display:none}
 .channel-expand::before{content:"＋";font-size:24px;line-height:1}
@@ -1044,7 +1051,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
         <a class="home-log-preview" id="homeLogPreview" href="#timeline" aria-live="off" hidden>
           <div class="home-log-author"><div class="avatar" id="homeLogAvatar"></div><div><b id="homeLogName"></b><time id="homeLogTime"></time></div></div>
           <div class="post-tags" id="homeLogTags"></div>
-          <p class="home-log-text" id="homeLogText"></p>
+          <p class="home-log-text" id="homeLogText"></p><div id="homeLogPhoto" class="home-log-photo"></div>
         </a>
         </div>
 
@@ -1295,6 +1302,8 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
           </div>
         </fieldset>
         <div class="post-row"><div class="avatar" id="postAvatar"></div><textarea id="postText" rows="4" maxlength="500" placeholder="今日の学びや気づき、やり遂げたことを書こう" aria-label="投稿内容"></textarea></div>
+        <div class="post-photo-tools"><label class="file-btn">写真を添付<input type="file" id="postPhotoFile" accept="image/*"></label><span class="muted" id="postPhotoStatus" role="status"></span></div>
+        <div id="postPhotoPreview" hidden><img id="postPhotoPreviewImage" alt="添付する写真"><button type="button" class="small-btn" id="postPhotoRemove">写真を外す</button></div>
         <p class="muted" style="font-size:12px;margin:0 0 10px">日付・時刻は投稿時に自動で記録します。</p>
         <div class="post-foot"><span class="muted" id="postCount">0 / 500</span><span style="display:flex;gap:8px"><button type="button" class="ghost" id="postCancel" style="width:auto;padding:10px 16px">やめる</button><button type="submit" class="primary" style="width:auto;padding:10px 22px">投稿する</button></span></div>
       </form>
@@ -1488,6 +1497,7 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
   </div>
 </div>
 
+<dialog id="growthPhotoDialog" class="card"><div class="card-head"><b>成長ログの写真</b><button type="button" class="small-btn" id="growthPhotoClose">閉じる</button></div><img id="growthPhotoFull" alt="成長ログの写真"></dialog>
 <div class="toast" id="toast" hidden></div>
 <div class="env-badge" id="envBadge" hidden></div>
 <script type="module">
