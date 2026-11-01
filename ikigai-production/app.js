@@ -614,7 +614,7 @@
     if(chatLoadFailed){log.innerHTML='<div class="empty">トークを読み込めませんでした。時間をおいて再読み込みしてください。</div>';return}
     const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
     const hiddenMessages=new Set(Array.isArray(profile.hiddenChatMessages)?profile.hiddenChatMessages:[]);
-    const list=chatAll.filter(x=>!hiddenMessages.has(chatHideKey(x))).slice(-150);
+    const list=[...chatAll.filter(x=>!hiddenMessages.has(chatHideKey(x))),...(groupUi?.invitations?.()||[])].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).slice(-150);
     if(!list.length){log.innerHTML=chatMode==='give'
       ?`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><b style="color:var(--ink)">最初のGIVEを贈ろう</b>仲間への感謝や称賛を、ひとこと送ってみましょう。</div>`
       :`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><b style="color:var(--ink)">最初のひとことを送ろう</b>今日の宣言や、仲間への応援を書いてみましょう。</div>`;return}
@@ -622,6 +622,7 @@
     list.forEach(x=>{
       const day=dayLabel(x.at);
       if(day&&day!==lastDay){const dd=document.createElement('div');dd.className='chat-day';dd.textContent=day;log.append(dd);lastDay=day;prevU=''}
+      if(x.groupInvite){const invite=groupUi.renderInvitation(x.room);invite.classList.add('chat-group-invite');log.append(invite);prevU='';return}
       if(x.unsent){const n=document.createElement('div');n.className='chat-sys';n.textContent=(x.uid===uid?'あなた':nameOf(x.uid))+'がメッセージの送信を取り消しました';log.append(n);prevU='';return}
       const me=x.uid===uid,tm=new Date(x.at).getTime(),first=x.uid!==prevU||tm-prevT>5*60000;
       prevU=x.uid;prevT=tm;
@@ -1768,7 +1769,7 @@
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,compose:setChatComposeMode,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};

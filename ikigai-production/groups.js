@@ -1,4 +1,4 @@
-export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{}}){
+export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},onChange=()=>{}}){
  const $=s=>document.querySelector(s);let rooms=[],active=null,messages=[],older=null,isAdmin=false,timer=0,started=false,epoch=0,roomEpoch=0,busy=false,loading=false,listCursor=null,listPages=1;
  const drafts=new Map();let createDraft={id:crypto.randomUUID(),signature:''};
  const visible=()=>account()&&document.visibilityState==='visible'&&!$('#v-mates').hidden&&!$('#mtChat').hidden;
@@ -8,22 +8,24 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{}}){
  function leave(){remember();++roomEpoch;active=null;messages=[];older=null;$('#groupMessages').replaceChildren();$('#groupRoom').hidden=true;$('#groupCommon').hidden=false;$('#groupText').value='';status('')}
  function renderInvites(){
   const box=$('#groupInviteList');box.replaceChildren();$('#groupInviteCount').textContent=rooms.length?'（'+rooms.length+'件）':'';
-  for(const room of [...rooms].sort((a,b)=>b.at.localeCompare(a.at))){
-   const card=document.createElement('article');card.className='group-invite';card.dataset.groupId=room.id;
-   const title=document.createElement('b');title.textContent=room.name;const text=document.createElement('p');text.textContent=room.description||'仲間を募集しています。';
-   const meta=document.createElement('small');meta.textContent=nameOf(room.ownerUid)+'からの招待・'+new Date(room.at).toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo'});
-   const actions=document.createElement('div');actions.className='group-actions';actions.append(button(room.joined?'グループを開く':'参加する',()=>join(room)));
-   if(isAdmin){const del=button('削除',()=>remove(room));del.classList.add('group-delete');actions.append(del)}
-   card.append(title,text,meta,actions);box.append(card);
-  }
+  for(const room of [...rooms].sort((a,b)=>b.at.localeCompare(a.at)))box.append(invitationCard(room));
   $('#groupInviteStatus').textContent=rooms.length?'招待は全会員に表示されます。会話は参加者と管理者だけが閲覧できます。':'グループの招待はまだありません。「グループ作成」から仲間を募集できます。';
-  $('#groupInvitesMore').hidden=!listCursor;
+  $('#groupInvitesMore').hidden=!listCursor;onChange();
+ }
+ function invitationCard(room){
+  const card=document.createElement('article');card.className='group-invite';card.dataset.groupId=room.id;
+  const title=document.createElement('b');title.textContent=room.name;const text=document.createElement('p');text.textContent=room.description||'仲間を募集しています。';
+  const meta=document.createElement('small');meta.textContent=nameOf(room.ownerUid)+'からのグループ招待';
+  const state=document.createElement('p');state.className='group-invite-state';state.textContent=room.joined?'参加済み':'参加を募集しています';
+  const actions=document.createElement('div');actions.className='group-actions';const enter=button(room.joined?'グループを開く':'参加する',()=>join(room));enter.dataset.groupJoin=room.id;actions.append(enter);
+  if(isAdmin){const del=button('削除',()=>remove(room));del.classList.add('group-delete');actions.append(del)}
+  card.append(meta,title,text,state,actions);return card;
  }
  async function refreshList(more=false){
   if(loading||!visible())return;loading=true;const uid=account(),version=epoch;
   try{const data=await request({action:'list',...(more&&listCursor?{cursor:listCursor}:{})});if(uid!==account()||version!==epoch)return;
    let all=data.groups,cursor=data.cursor;
-   if(!more){for(let page=1;page<listPages&&cursor;page++){const next=await request({action:'list',cursor});if(uid!==account()||version!==epoch)return;all.push(...next.groups);cursor=next.cursor}}
+   if(!more){for(let page=1;cursor;page++){const next=await request({action:'list',cursor});if(uid!==account()||version!==epoch||!visible())return;all.push(...next.groups);cursor=next.cursor}}
    isAdmin=!!data.isAdmin;rooms=more?[...new Map([...rooms,...all].map(r=>[r.id,r])).values()]:all;if(more)listPages++;listCursor=cursor;renderInvites();
   }catch(error){if(uid===account()&&version===epoch)$('#groupInviteStatus').textContent=error.message||'招待を更新できませんでした。'}finally{if(version===epoch)loading=false}
  }
@@ -81,5 +83,5 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{}}){
  function start(){if(started){void poll();return}started=true;void poll();timer=setInterval(()=>void poll(),15000)}
  function stop(){started=false;clearInterval(timer);++epoch;leave();busy=false;loading=false;rooms=[];drafts.clear();isAdmin=false;listCursor=null;listPages=1;createDraft={id:crypto.randomUUID(),signature:''};$('#groupName').value='';$('#groupDescription').value='';$('#groupRoomTitle').textContent='';$('#groupCreateStatus').textContent='';$('#groupCreateSubmit').disabled=false;$('#groupSend').disabled=false;$('#groupText').disabled=false;renderInvites()}
  document.addEventListener('visibilitychange',()=>{if(started)void poll()});window.addEventListener('focus',()=>{if(started)void poll()});window.addEventListener('ikigai-refresh-data',event=>{if(started){const task=poll();event.detail?.tasks?.push(task)}});
- return {start,stop,leave};
+ return {start,stop,leave,invitations:()=>rooms.map(room=>({id:'group-invite:'+room.id,uid:room.ownerUid,at:room.at,groupInvite:true,room})),renderInvitation:invitationCard};
 }
