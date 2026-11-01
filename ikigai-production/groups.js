@@ -8,8 +8,8 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  function leave(){remember();++roomEpoch;active=null;messages=[];older=null;$('#groupMessages').replaceChildren();$('#groupRoom').hidden=true;$('#groupCommon').hidden=false;$('#groupText').value='';status('')}
  function renderInvites(){
   const box=$('#groupInviteList');box.replaceChildren();$('#groupInviteCount').textContent=rooms.length?'（'+rooms.length+'件）':'';
-  for(const room of [...rooms].sort((a,b)=>b.at.localeCompare(a.at)))box.append(invitationCard(room));
-  $('#groupInviteStatus').textContent=rooms.length?'招待は全会員に表示されます。会話は参加者と管理者だけが閲覧できます。':'グループの招待はまだありません。下のテンプレートからグループを作成できます。';
+  for(const room of [...rooms].sort((a,b)=>b.at.localeCompare(a.at))){const entry=button(room.name,()=>join(room));entry.className='group-list-item';entry.dataset.groupId=room.id;box.append(entry)}
+  $('#groupInviteStatus').textContent=rooms.length?'':'グループの招待はまだありません。下のテンプレートからグループを作成できます。';
   $('#groupInvitesMore').hidden=!listCursor;onChange();
  }
  function invitationCard(room){
