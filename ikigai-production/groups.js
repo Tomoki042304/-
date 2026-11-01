@@ -9,7 +9,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  function renderInvites(){
   const box=$('#groupInviteList');box.replaceChildren();$('#groupInviteCount').textContent=rooms.length?'（'+rooms.length+'件）':'';
   for(const room of [...rooms].sort((a,b)=>b.at.localeCompare(a.at)))box.append(invitationCard(room));
-  $('#groupInviteStatus').textContent=rooms.length?'招待は全会員に表示されます。会話は参加者と管理者だけが閲覧できます。':'グループの招待はまだありません。「グループ作成」から仲間を募集できます。';
+  $('#groupInviteStatus').textContent=rooms.length?'招待は全会員に表示されます。会話は参加者と管理者だけが閲覧できます。':'グループの招待はまだありません。下のテンプレートからグループを作成できます。';
   $('#groupInvitesMore').hidden=!listCursor;onChange();
  }
  function invitationCard(room){
@@ -58,6 +58,12 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   busy=true;const uid=account(),version=epoch;
   try{await request({action:'delete',groupId:room.id});if(uid!==account()||version!==epoch)return;if(active?.id===room.id)leave();drafts.delete(room.id);rooms=rooms.filter(r=>r.id!==room.id);renderInvites();$('#groupInviteStatus').textContent='グループを削除しました。'}catch(error){if(uid===account()&&version===epoch){status(error.message);$('#groupInviteStatus').textContent=error.message}}finally{if(version===epoch)busy=false}
  }
+ async function createFromTemplate({id,name,description}){
+  if(busy||!account())throw Error('別の操作が完了してから、もう一度お試しください。');
+  const uid=account(),version=epoch;busy=true;
+  try{const data=await request({action:'create',groupId:id,name,description});if(uid!==account()||version!==epoch)throw Error('ログイン状態が変わりました。');isAdmin=!!data.isAdmin;rooms=[data.group,...rooms.filter(r=>r.id!==data.group.id)];renderInvites();return data.group}
+  finally{if(version===epoch)busy=false}
+ }
  async function unsend(id){
   if(busy||!active)return;busy=true;const room=active.id,uid=account(),version=roomEpoch,session=epoch;
   try{const data=await request({action:'unsend',groupId:room,id});if(uid!==account()||version!==roomEpoch)return;messages=messages.map(m=>m.id===id?data.message:m);renderMessages()}catch(error){if(uid===account()&&version===roomEpoch)status(error.message)}finally{if(session===epoch)busy=false}
@@ -83,5 +89,5 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  function start(){if(started){void poll();return}started=true;void poll();timer=setInterval(()=>void poll(),15000)}
  function stop(){started=false;clearInterval(timer);++epoch;leave();busy=false;loading=false;rooms=[];drafts.clear();isAdmin=false;listCursor=null;listPages=1;createDraft={id:crypto.randomUUID(),signature:''};$('#groupName').value='';$('#groupDescription').value='';$('#groupRoomTitle').textContent='';$('#groupCreateStatus').textContent='';$('#groupCreateSubmit').disabled=false;$('#groupSend').disabled=false;$('#groupText').disabled=false;renderInvites()}
  document.addEventListener('visibilitychange',()=>{if(started)void poll()});window.addEventListener('focus',()=>{if(started)void poll()});window.addEventListener('ikigai-refresh-data',event=>{if(started){const task=poll();event.detail?.tasks?.push(task)}});
- return {start,stop,leave,invitations:()=>rooms.map(room=>({id:'group-invite:'+room.id,uid:room.ownerUid,at:room.at,groupInvite:true,room})),renderInvitation:invitationCard};
+ return {start,stop,leave,createFromTemplate,invitations:()=>rooms.map(room=>({id:'group-invite:'+room.id,uid:room.ownerUid,at:room.at,groupInvite:true,room})),renderInvitation:invitationCard};
 }

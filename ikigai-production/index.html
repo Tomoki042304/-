@@ -1262,11 +1262,12 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
 
         <div class="card chat-log" id="chatLog" aria-live="polite"></div>
         <form class="composer" id="composer">
-          <div class="give-composer-tabs" aria-label="入力方法"><button type="button" class="small-btn" id="giveTemplateTab" aria-pressed="true">テンプレート</button><button type="button" class="small-btn" id="giveFreeTab" aria-pressed="false">自由入力</button><button type="button" class="small-btn" id="giveGroupTab" aria-pressed="false">グループ作成</button></div>
+          <div class="give-composer-tabs" aria-label="入力方法" hidden><button type="button" class="small-btn" id="giveTemplateTab" aria-pressed="true">テンプレート</button><button type="button" class="small-btn" id="giveFreeTab" aria-pressed="false">自由入力</button><button type="button" class="small-btn" id="giveGroupTab" aria-pressed="false">グループ作成</button></div>
           <div id="giveTemplatePane"><details id="giveTemplate">
-            <summary>テンプレートで投稿する <span aria-hidden="true">＋</span></summary>
-            <p class="template-note">4つの項目を入力し、文章を確認して送信してください。完成した文章は300文字まで送信できます。</p>
+            <summary>テンプレートでグループを作成する <span aria-hidden="true">＋</span></summary>
+            <p class="template-note">グループ名と4つの項目を入力してください。送信するとグループが作成され、全体トークに参加ボタン付きの招待が表示されます。文章は300文字まで送信できます。</p>
             <div class="template-fields">
+              <label>グループ名 <span>必須</span><input id="giveTemplateGroupName" maxlength="60" required placeholder="例：事業づくりを相談する会"></label>
               <label>職業 <span>必須</span><input id="giveOccupation" maxlength="40" required placeholder="例：人材育成の仕事" autocomplete="organization-title"></label>
               <label>名前 <span>必須</span><input id="giveName" maxlength="30" required placeholder="例：岡村伸之佑" autocomplete="name"></label>
               <label>新たな試み <span>必須</span><textarea id="giveChallenge" rows="2" maxlength="60" required placeholder="例：若手向けの人材育成事業を立ち上げる"></textarea></label>
@@ -1274,11 +1275,11 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
             </div>
             <label class="template-preview-label" for="chatInput">送信する文章</label>
             <textarea id="chatInput" rows="8" readonly aria-label="送信する文章"></textarea>
-            <div class="template-actions"><span id="giveTemplateCount" class="template-note" role="status"></span><button type="submit" class="small-btn">送信する</button></div>
+            <div class="template-actions"><span id="giveTemplateCount" class="template-note" role="status"></span><button type="submit" class="small-btn">グループを作成して招待する</button></div>
           </details></div>
           <div id="giveFreePane" hidden>
             <div id="giveReplyContext" class="give-reply-context" hidden><span id="giveReplyLabel"></span><button type="button" class="small-btn" id="giveReplyCancel">返信を解除</button></div>
-            <label for="giveFreeText">自由入力・返信</label><textarea id="giveFreeText" rows="1" maxlength="300" placeholder="返信やメッセージを入力してください" disabled></textarea>
+            <label for="giveFreeText">返信</label><textarea id="giveFreeText" rows="1" maxlength="300" placeholder="返信やメッセージを入力してください" disabled></textarea>
             <p class="template-note">送信内容はGIVE BUDDIESの会員全員に表示されます。</p>
             <div class="template-actions"><span id="giveFreeCount" class="template-note" role="status">0 / 300文字</span><button type="submit" class="small-btn" id="giveFreeSend" disabled>送信する</button></div>
           </div>

@@ -692,7 +692,7 @@
     setChatComposeMode('free');$('#composer').scrollIntoView({block:'nearest'});
   }
   $('#giveTemplateTab').onclick=()=>setChatComposeMode('template');$('#giveFreeTab').onclick=()=>setChatComposeMode('free');
-  $('#giveFreeText').addEventListener('input',updateFreeChat);$('#giveReplyCancel').onclick=()=>{chatReply=null;updateFreeChat()};
+  $('#giveFreeText').addEventListener('input',updateFreeChat);$('#giveReplyCancel').onclick=()=>{chatReply=null;updateFreeChat();setChatComposeMode('template',false)};
 
   function templateMessage(placeholders=false){
     const [occupation,name,challenge,content]=templateFields.map((id,i)=>$(id).value.trim()||(placeholders?['［職業］','［名前］','［新たな試み］','［事業内容］'][i]:''));
@@ -704,24 +704,29 @@
   }
   templateFields.forEach(id=>$(id).addEventListener('input',fitChatInput));
   $('#giveTemplate').addEventListener('toggle',()=>{if($('#giveTemplate').open)fitChatInput()});
-  fitChatInput();setChatComposeMode('free',false);
+  fitChatInput();setChatComposeMode('template',false);
   $('#composer').addEventListener('submit',async e=>{
     e.preventDefault();if(chatSubmitting||chatComposeMode==='group')return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
     if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
     const free=chatComposeMode==='free';
-    if(!free){const missing=templateFields.find(id=>!$(id).value.trim());if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・新たな試み・事業内容をすべて入力してください');return}}
+    if(!free){const missing=[...templateFields,'#giveTemplateGroupName'].find(id=>!$(id).value.trim());if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('グループ名・職業・名前・新たな試み・事業内容をすべて入力してください');return}}
     if(free&&!$('#giveFreeText').value.trim()){toast('返信やメッセージを入力してください');return}
     if(free&&chatReply&&!chatAll.some(x=>x.uid===chatReply.uid&&x.id===chatReply.id&&!x.unsent)){toast('返信元のメッセージが見つかりません。返信を解除して送信してください。');return}
     const text=free?freeChatMessage():templateMessage();
-    if(text.length>300){toast('返信先の引用を含めて300文字以内にしてください');return}
-    const to=free?(chatReply?.uid||''):(giveMode?giveTo:''),type=free?'msg':giveMode?'give':'msg',signature=JSON.stringify([type,to,text]);
+    if(text.length>300){toast(free?'返信先の引用を含めて300文字以内にしてください':'送信する文章は300文字以内にしてください');return}
+    const to=free?(chatReply?.uid||''):(giveMode?giveTo:''),type=free?'msg':giveMode?'give':'msg',signature=JSON.stringify([type,to,text,free?'':$('#giveTemplateGroupName').value.trim()]);
     const draft=chatDraftStates[free?'free':'template'];
     if(!draft.id||draft.signature!==signature){draft.id=crypto.randomUUID();draft.signature=signature}
     const msg={id:draft.id,type,to,text,at:new Date().toISOString()},who=uid,form=$('#composer'),controls=[...form.querySelectorAll('button,input,textarea')].map(el=>[el,el.disabled]);
     chatSubmitting=true;controls.forEach(([el])=>el.disabled=true);
     try{
+      if(!free){
+        const ui=await ensureGroups();if(!ui?.createFromTemplate)throw Error('グループ作成を使うにはアプリを開き直してください。');
+        await ui.createFromTemplate({id:draft.id,name:$('#giveTemplateGroupName').value.trim(),description:text});if(uid!==who)return;
+        draft.id='';draft.signature='';$('#giveTemplateGroupName').value='';$('#giveChallenge').value='';$('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;renderChat.stick=true;renderChat();toast('グループの招待を全体トークに送信しました');return;
+      }
       if(chatSavePromise&&!(await chatSavePromise))throw Error('先の変更を保存できませんでした。もう一度送信してください。');
       const outgoing=[...myMsgs.filter(x=>x.id!==msg.id).slice(-(MAX_MY_MSGS-1)),msg];
       await db.doc('chats/'+who).set({msgs:clone(outgoing),readAt:myReadAt,giveReadAt:myGiveReadAt});
@@ -733,7 +738,7 @@
       else{$('#giveChallenge').value='';$('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;if(giveMode)setGive(chatMode==='give','')}
       renderChat.stick=true;renderChat();renderBuddies();
     }catch(error){toast(error.message||'送信できませんでした。入力は残っています。もう一度お試しください。')}
-    finally{chatSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled)}
+    finally{chatSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled);if(free&&!$('#giveFreeText').value&&uid===who)setChatComposeMode('template',false)}
   });
   document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{
     const t=b.dataset.mt;document.querySelectorAll('[data-mt]').forEach(x=>x.setAttribute('aria-selected',x===b));
