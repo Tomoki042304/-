@@ -1,3 +1,4 @@
+import {database} from '../../server/private-documents.js';
 import {operationalStore} from '../../server/supabase-runtime.js';
 import {requireMemberRole,readChatAccessSince} from '../../server/youtube-member.js';
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -5,12 +6,25 @@ const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'
 const roomKey=id=>'group:room:v1:'+id,deletedKey=id=>'group:deleted:v1:'+id,memberKey=(id,uid)=>'group:member:v1:'+id+':'+uid,messageKey=(id,mid)=>'group:message:v1:'+id+':'+mid,cancelKey=(id,mid)=>'group:unsent:v1:'+id+':'+mid;
 // Each participant and message has its own row: concurrent joins/sends never replace an array.
 // Administrators are implicit participants in every group, including groups created before their appointment.
-export function createGroupHandler({authenticate=requireMemberRole,admission=readChatAccessSince,store=operationalStore}={}){
+async function participantDirectory(env,ids){
+ const serviceKey=env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY;if(typeof serviceKey!=='string'||!serviceKey.startsWith('eyJ'))throw Error('ROSTER_UNAVAILABLE');
+ const admins=await database(null,'admins?select=user_id',{serviceKey}),approved=[];
+ for(let i=0;i<ids.length;i+=80){const query=new URLSearchParams({select:'user_id,approved_at',user_id:'in.('+ids.slice(i,i+80).join(',')+')'});const rows=await database(null,'approved_members?'+query,{serviceKey});if(!Array.isArray(rows))throw Error('ROSTER_UNAVAILABLE');approved.push(...rows)}
+ if(!Array.isArray(admins))throw Error('ROSTER_UNAVAILABLE');return {admins:admins.map(r=>r.user_id),approved};
+}
+async function participants(kv,room,env,directory){
+ const candidates=new Map([[room.ownerUid,room.at]]);let cursor;
+ do{const page=await kv.list({prefix:'group:member:v1:'+room.id+':',limit:200,...(cursor?{cursor}:{})});const rows=await Promise.all(page.keys.map(k=>kv.get(k.name,'json')));for(const row of rows)if(uuid(row?.uid)&&Number.isFinite(Date.parse(row.at)))candidates.set(row.uid,row.at);cursor=page.list_complete?null:page.cursor}while(cursor);
+ const current=await directory(env,[...candidates.keys()]),ids=new Set(current.admins.filter(uuid)),approved=new Map(current.approved.map(r=>[r.user_id,Date.parse(r.approved_at)]));
+ for(const [id,at] of candidates)if(approved.has(id)&&Date.parse(at)>=approved.get(id))ids.add(id);
+ return [...ids];
+}
+export function createGroupHandler({authenticate=requireMemberRole,admission=readChatAccessSince,store=operationalStore,directory=participantDirectory}={}){
  return async function({request,env}){
   const url=new URL(request.url);
   if(request.method!=='POST'||url.protocol!=='https:'||url.hostname!=='ikigai-shidoroku.pages.dev'||request.headers.get('Origin')!==url.origin)return reply(403,{message:'アプリから利用してください。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error();const raw=await request.text();if(raw.length>10000)throw Error();body=JSON.parse(raw);if(!body||Array.isArray(body))throw Error()}catch{return reply(400,{message:'入力内容を確認してください。'})}
-  if(!['list','create','join','messages','send','unsend','delete'].includes(body.action)||body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>4096))return reply(400,{message:'操作内容を確認してください。'});
+  if(!['list','create','join','messages','send','unsend','delete','members'].includes(body.action)||body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>4096))return reply(400,{message:'操作内容を確認してください。'});
   const user=await authenticate(request);if(!user.ok)return reply(user.status,{message:user.message});
   try{
    const since=await admission(request),kv=store(env);if(!kv)throw Error();
@@ -49,7 +63,12 @@ export function createGroupHandler({authenticate=requireMemberRole,admission=rea
     if(await kv.get(deletedKey(id)))return reply(410,{message:'このグループは削除されました。'});
     return reply(200,{group:{...room,joined:true},isAdmin:user.isHost});
    }
-   if(!access.joined)return reply(403,{message:'「参加する」を押した会員と管理者だけが利用できます。'});
+   if(!access.joined)return reply(403,{message:'「賛同する」を押した会員と管理者だけが利用できます。'});
+   if(body.action==='members'){
+    const ids=await participants(kv,room,env,directory);
+    if(await kv.get(deletedKey(id)))return reply(410,{message:'このグループは削除されました。'});
+    return reply(200,{participants:ids,count:ids.length});
+   }
    if(body.action==='messages'){
     const prefix='group:timeline:v1:'+id+':',page=await kv.list({prefix,limit:40,...(body.cursor?{cursor:body.cursor}:{})});
     const rows=await Promise.all(page.keys.map(async key=>{const mid=key.name.split(':').at(-1);if(!uuid(mid))throw Error();const m=await kv.get(messageKey(id,mid),'json');if(!m||m.groupId!==id||!uuid(m.senderUid)||typeof m.text!=='string'||!Number.isFinite(Date.parse(m.at)))throw Error();if(Date.parse(m.at)<access.since)return null;return {...m,...(await kv.get(cancelKey(id,mid))?{text:'',unsent:true}:{})}}));

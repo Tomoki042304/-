@@ -192,7 +192,7 @@
       members=snap.docs.map(d=>d.data()).filter(m=>m&&m.uid);
       const mine=members.find(m=>m.uid===uid);
       lastMember=mine?JSON.stringify(Object.fromEntries(MEMBER_KEYS.map(k=>[k,mine[k]]))):(lastMember==='off'?'off':'');
-      renderMembers();renderChat();renderBuddies();renderFeed();
+      renderMembers();renderChat();renderBuddies();renderFeed();groupUi?.refreshMemberInfo?.();
     },()=>{members=[];renderMembers()});
   }
   const COLORS=['#7a1f33','#9c3348','#5c1a2a','#b4596b','#8a3a2e','#6b2c47','#a0455a','#4e2430'];
@@ -554,7 +554,7 @@
       all.sort((p,q)=>p.at.localeCompare(q.at));
       chatAll=all;chatReads=reads;giveReads=greads;chatReady=true;chatLoadFailed=false;
       renderChat();renderBuddies();renderMembers();
-    },()=>{chatReady=true;chatLoadFailed=true;renderChat()});
+    },error=>{chatReady=true;chatLoadFailed=true;if(error?.status===401||error?.status===403||error?.code==='42501'){chatAll=[];myMsgs=[]}renderChat()});
   }
   async function flushChat(){
     if(chatWriting){chatAgain=true;return chatSavePromise}
@@ -606,19 +606,23 @@
   ['pointerup','pointerleave','pointercancel'].forEach(t=>$('#chatLog').addEventListener(t,()=>clearTimeout(pressT)));
   $('#chatLog').addEventListener('contextmenu',e=>{const b=e.target.closest('[data-mine]');if(!b)return;e.preventDefault();unsendOpen=b.dataset.mine;renderChat()});
   $('#chatLog').addEventListener('keydown',e=>{const b=e.target.closest('[data-mine]');if(b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();unsendOpen=b.dataset.mine;renderChat()}});
+  function appendChatSyncNotice(log,text,retry){
+    const note=document.createElement('div');note.className='chat-sync-note';note.setAttribute('role','status');const label=document.createElement('span');label.textContent=text;note.append(label);
+    if(retry){const button=document.createElement('button');button.type='button';button.className='small-btn';button.textContent='再取得';button.onclick=async()=>{button.disabled=true;try{const module=await import('./pull-refresh.js');await module.refreshCurrentData();if(chatLoadFailed||groupUi?.invitationError?.())throw Error('取得できませんでした。通信状況を確認してもう一度お試しください。');toast('最新の投稿を確認しました')}catch(error){toast(error.message||'取得できませんでした。もう一度お試しください。')}finally{button.disabled=false}};note.append(button)}log.append(note);
+  }
   function renderChat(){
     const log=$('#chatLog');
     if(backend!=='cloud'){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">チャットはまだ使えません</b>ログインすると、仲間とチャットできます。</div>`;return}
     if(pending()){log.innerHTML=PENDING_BOX('トーク');return}
-    if(!chatReady){log.innerHTML='<div class="empty">読み込んでいます…</div>';return}
-    if(chatLoadFailed){log.innerHTML='<div class="empty">トークを読み込めませんでした。時間をおいて再読み込みしてください。</div>';return}
+    const groupError=groupUi?.invitationError?.()||'',syncNotice=[!chatReady?'トークを読み込んでいます…':chatLoadFailed?'通常のトークを更新できませんでした。': '',groupError].filter(Boolean).join(' ');
     const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<80;
     const hiddenMessages=new Set(Array.isArray(profile.hiddenChatMessages)?profile.hiddenChatMessages:[]);
     const list=[...chatAll.filter(x=>!hiddenMessages.has(chatHideKey(x))),...(groupUi?.invitations?.()||[])].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).slice(-150);
+    if(!list.length&&syncNotice){log.replaceChildren();appendChatSyncNotice(log,syncNotice,chatLoadFailed||!!groupError);return}
     if(!list.length){log.innerHTML=chatMode==='give'
       ?`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><b style="color:var(--ink)">最初のGIVEを贈ろう</b>仲間への感謝や称賛を、ひとこと送ってみましょう。</div>`
       :`<div class="empty"><svg class="i" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><b style="color:var(--ink)">最初のひとことを送ろう</b>今日の宣言や、仲間への応援を書いてみましょう。</div>`;return}
-    log.innerHTML='';let lastDay='',prevU='',prevT=0;
+    log.innerHTML='';if(syncNotice)appendChatSyncNotice(log,syncNotice,chatLoadFailed||!!groupError);let lastDay='',prevU='',prevT=0;
     list.forEach(x=>{
       const day=dayLabel(x.at);
       if(day&&day!==lastDay){const dd=document.createElement('div');dd.className='chat-day';dd.textContent=day;log.append(dd);lastDay=day;prevU=''}
@@ -709,8 +713,8 @@
     e.preventDefault();if(chatSubmitting||chatComposeMode==='group')return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
-    if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
     const free=chatComposeMode==='free';
+    if(free&&(!chatReady||chatLoadFailed)){toast('トークの読み込み後に送信してください');return}
     if(!free){const missing=[...templateFields,'#giveTemplateGroupName'].find(id=>!$(id).value.trim());if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('グループ名・職業・名前・新たな試み・事業内容をすべて入力してください');return}}
     if(free&&!$('#giveFreeText').value.trim()){toast('返信やメッセージを入力してください');return}
     if(free&&chatReply&&!chatAll.some(x=>x.uid===chatReply.uid&&x.id===chatReply.id&&!x.unsent)){toast('返信元のメッセージが見つかりません。返信を解除して送信してください。');return}
@@ -1774,7 +1778,7 @@
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};
@@ -1858,7 +1862,7 @@
     if(tab==='timeline')renderFeed();
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
-    if(tab==='mates'){ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
+    if(tab==='mates'){window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
     if(backend==='cloud'&&uid&&!pending())ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();

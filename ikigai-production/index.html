@@ -943,6 +943,12 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
 #dmPanel #groupInvites{background:#fff;color:#2b2023;border-color:#ddd}#dmPanel #groupInvites .channel-summary,#dmPanel .card-head,#dmPanel .card-head>b{color:#2b2023}
 #dmPanel .muted,#dmPanel .admin-note,#dmPanel .template-note{color:#65585d}
 #dmPanel .small-btn,#dmPanel .dm-thread,#dmPanel #groupInviteList .group-list-item{background:#f6f3f4;color:#2b2023;border-color:#d6cdd0}#dmPanel .small-btn:hover,#dmPanel .dm-thread:hover,#dmPanel #groupInviteList .group-list-item:hover{background:#eee7e9}#dmPanel .dm-thread b{color:#2b2023}
+
+.chat-sync-note{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px;border:1px solid #6f5d36;border-radius:10px;background:#302a1d;color:#f8e7bd;font-size:12px;overflow-wrap:anywhere}.chat-sync-note .small-btn{background:#46391f;color:#fff;border-color:#9c8755}
+
+.group-title-group{display:flex;align-items:baseline;gap:6px;flex:1;min-width:120px;flex-wrap:wrap}#groupRoom .group-title-group h2{flex:0 1 auto;min-width:0}#groupRoomCount{font-size:11px;color:#cfc5c8;white-space:nowrap}.group-member-count{margin-left:8px;font-size:11px;color:#65585d;white-space:nowrap}
+.group-participants-area{flex:none;min-width:0;max-width:100%}#groupParticipantsStatus{font-size:11px;color:#cfc5c8;margin:2px 0}#groupParticipants{display:flex;gap:10px;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;padding:3px 0 7px;touch-action:pan-x pan-y}.group-participant{flex:0 0 56px;min-width:0;text-align:center;color:#eee}.group-participant .avatar{width:38px;height:38px;font-size:14px;margin:auto}.group-participant>span{display:block;font-size:10px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-message-author{display:flex;align-items:center;gap:7px;max-width:100%}.group-message-author .avatar{width:28px;height:28px;flex:none;font-size:11px}.group-message-author small{color:#e4dce0;font-size:12px;overflow-wrap:anywhere}#groupRoom .small-btn{background:#f5f1f3;color:#2b2023;border-color:#d6cdd0}#groupRoom #groupSend{background:#7a1f33;color:#fff;border-color:#7a1f33}#groupRoom .group-delete{background:#fff0f3;color:#8c233a!important;border-color:#d2b8c0}
 </style>
 </head>
 <body>
@@ -1307,7 +1313,8 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
         </form>
       </div>
       <section id="groupRoom" class="card" hidden aria-label="グループトーク">
-        <div class="group-room-head"><button type="button" id="groupBack" class="small-btn">全体に戻る</button><h2 id="groupRoomTitle"></h2><button type="button" id="groupDelete" class="small-btn group-delete" hidden>グループ削除</button></div>
+        <div class="group-room-head"><button type="button" id="groupBack" class="small-btn">全体に戻る</button><div class="group-title-group"><h2 id="groupRoomTitle"></h2><span id="groupRoomCount"></span></div><button type="button" id="groupDelete" class="small-btn group-delete" hidden>グループ削除</button></div>
+        <div class="group-participants-area"><p id="groupParticipantsStatus" role="status"></p><div id="groupParticipants" role="list" aria-label="グループ参加者"></div></div>
         <p class="template-note">参加者と管理者のみ閲覧できます。管理者は自動参加します。参加する前のメッセージは表示されません。</p>
         <button type="button" id="groupOlder" class="small-btn" hidden>以前のメッセージ</button><div id="groupMessages" aria-live="polite"></div><p id="groupStatus" class="template-note" role="status"></p>
         <form id="groupComposer"><label for="groupText">メッセージ</label><textarea id="groupText" maxlength="2000" rows="1" placeholder="グループにメッセージを送る" required></textarea><button id="groupSend" type="submit" class="small-btn">送信する</button></form>

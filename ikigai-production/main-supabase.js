@@ -235,8 +235,10 @@ function start() {
   };
   const fail = error => { if (error) throw error; };
   async function readChatRows(){
-    const {data,error}=await supabase.rpc('ikigai_chat_room_v1');fail(error);
-    if(!Array.isArray(data))throw Error('トークを読み込めませんでした。');return data;
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    try{const {data,error}=await supabase.rpc('ikigai_chat_room_v1').abortSignal(controller.signal);fail(error);
+      if(!Array.isArray(data))throw Error('トークを読み込めませんでした。');return data;
+    }finally{clearTimeout(timer)}
   }
   const protectedPath = path => /^(members\/[^/]+|applications\/[^/]+|data\/users\/[^/]+\/profile)$/.test(path);
   async function protectedRequest(payload) {
@@ -300,14 +302,19 @@ function start() {
       return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh)};
     }
     if(filter==='coll=eq.chats'||filter.startsWith('path=eq.chats/')){
-      // Raw document realtime payloads can contain history. Only poll the guarded RPC.
-      let alive=true;const run=()=>{if(alive)reload().catch(e=>error&&error(e))};
-      const signal=supabase.channel('chat-access-'+(++chan)).on('postgres_changes',{event:'*',schema:'public',table:'ikigai_chat_activity_v1'},()=>{if(document.visibilityState==='visible')run()}).subscribe();
-      const timer=setInterval(()=>{if(document.visibilityState==='visible'&&!document.querySelector('#v-mates')?.hidden)run()},15000);
-      const resume=()=>{if(document.visibilityState==='visible')run()};
-      const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(Promise.resolve().then(reload).catch(e=>{if(error)error(e);throw e}))};
-      window.addEventListener('ikigai-refresh-data',refresh);document.addEventListener('visibilitychange',resume);run();
-      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh);supabase.removeChannel(signal)};
+      // Keep reads on the guarded RPC. Coalesce refreshes so an older response cannot overwrite a newer one.
+      let alive=true,loading=false,again=false,promise=null;
+      const run=()=>{
+        if(!alive)return Promise.resolve();if(loading){again=true;return promise}loading=true;
+        promise=(async()=>{let failure;do{again=false;try{await reload();failure=null}catch(e){failure=e;if(alive&&error)error(e)}}while(alive&&again);if(failure)throw failure})().finally(()=>{loading=false;promise=null});return promise;
+      };
+      const resume=()=>{if(document.visibilityState==='visible')void run().catch(()=>{})};
+      const signal=supabase.channel('chat-access-'+(++chan)).on('postgres_changes',{event:'*',schema:'public',table:'ikigai_chat_activity_v1'},resume).subscribe();
+      const timer=setInterval(()=>{if(!document.querySelector('#v-mates')?.hidden)resume()},15000);
+      const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(run())};
+      window.addEventListener('ikigai-refresh-data',refresh);document.addEventListener('visibilitychange',resume);
+      for(const name of ['focus','online','ikigai-talk-open'])window.addEventListener(name,resume);resume();
+      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh);for(const name of ['focus','online','ikigai-talk-open'])window.removeEventListener(name,resume);supabase.removeChannel(signal)};
     }
     let timer = 0, alive = true;
     const run = () => { clearTimeout(timer); timer = setTimeout(() => alive && reload().catch(e => error && error(e)), 250); };
