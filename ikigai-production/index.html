@@ -792,6 +792,13 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 </style>
 
 <style>
+#homeAnnouncementsList{display:grid;gap:12px}
+.home-announcement{border:1px solid var(--line);border-radius:14px;padding:14px}
+.home-announcement summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}
+.home-announcement summary::-webkit-details-marker{display:none}
+.home-announcement summary b{font-size:14px;overflow-wrap:anywhere}
+.home-announcement time{display:block;margin-top:5px;color:var(--muted);font-size:11px}
+.home-announcement p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.8;font-size:14px;margin:14px 0}
 .channel-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}
 .channel-summary::-webkit-details-marker{display:none}
 .channel-expand::before{content:"＋";font-size:24px;line-height:1}
@@ -1024,6 +1031,11 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
             <button type="button" class="cal-link" data-goto="check">カレンダーを見る →</button>
           </div>
         </div>
+
+      <section class="card home-announcements" id="homeAnnouncements" aria-labelledby="homeAnnouncementsTitle" hidden>
+        <div class="card-head"><b id="homeAnnouncementsTitle">運営からのお知らせ</b><span class="new-log-badge" id="homeAnnouncementsCount" role="status" aria-live="polite"></span></div>
+        <div id="homeAnnouncementsList"></div>
+      </section>
 
       <section class="card home-log-card" id="homeLogCard" aria-roledescription="カルーセル" aria-labelledby="homeLogTitle" hidden>
         <div class="card-head"><div class="home-log-heading"><b id="homeLogTitle">成長ログ</b><span id="homeLogNew" class="new-log-badge" role="status" aria-live="polite" hidden></span></div><button type="button" class="small-btn" id="homeLogAll">すべて見る</button></div>
