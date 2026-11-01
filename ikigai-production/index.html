@@ -806,6 +806,10 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 .home-log-preview.with-photo{position:relative;padding-right:112px}.home-log-preview.with-photo .home-log-photo{position:absolute;right:0;top:52px;width:100px}.home-log-preview.with-photo .growth-photo.small img{height:98px}
 .growth-photo.small{margin:8px 0 0;min-height:48px}.growth-photo.small img{max-height:130px;object-fit:cover}
 #growthPhotoDialog{width:min(94vw,900px);max-height:92dvh}#growthPhotoFull{display:block;max-height:78dvh;width:100%;object-fit:contain}
+.post-responders{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.post-responders summary{font-size:13px}.post-responders-list{display:grid;gap:10px;margin-top:12px}.post-responder{display:flex;gap:10px;align-items:center}.post-responder .avatar{width:32px;height:32px;flex:0 0 32px}.post-responder b{font-size:13px}.post-responder small{display:block;color:var(--muted);font-size:11px}
+.give-composer-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.give-composer-tabs [aria-pressed=true]{border-color:#65e576;color:#65e576;background:#243024}
+#giveFreePane label{display:block;margin:8px 0;color:#eee}#giveFreeText{box-sizing:border-box;width:100%;padding:12px;border:1px solid #555;border-radius:12px;background:#2a2a2a;color:#fff;font:inherit;font-size:16px;line-height:1.7;resize:vertical}
+.give-reply-context{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;border-left:3px solid #65e576;background:#282e28;color:#eee;font-size:12px;overflow-wrap:anywhere}.give-reply-context span{min-width:0}.chat-reply{font:inherit;font-size:11px;background:transparent;color:#bcbcbc;border:1px solid #555;border-radius:8px;padding:3px 7px}
 .channel-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none}
 .channel-summary::-webkit-details-marker{display:none}
 .channel-expand::before{content:"＋";font-size:24px;line-height:1}
@@ -1241,7 +1245,8 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
         </div>
         <div class="card chat-log" id="chatLog" aria-live="polite"></div>
         <form class="composer" id="composer">
-          <details id="giveTemplate">
+          <div class="give-composer-tabs" aria-label="入力方法"><button type="button" class="small-btn" id="giveTemplateTab" aria-pressed="true">テンプレート</button><button type="button" class="small-btn" id="giveFreeTab" aria-pressed="false">自由入力</button></div>
+          <div id="giveTemplatePane"><details id="giveTemplate">
             <summary>テンプレートで投稿する <span aria-hidden="true">＋</span></summary>
             <p class="template-note">4つの項目を入力し、文章を確認して送信してください。完成した文章は300文字まで送信できます。</p>
             <div class="template-fields">
@@ -1253,7 +1258,13 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
             <label class="template-preview-label" for="chatInput">送信する文章</label>
             <textarea id="chatInput" rows="8" readonly aria-label="送信する文章"></textarea>
             <div class="template-actions"><span id="giveTemplateCount" class="template-note" role="status"></span><button type="submit" class="small-btn">送信する</button></div>
-          </details>
+          </details></div>
+          <div id="giveFreePane" hidden>
+            <div id="giveReplyContext" class="give-reply-context" hidden><span id="giveReplyLabel"></span><button type="button" class="small-btn" id="giveReplyCancel">返信を解除</button></div>
+            <label for="giveFreeText">自由入力・返信</label><textarea id="giveFreeText" rows="4" maxlength="300" placeholder="返信やメッセージを入力してください" disabled></textarea>
+            <p class="template-note">送信内容はGIVE BUDDIESの会員全員に表示されます。</p>
+            <div class="template-actions"><span id="giveFreeCount" class="template-note" role="status">0 / 300文字</span><button type="submit" class="small-btn" id="giveFreeSend" disabled>送信する</button></div>
+          </div>
           <div class="give-to" id="giveTo" hidden><span>GIVEする相手</span><div class="chips" id="giveChips"></div></div>
           <button type="button" class="give-btn" id="giveBtn" aria-pressed="false" hidden>GIVE</button>
         </form>

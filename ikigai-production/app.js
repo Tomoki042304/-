@@ -411,7 +411,7 @@
 
   function renderFeed(){
     markGrowthLogsSeen();renderHomeLog();renderReactionNotice();
-    const box=$('#feed');
+    const box=$('#feed'),expandedResponders=new Set([...$('#feed').querySelectorAll('.post-responders[open]')].map(el=>el.dataset.postKey));
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
     if(backend!=='cloud'){box.innerHTML=`<div class="card empty"><b style="color:var(--ink)">成長ログはまだ使えません</b>ログインすると、仲間の投稿が見られます。</div>`;return}
     if(pending()){box.innerHTML=PENDING_BOX('成長ログ');return}
@@ -435,6 +435,17 @@
       if(hasPostPhoto(x)){const photos=document.createElement('div');el.querySelector('.text').after(photos);renderPostPhoto(photos,x)}
       const categories=postCategoriesOf(x);
       if(categories.length){const tags=document.createElement('div');tags.className='post-tags';categories.forEach(category=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=category;tags.append(tag)});el.querySelector('.text').before(tags)}
+      const actors=new Map();
+      for(const reaction of likesAll.filter(l=>l.key===key)){const state=actors.get(reaction.by)||{};state.like=true;actors.set(reaction.by,state)}
+      for(const comment of cs){const state=actors.get(comment.uid)||{};state.comment=true;actors.set(comment.uid,state)}
+      const responders=document.createElement('details');responders.className='post-responders';responders.dataset.postKey=key;responders.open=expandedResponders.has(key);
+      const summary=document.createElement('summary');summary.className='channel-summary';const title=document.createElement('span');title.textContent='反応した人（'+actors.size+'人）';const plus=document.createElement('span');plus.className='channel-expand';plus.setAttribute('aria-hidden','true');summary.append(title,plus);
+      const people=document.createElement('div');people.className='post-responders-list';
+      const paintResponders=()=>{people.replaceChildren();if(!responders.open)return;
+      for(const [person,state] of actors){const row=document.createElement('div');row.className='post-responder';const label=document.createElement('div'),name=document.createElement('b'),kind=document.createElement('small');name.textContent=nameOf(person);kind.textContent=[state.like?'応援':'',state.comment?'コメント':''].filter(Boolean).join('・');label.append(name,kind);row.append(avatarEl(person),label);people.append(row)}
+      if(!actors.size){const empty=document.createElement('p');empty.className='muted';empty.textContent='まだ反応はありません。';people.append(empty)}
+      };
+      responders.addEventListener('toggle',paintResponders);responders.append(summary,people);if(responders.open)paintResponders();el.append(responders);
       if(open){
         const wrap=document.createElement('div');wrap.className='comments';
         cs.forEach(c=>{const row=document.createElement('div');row.className='cmt';const d=document.createElement('div');
@@ -523,7 +534,7 @@
   });
 
   // ---------- buddy chat: each person keeps their own messages in chats/<uid> ----------
-  let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false;
+  let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false,chatSavePromise=null,chatSubmitting=false,chatComposeMode='template',chatReply=null,chatDraftStates={template:{},free:{}};
   const MAX_MY_MSGS=200;
   const memberOf=id=>members.find(m=>m.uid===id);
   const nameOf=id=>{const m=memberOf(id);return(m&&m.nick)||(id===uid?(profile.nick||'あなた'):'メンバー')};
@@ -546,11 +557,12 @@
     },()=>{chatReady=true;chatLoadFailed=true;renderChat()});
   }
   async function flushChat(){
-    if(chatWriting){chatAgain=true;return}
-    chatWriting=true;
-    try{do{chatAgain=false;await db.doc('chats/'+uid).set({msgs:clone(myMsgs),readAt:myReadAt,giveReadAt:myGiveReadAt})}while(chatAgain)}
-    catch(e){toast('送信できませんでした。通信状況を確認してください')}
-    finally{chatWriting=false}
+    if(chatWriting){chatAgain=true;return chatSavePromise}
+    chatWriting=true;chatSavePromise=(async()=>{
+      try{do{chatAgain=false;await db.doc('chats/'+uid).set({msgs:clone(myMsgs),readAt:myReadAt,giveReadAt:myGiveReadAt})}while(chatAgain);return true}
+      catch(e){toast('送信できませんでした。通信状況を確認してください');return false}
+      finally{chatWriting=false;chatSavePromise=null}
+    })();return chatSavePromise;
   }
   const hhmm=iso=>{const d=new Date(iso);return isNaN(d)?'':`${d.getHours()}:${pad(d.getMinutes())}`};
   const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return'';const k=iso(d);return k===todayKey?'今日':k===yesterdayKey?'昨日':`${d.getMonth()+1}月${d.getDate()}日`};
@@ -583,6 +595,7 @@
   document.addEventListener('click',e=>{if(unsendOpen&&!e.composedPath().includes($('#chatLog'))){unsendOpen='';renderChat()}});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&unsendOpen){unsendOpen='';renderChat()}});
   $('#chatLog').addEventListener('click',e=>{
+    const reply=e.target.closest('[data-chat-reply]');if(reply){beginChatReply(reply.dataset.chatReply);return}
     const u=e.target.closest('[data-unsend]');if(u){unsendMsg(u.dataset.unsend);return}
     const del=e.target.closest('[data-chat-delete]');if(del){deleteMyChat(del.dataset.chatDelete);return}
     const b=e.target.closest('[data-mine]');if(b){unsendOpen=unsendOpen===b.dataset.mine?'':b.dataset.mine;renderChat()}
@@ -624,6 +637,7 @@
       const meta=document.createElement('div');meta.className='meta';
       if(me){const n=readCount(x.at);if(n){const r=document.createElement('span');r.className='read';r.textContent=`既読 ${n}`;meta.append(r)}}
       const t=document.createElement('time');t.textContent=hhmm(x.at);meta.append(t);
+      if(!me){const reply=document.createElement('button');reply.type='button';reply.className='chat-reply';reply.dataset.chatReply=chatHideKey(x);reply.textContent='返信';reply.setAttribute('aria-label',nameOf(x.uid)+'のメッセージに返信');meta.append(reply)}
       line.append(bub,meta);body.append(line);
       if(!me){if(first)row.append(mkAvatar(x.uid));else{const sp=document.createElement('span');sp.className='av-sp';row.append(sp)}}
       row.append(body);log.append(row);
@@ -656,6 +670,29 @@
   $('#buddyStrip').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;setGive(true,b.dataset.give);$('#chatInput').focus()});
   $('#giveChips').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;setGive(true,b.dataset.give);$('#chatInput').focus()});
   const templateFields=['#giveOccupation','#giveName','#giveChallenge','#giveContent'];
+  function freeChatMessage(){const body=$('#giveFreeText').value.trim();return chatReply?nameOf(chatReply.uid)+'さんへの返信\n「'+chatReply.quote+'」\n\n'+body:body}
+  function updateFreeChat(){
+    $('#giveFreeCount').textContent=freeChatMessage().length+' / 300文字';
+    $('#giveReplyContext').hidden=!chatReply;
+    $('#giveReplyLabel').textContent=chatReply?nameOf(chatReply.uid)+'さんへ返信：'+chatReply.quote:'';
+  }
+  function setChatComposeMode(mode){
+    if(chatSubmitting)return;chatComposeMode=mode==='free'?'free':'template';const free=chatComposeMode==='free';
+    $('#giveTemplatePane').hidden=free;$('#giveFreePane').hidden=!free;
+    $('#giveTemplateTab').setAttribute('aria-pressed',String(!free));$('#giveFreeTab').setAttribute('aria-pressed',String(free));
+    $('#giveTemplatePane').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=free);
+    $('#giveFreeText').disabled=!free;$('#giveFreeSend').disabled=!free;
+    if(free){updateFreeChat();$('#giveFreeText').focus()}else{$('#giveTemplate').open=true;fitChatInput()}
+  }
+  function beginChatReply(key){
+    if(pending()||!chatReady||chatLoadFailed)return;
+    const source=chatAll.find(x=>chatHideKey(x)===key&&!x.unsent&&x.uid!==uid);if(!source)return;
+    chatReply={uid:source.uid,id:source.id,quote:Array.from(source.text.replace(/\s+/g,' ')).slice(0,50).join('')};
+    setChatComposeMode('free');$('#composer').scrollIntoView({block:'nearest'});
+  }
+  $('#giveTemplateTab').onclick=()=>setChatComposeMode('template');$('#giveFreeTab').onclick=()=>setChatComposeMode('free');
+  $('#giveFreeText').addEventListener('input',updateFreeChat);$('#giveReplyCancel').onclick=()=>{chatReply=null;updateFreeChat()};
+
   function templateMessage(placeholders=false){
     const [occupation,name,challenge,content]=templateFields.map((id,i)=>$(id).value.trim()||(placeholders?['［職業］','［名前］','［新たな試み］','［事業内容］'][i]:''));
     return `お疲れ様です！\n\n${occupation}をしております、\n${name}と申します！\n\n現在、${challenge}という超戦をしていこうと考えております！\n\nそれに伴い、${content}に取り組まれている方とのご縁を広めていきたいと思っております。\nお繋ぎいただける方いらっしゃいますか？✨\n\n私の志に賛同し、\nご縁GIVEしてくださる方、\nよろしくお願いいたします！🪭`;
@@ -667,21 +704,35 @@
   templateFields.forEach(id=>$(id).addEventListener('input',fitChatInput));
   $('#giveTemplate').addEventListener('toggle',()=>{if($('#giveTemplate').open)fitChatInput()});
   fitChatInput();
-  $('#composer').addEventListener('submit',e=>{
-    e.preventDefault();
+  $('#composer').addEventListener('submit',async e=>{
+    e.preventDefault();if(chatSubmitting)return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
     if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
-    const missing=templateFields.find(id=>!$(id).value.trim());
-    if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・新たな試み・事業内容をすべて入力してください');return}
-    const text=templateMessage();
-    if(text.length>300){toast('文章を300文字以内にしてください');return}
-    const msg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:giveMode?'give':'msg',to:giveMode?giveTo:'',text:text.slice(0,300),at:new Date().toISOString()};
-    myMsgs.push(msg);if(myMsgs.length>MAX_MY_MSGS)myMsgs=myMsgs.slice(-MAX_MY_MSGS);
-    chatAll=[...chatAll,{...msg,uid}];
-    $('#giveChallenge').value='';$('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;renderChat.stick=true;
-    if(giveMode)setGive(chatMode==='give','');
-    renderChat();renderBuddies();flushChat();
+    const free=chatComposeMode==='free';
+    if(!free){const missing=templateFields.find(id=>!$(id).value.trim());if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('職業・名前・新たな試み・事業内容をすべて入力してください');return}}
+    if(free&&!$('#giveFreeText').value.trim()){toast('返信やメッセージを入力してください');return}
+    if(free&&chatReply&&!chatAll.some(x=>x.uid===chatReply.uid&&x.id===chatReply.id&&!x.unsent)){toast('返信元のメッセージが見つかりません。返信を解除して送信してください。');return}
+    const text=free?freeChatMessage():templateMessage();
+    if(text.length>300){toast('返信先の引用を含めて300文字以内にしてください');return}
+    const to=free?(chatReply?.uid||''):(giveMode?giveTo:''),type=free?'msg':giveMode?'give':'msg',signature=JSON.stringify([type,to,text]);
+    const draft=chatDraftStates[free?'free':'template'];
+    if(!draft.id||draft.signature!==signature){draft.id=crypto.randomUUID();draft.signature=signature}
+    const msg={id:draft.id,type,to,text,at:new Date().toISOString()},who=uid,form=$('#composer'),controls=[...form.querySelectorAll('button,input,textarea')].map(el=>[el,el.disabled]);
+    chatSubmitting=true;controls.forEach(([el])=>el.disabled=true);
+    try{
+      if(chatSavePromise&&!(await chatSavePromise))throw Error('先の変更を保存できませんでした。もう一度送信してください。');
+      const outgoing=[...myMsgs.filter(x=>x.id!==msg.id).slice(-(MAX_MY_MSGS-1)),msg];
+      await db.doc('chats/'+who).set({msgs:clone(outgoing),readAt:myReadAt,giveReadAt:myGiveReadAt});
+      if(uid!==who)return;
+      if(!myMsgs.some(x=>x.id===msg.id))myMsgs=[...myMsgs,msg].slice(-MAX_MY_MSGS);
+      if(!chatAll.some(x=>x.uid===who&&x.id===msg.id))chatAll=[...chatAll,{...msg,uid:who}];
+      draft.id='';draft.signature='';
+      if(free){$('#giveFreeText').value='';chatReply=null;updateFreeChat()}
+      else{$('#giveChallenge').value='';$('#giveContent').value='';fitChatInput();$('#giveTemplate').open=false;if(giveMode)setGive(chatMode==='give','')}
+      renderChat.stick=true;renderChat();renderBuddies();
+    }catch(error){toast(error.message||'送信できませんでした。入力は残っています。もう一度お試しください。')}
+    finally{chatSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled)}
   });
   document.querySelectorAll('[data-mt]').forEach(b=>b.onclick=()=>{
     const t=b.dataset.mt;document.querySelectorAll('[data-mt]').forEach(x=>x.setAttribute('aria-selected',x===b));
@@ -1525,6 +1576,7 @@
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();
+    $('#giveFreeText').value='';chatReply=null;chatDraftStates={template:{},free:{}};updateFreeChat();
     if(announcementsUi)announcementsUi.stop();
     growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
