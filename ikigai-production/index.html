@@ -932,6 +932,17 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
 #chatLog .chat-group-invite{flex:none;align-self:center;width:min(94%,380px);margin:8px 0;border-color:#54705a;background:#202b23}#chatLog .chat-group-invite>b{display:block;margin-top:8px;color:#fff;font-size:15px}#chatLog .chat-group-invite .group-invite-state{color:#9ce4aa;font-size:12px}#chatLog .chat-group-invite button[data-group-join]{background:#65e576;color:#142418;border-color:#65e576}
 
 #groupInviteList .group-list-item{display:block;width:100%;margin:8px 0;padding:14px 12px;border:1px solid #444;border-radius:12px;background:#292929;color:#fff;text-align:left;font:inherit;overflow-wrap:anywhere}#groupInviteList .group-list-item:hover{background:#333}#groupInviteStatus:empty{display:none}
+
+/* Keep the template frame on a vertical scroll axis, including narrow phones. */
+#mtChat #composer{width:100%;min-width:0;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y}
+#composer>div,#giveTemplatePane,#giveTemplate,#giveTemplate .template-fields,#giveTemplate .template-fields label{min-width:0;max-width:100%}
+#giveTemplate .template-fields{grid-template-columns:minmax(0,1fr)}#giveTemplate input,#giveTemplate textarea{min-width:0;max-width:100%;touch-action:pan-y}#giveTemplate #chatInput{white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:hidden}
+#giveTemplate summary{min-width:0;gap:8px;overflow-wrap:anywhere}#giveTemplate summary>span{display:grid;place-items:center;flex:0 0 20px;width:20px;height:20px;line-height:20px;margin-inline:6px;transform-origin:center}#giveTemplate .template-actions{flex-wrap:wrap}#giveTemplate .template-actions button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+/* The plus menu uses dark text on light surfaces for every label and control. */
+#v-mates #dmPanel{background:#fff;color:#2b2023;color-scheme:light;border-color:#ddd;overflow-x:hidden}
+#dmPanel #groupInvites{background:#fff;color:#2b2023;border-color:#ddd}#dmPanel #groupInvites .channel-summary,#dmPanel .card-head,#dmPanel .card-head>b{color:#2b2023}
+#dmPanel .muted,#dmPanel .admin-note,#dmPanel .template-note{color:#65585d}
+#dmPanel .small-btn,#dmPanel .dm-thread,#dmPanel #groupInviteList .group-list-item{background:#f6f3f4;color:#2b2023;border-color:#d6cdd0}#dmPanel .small-btn:hover,#dmPanel .dm-thread:hover,#dmPanel #groupInviteList .group-list-item:hover{background:#eee7e9}#dmPanel .dm-thread b{color:#2b2023}
 </style>
 </head>
 <body>
