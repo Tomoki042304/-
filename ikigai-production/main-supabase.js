@@ -420,6 +420,11 @@ function start() {
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),payload.action==='unsubscribe'?5000:45000);
       try{const response=await fetch('/api/push',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('通知に接続できませんでした。')}if(!response.ok){const error=Error(result.message||'通知を設定できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
     },
+    groups: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+      try{const response=await fetch('/api/groups',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('グループに接続できませんでした。')}if(!response.ok){const error=Error(result.message||'グループを保存できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
+    },
     directMessages: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);

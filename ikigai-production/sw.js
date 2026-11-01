@@ -1,9 +1,9 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v66-reactors-free-reply";
+const CACHE = "ikigai-v67-groups";
 const SHELL = ["./", "index.html", "main-supabase.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
-  'message-reactions.js', 'growth-photos.js', 'admin-notices.js', 'security-settings.js', 'announcements.js', 'inquiry.js', 'push-notifications.js',
+  'groups.js', 'message-reactions.js', 'growth-photos.js', 'admin-notices.js', 'security-settings.js', 'announcements.js', 'inquiry.js', 'push-notifications.js',
   'shin-ai.js', 'shin-knowledge.js', 'youtube-recommendations.js'].map(path => new URL(path, self.registration.scope).href));
 function cacheable(request) {
   const url = new URL(request.url);

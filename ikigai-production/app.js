@@ -568,7 +568,7 @@
   const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return'';const k=iso(d);return k===todayKey?'今日':k===yesterdayKey?'昨日':`${d.getMonth()+1}月${d.getDate()}日`};
   function mkAvatar(id){const a=document.createElement('div');a.className='avatar';a.setAttribute('role','img');a.setAttribute('aria-label',nameOf(id)+'のプロフィール');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
   function markRead(){
-    if(backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||document.visibilityState!=='visible')return;
+    if(backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||$('#mtChat').hidden||$('#groupCommon').hidden||document.visibilityState!=='visible')return;
     const give=chatMode==='give';
     const newest=chatAll.filter(x=>x.uid!==uid).reduce((a,x)=>x.at>a?x.at:a,'');   // one room: every message counts
     if(!newest||newest<=(give?myGiveReadAt:myReadAt))return;
@@ -677,12 +677,12 @@
     $('#giveReplyLabel').textContent=chatReply?nameOf(chatReply.uid)+'さんへ返信：'+chatReply.quote:'';
   }
   function setChatComposeMode(mode){
-    if(chatSubmitting)return;chatComposeMode=mode==='free'?'free':'template';const free=chatComposeMode==='free';
-    $('#giveTemplatePane').hidden=free;$('#giveFreePane').hidden=!free;
-    $('#giveTemplateTab').setAttribute('aria-pressed',String(!free));$('#giveFreeTab').setAttribute('aria-pressed',String(free));
-    $('#giveTemplatePane').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=free);
+    if(chatSubmitting)return;chatComposeMode=['free','group'].includes(mode)?mode:'template';const free=chatComposeMode==='free',group=chatComposeMode==='group';
+    $('#giveTemplatePane').hidden=free||group;$('#giveFreePane').hidden=!free;$('#giveGroupPane').hidden=!group;
+    $('#giveTemplateTab').setAttribute('aria-pressed',String(!free&&!group));$('#giveGroupTab').setAttribute('aria-pressed',String(group));$('#giveFreeTab').setAttribute('aria-pressed',String(free));
+    $('#giveTemplatePane').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=free||group);$('#giveGroupPane').querySelectorAll('input,textarea,button').forEach(el=>el.disabled=!group);
     $('#giveFreeText').disabled=!free;$('#giveFreeSend').disabled=!free;
-    if(free){updateFreeChat();$('#giveFreeText').focus()}else{$('#giveTemplate').open=true;fitChatInput()}
+    if(group){$('#groupName').focus()}else if(free){updateFreeChat();$('#giveFreeText').focus()}else{$('#giveTemplate').open=true;fitChatInput()}
   }
   function beginChatReply(key){
     if(pending()||!chatReady||chatLoadFailed)return;
@@ -705,7 +705,7 @@
   $('#giveTemplate').addEventListener('toggle',()=>{if($('#giveTemplate').open)fitChatInput()});
   fitChatInput();
   $('#composer').addEventListener('submit',async e=>{
-    e.preventDefault();if(chatSubmitting)return;
+    e.preventDefault();if(chatSubmitting||chatComposeMode==='group')return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
     if(!chatReady||chatLoadFailed){toast('トークの読み込み後に送信してください');return}
@@ -1575,7 +1575,7 @@
     if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
-    if(directMessages)directMessages.stop();
+    if(directMessages)directMessages.stop();groupUi?.stop();
     $('#giveFreeText').value='';chatReply=null;chatDraftStates={template:{},free:{}};updateFreeChat();
     if(announcementsUi)announcementsUi.stop();
     growthPhotosUi?.stop();
@@ -1764,6 +1764,13 @@
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }
+  let groupUi=null,groupsLoading=null;
+  async function ensureGroups(){
+    if(backend!=='cloud'||!uid||pending())return null;
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,compose:setChatComposeMode,request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    return groupUi;
+  }
+  $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
@@ -1844,10 +1851,11 @@
     if(tab==='timeline')renderFeed();
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
-    if(tab==='mates'){renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
+    if(tab==='mates'){ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
     if(backend==='cloud'&&uid&&!pending())ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();
+    if(tab!=='mates')groupUi?.leave();
     syncHomeLogTimer(true);
     window.scrollTo(0,0);
     processPushNotice();
