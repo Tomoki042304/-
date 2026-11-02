@@ -19,7 +19,7 @@ export async function onRequest({request,env}){
  const targets=body.action==='set'?[body.target]:body.targets;
  if(!Array.isArray(targets)||targets.length>30||!targets.length||!targets.every(validTarget)||(body.action==='set'&&!['',...EMOJI].includes(body.emoji)))return reply(400,{message:'4種類のリアクションから選んでください。'});
  const user=await requireMemberRole(request);if(!user.ok)return reply(user.status,{message:user.message});if(!UUID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
- const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'リアクションの接続準備中です。'});
+ const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'リアクションの接続準備中です。'});
  try{
   let allowed;
   if(body.scope==='group'){
@@ -33,7 +33,7 @@ export async function onRequest({request,env}){
    allowed=await Promise.all(targets.map(async t=>{const [m,cancelled]=await Promise.all([kv.get('dm:message:v1:'+thread.id+':'+t.messageId,'json'),kv.get('dm:unsent:v1:'+thread.id+':'+t.messageId)]);return !!m&&m.threadId===thread.id&&[thread.hostUid,thread.memberUid].includes(m.senderUid)&&m.senderUid===t.senderUid&&!m.unsent&&!cancelled&&Number.isFinite(Date.parse(m.at))&&Date.parse(m.at)>=since}));
   }
   if(body.action==='set'&&!allowed[0])return reply(403,{message:'閲覧できるメッセージのみリアクションできます。'});
-  const states=await Promise.all(targets.map(async(target,i)=>{if(!allowed[i])return {...target,counts:[],mine:''};const p=await prefix(body.scope,body.threadId,target);if(body.action==='set')await kv.put(p+user.uid,JSON.stringify({emoji:body.emoji,at:new Date().toISOString()}));return {...target,...await summary(kv,p,user.uid,body.action==='set'?body.emoji:undefined)}}));
+  const states=await Promise.all(targets.map(async(target,i)=>{if(!allowed[i])return {...target,counts:[],mine:''};const p=await prefix(body.scope,body.threadId,target);if(body.action==='set')await kv.put(p+user.uid,JSON.stringify({emoji:body.emoji,at:new Date().toISOString(),scope:body.scope,threadId:body.threadId||'',senderUid:target.senderUid,messageId:target.messageId}));return {...target,...await summary(kv,p,user.uid,body.action==='set'?body.emoji:undefined)}}));
   return reply(200,{states});
  }catch{return reply(503,{message:'リアクションを更新できませんでした。もう一度お試しください。'})}
 }

@@ -48,7 +48,7 @@ export async function requireYoutubeHost(request){
 }
 
 // Account settings remain available to signed-in users awaiting membership approval.
-export async function requireAccountUser(request){
+export async function requireAccountUser(request,{verifyLive=false}={}){
   const url=new URL(request.url),origin=request.headers.get('Origin');
   if(url.protocol!=='https:'||url.hostname!=='ikigai-shidoroku.pages.dev'||(origin&&origin!==url.origin))return {status:403,message:'本番の公開サイトから利用してください。'};
   const bearer=request.headers.get('Authorization')||'';
@@ -56,6 +56,12 @@ export async function requireAccountUser(request){
   const who=await readCheck('/auth/v1/user',{headers:{apikey:PUBLIC_KEY,Authorization:bearer}},'AUTH');
   if(who.failure)return who.failure;
   if(!who.ok||typeof who.body?.id!=='string')return {status:who.status===401?401:503,message:'ログイン状態を確認できませんでした。'};
+  if(verifyLive){
+  const live=await readCheck('/rest/v1/rpc/ikigai_current_account_live_v1',{method:'POST',headers:{apikey:PUBLIC_KEY,Authorization:bearer,'Content-Type':'application/json'},body:'{}'},'AUTH');
+  if(live.failure)return live.failure;
+  const legacyMissing=!live.ok&&['PGRST202','42883'].includes(live.body?.code);
+  if(!legacyMissing&&(!live.ok||live.body!==true))return {status:live.status===401||live.ok?401:503,message:'アカウントの利用状態を確認できません。ログインし直してください。'};
+  }
   return {ok:true,uid:who.body.id,email:typeof who.body.email==='string'?who.body.email:''};
 }
 

@@ -28,7 +28,11 @@ export function runtimeStore(env){
   async put(key,value,options={}){
    validKey(key);if(typeof value!=='string')throw Error('RUNTIME_VALUE_INVALID');
    const expiry=Number.isFinite(options?.expiration)?options.expiration*1000:Number.isFinite(options?.expirationTtl)?Date.now()+options.expirationTtl*1000:null;
-   const row={key,value,expires_at:expiry===null?null:new Date(expiry).toISOString(),updated_at:new Date().toISOString()};await db(TABLE+'?on_conflict=key',{method:'POST',body:row});cache.set(key,row);
+   const row={key,value,expires_at:expiry===null?null:new Date(expiry).toISOString(),updated_at:new Date().toISOString()};
+   if(/^(group|dm|reaction|inquiry|inquiry-history|push|announcement):/.test(key)&&await readRow('system:member-erasure-guard:v1')){
+    if(typeof env.IKIGAI_ACTOR_UID!=='string')throw Error('GUARDED_RUNTIME_ACTOR_REQUIRED');
+    const stored=await db('rpc/ikigai_runtime_write_guarded_v1',{method:'POST',body:{p_actor:env.IKIGAI_ACTOR_UID,p_key:key,p_value:value,p_expires:row.expires_at}});if(typeof stored!=='string')throw Error('RUNTIME_WRITE_INVALID');row.value=stored;
+   }else await db(TABLE+'?on_conflict=key',{method:'POST',body:row});cache.set(key,row);
   },
   async delete(key){validKey(key);await db(TABLE+'?'+new URLSearchParams({key:'eq.'+key}),{method:'DELETE'});cache.set(key,null)},
   async list({prefix='',limit=1000,cursor}={}){

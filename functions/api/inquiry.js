@@ -9,10 +9,10 @@ export async function onRequest({request,env}){
   if(!TYPES.includes(type))return reply(400,{message:'お問い合わせ項目を選んでください。'});
   if(!['GET','POST'].includes(request.method))return reply(405,{message:'利用できない操作です。'});
   const reading=request.method==='GET'||(request.method==='POST'&&url.searchParams.get('read')==='1');
-  const user=await (admin?requireYoutubeHost:requireAccountUser)(request);
+  const user=await (admin?requireYoutubeHost(request):requireAccountUser(request,{verifyLive:true}));
   if(!user.ok)return reply(user.status,{message:user.status===403&&admin?'管理者専用の連絡欄です。':user.message});
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv(env);if(!kv?.get||!kv?.put||(admin&&!kv?.list))return reply(503,{message:'問い合わせ機能は接続準備中です。'});
+  const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv?.get||!kv?.put||(admin&&!kv?.list))return reply(503,{message:'問い合わせ機能は接続準備中です。'});
   let stage='STORE';
   try{
     if(admin&&reading){

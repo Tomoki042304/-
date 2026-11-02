@@ -1380,6 +1380,7 @@
     ensureAdminNotices().then(ui=>{if(uid===who&&isOwnerView)ui?.update(key,items,options)}).catch(()=>{});
   }
   async function pollMemberNotices(){
+    if(document.querySelector('#memberActionDialog[open],.member-row-menu'))return;
     const editing=[...document.querySelectorAll('#adminRoster [data-member-plan-id]')].some(select=>select.value!==adminRows.find(r=>r.user_id===select.dataset.memberPlanId)?.member_plan);
     if(!editing)await loadAdminMembers();
   }
@@ -1440,19 +1441,17 @@
       const state=document.createElement('span');state.className='admin-check'+(r.checked_today===true?' done':'');state.textContent=r.checked_today===true?'✓ チェック済み':r.checked_today===false?'未チェック':'未取得';
       if(r.checked_today!==true&&r.checked_today!==false)state.title='行動チェックの記録をまだ取得できていません。未チェックの人数には含めません。';
       if(r.user_id!==uid){const button=document.createElement('button');button.type='button';button.className='small-btn dm-start-btn';button.textContent='チャット';button.onclick=()=>startDirectMessage(r.user_id);person.append(button)}
-      const planBox=document.createElement('div');planBox.className='btn-row';
-      if(r.is_admin){const label=document.createElement('small');label.textContent='プレミアムプラン';planBox.append(label)}
-      else if(['basic','premium'].includes(r.member_plan)){
-        const select=document.createElement('select');select.className='member-plan-select';select.dataset.memberPlanId=r.user_id;select.setAttribute('aria-label',name+'の会員プラン');
-        for(const [value,label] of [['basic','ベーシック'],['premium','プレミアム']]){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option)}
-        select.value=r.member_plan;
-        const save=document.createElement('button');save.type='button';save.className='small-btn';save.textContent='プランを保存';
-        save.onclick=async()=>{save.disabled=true;select.disabled=true;try{await userNs.memberPlans.set(r.user_id,select.value);r.member_plan=select.value;toast('会員プランを保存しました');if(r.user_id===uid)window.dispatchEvent(new CustomEvent('ikigai-refresh-data',{detail:{tasks:[]}}))}catch(error){select.value=r.member_plan;toast(error.message||'プランを保存できませんでした')}finally{save.disabled=false;select.disabled=false}};
-        planBox.append(select,save);
-      }else{const label=document.createElement('small');label.textContent='プラン設定の準備中';planBox.append(label)}
-      person.append(planBox);
+      const planLabel=document.createElement('small');planLabel.textContent=r.is_admin||r.member_plan==='premium'?'プレミアムプラン':r.member_plan==='basic'?'ベーシックプラン':'プラン設定の準備中';person.append(planLabel);
+      const actions=document.createElement('button');actions.type='button';actions.className='member-row-actions';actions.textContent='︙';actions.setAttribute('aria-label',name+'のメンバー操作');actions.setAttribute('aria-haspopup','menu');actions.setAttribute('aria-expanded','false');
+      actions.onclick=async()=>{try{const module=await import('./member-actions.js');module.openMemberActions({anchor:actions,member:r,currentUid:uid,request:payload=>{if(!window.appAuth?.memberErasure)throw Error('削除機能を更新するため、アプリを読み込み直してください。');return window.appAuth.memberErasure(payload)},setPlan:(id,plan)=>userNs.memberPlans.set(id,plan),onChange:()=>{void loadAdminMembers();void renderApplicants();window.dispatchEvent(new CustomEvent('ikigai-refresh-data',{detail:{tasks:[]}}))}})}catch(error){toast(error.message||'メンバー操作を開けませんでした。')}};
+      row.append(actions);
       row.append(av,person,state);box.append(row);
     });
+  }
+  async function refreshPendingDeletions(){
+    const who=uid;if(!isOwnerView||$('#accAdmin').hidden||!window.appAuth?.memberErasure)return;
+    let box=$('#memberDeletionJobs');if(!box){box=document.createElement('div');box.id='memberDeletionJobs';$('#adminRoster').before(box)}
+    try{const module=await import('./member-actions.js');if(who!==uid||!isOwnerView)return;await module.renderPendingDeletions({container:box,request:payload=>{if(!window.appAuth?.memberErasure)throw Error('削除機能を更新するため、アプリを読み込み直してください。');return window.appAuth.memberErasure(payload)},onChange:()=>{void loadAdminMembers();void renderApplicants()}})}catch(error){if(who===uid&&isOwnerView)box.textContent=error.message||'削除処理の状態を取得できませんでした。'}
   }
   async function loadAdminMembers(){
     if(!isOwnerView||$('#accAdmin').hidden||!userNs)return;
@@ -1470,6 +1469,7 @@
       $('#adminCheckDay').textContent=days.length?String(days[0]).replace(/-/g,'/')+' の行動チェック（日本時間）':'今日の行動チェック（日本時間）';
       noticeSection('members',memberNoticeRows(adminRows));
       adminLoaded=true;renderAdminRoster();$('#adminUpdated').textContent='最終取得：'+postTimeText(new Date().toISOString());
+      void refreshPendingDeletions();
     }catch(err){
       if(!active())return;
       adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();

@@ -233,7 +233,11 @@ function start() {
     const docs = rows.map(r => wrapDoc(r.path, r));
     return { docs, size: docs.length, empty: !docs.length, metadata: {} };
   };
-  const fail = error => { if (error) throw error; };
+  let removedAccountSigningOut=false;
+  const fail = error => {
+    if(error?.code==='PT401'&&!removedAccountSigningOut){removedAccountSigningOut=true;void auth.signOut({scope:'local'}).catch(()=>{removedAccountSigningOut=false})}
+    if(error)throw error;
+  };
   async function readChatRows(){
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
     try{const {data,error}=await supabase.rpc('ikigai_chat_room_v1').abortSignal(controller.signal);fail(error);
@@ -416,6 +420,11 @@ function start() {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
       try{const response=await fetch('/api/shin-knowledge',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'知識を更新できませんでした。');return result}finally{clearTimeout(timer)}
+    },
+    memberErasure: async payload => {
+      const {data,error}=await supabase.auth.getSession();fail(error);if(!data.session)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+      try{const response=await fetch('/api/members',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'メンバー操作を完了できませんでした。');return result}finally{clearTimeout(timer)}
     },
     nightlyReport: async () => {
       const {data,error}=await supabase.auth.getSession();fail(error);if(!data.session)throw Error('ログインし直してください。');

@@ -7,7 +7,7 @@ export async function onRequest(context){
   const {request,env}=context;if(request.method!=='POST')return reply(405,{message:'POSTで利用してください。'});
   const user=await requireYoutubeMember(request);if(!user.ok)return reply(user.status,{message:user.message});
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
-  const kv=operationalStore(env);if(!kv?.get||!kv?.put||!kv?.list||!kv?.delete)return reply(503,{message:'通知機能は接続準備中です。'});
+  const kv=operationalStore({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv?.get||!kv?.put||!kv?.list||!kv?.delete)return reply(503,{message:'通知機能は接続準備中です。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>10000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object')throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
   try{
     if(body.action==='key'){

@@ -41,7 +41,7 @@ export function createGroupHandler({authenticate=requireMemberRole,admission=rea
   if(!['list','create','join','messages','send','unsend','delete','members','read','reaction-list','reaction-set'].includes(body.action)||body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>4096))return reply(400,{message:'操作内容を確認してください。'});
   const user=await authenticate(request);if(!user.ok)return reply(user.status,{message:user.message});
   try{
-   const since=await admission(request),kv=store(env);if(!kv)throw Error();
+   const since=await admission(request),kv=store({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv)throw Error();
    if(!Number.isFinite(since)||!uuid(user.uid))throw Error();
    const participating=async room=>{
     if(user.isHost)return {joined:true,since};
