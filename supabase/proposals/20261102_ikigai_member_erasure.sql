@@ -158,6 +158,8 @@ BEGIN
  IF NOT FOUND THEN RETURN jsonb_build_object('missing',true);END IF;u=j.target::text;
  IF p_action='get' THEN RETURN to_jsonb(j);END IF;
  IF p_action='advance' THEN
+  IF p_meta ? '__expectedPhase' AND ((p_meta->>'__expectedPhase') IS DISTINCT FROM j.phase OR (p_meta->>'__expectedCursor') IS DISTINCT FROM j.cursor) THEN RETURN to_jsonb(j);END IF;
+  p_meta=p_meta-'__expectedPhase'-'__expectedCursor';
   IF j.phase='photos' THEN j.phase='inventory';j.cursor=NULL;
   ELSIF j.phase='inventory' THEN j.cursor=p_cursor;IF p_meta IS NOT NULL THEN j.meta=j.meta||p_meta;END IF;IF p_cursor IS NULL THEN j.phase='legacy';END IF;
   ELSIF j.phase='legacy' THEN j.cursor=p_cursor;IF p_cursor IS NULL THEN j.phase='legacy-wait';j.verify_after=now()+interval '70 seconds';END IF;

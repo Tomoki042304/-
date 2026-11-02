@@ -74,7 +74,7 @@ export function createErasureService(env,actor,{rpc,remote}={}){
   async start(target,id){if(!env.YT_CACHE?.list||!env.YT_CACHE?.get||!env.YT_CACHE?.delete||!env.YT_CACHE?.put)throw Error('ERASURE_LEGACY_UNAVAILABLE');const job=await db('start',{p_target:target,p_job:id});return job.done?{done:true}:{done:false,job:safeJob(job)}},
   async step(id){
    let job=await db('get',{p_job:id});if(job.missing)return {missing:true,done:false};
-   const advance=extra=>db('advance',{p_job:id,...extra});
+   const advance=extra=>db('advance',{p_job:id,...extra,p_meta:{...(extra.p_meta||{}),__expectedPhase:job.phase,__expectedCursor:job.cursor??null}});
    if(job.phase==='photos'){if(await photos(job.target))job=await advance({})}
    else if(['inventory','legacy','legacy-verify'].includes(job.phase)){
     const page=await legacyPage(job,job.phase);
