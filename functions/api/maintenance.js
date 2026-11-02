@@ -6,6 +6,7 @@ import {requireYoutubeHost} from '../../server/youtube-member.js';
 const HOST='https://ikigai-shidoroku.pages.dev';
 const reply=(status,value)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Authorization, Origin'}});
 export async function onRequest({request,env}){
+ let auditAuthorized=false;
  const url=new URL(request.url);
  if(url.origin!==HOST)return reply(403,{message:'本番サイトから利用してください。'});
  try{
@@ -23,8 +24,10 @@ export async function onRequest({request,env}){
   let body;try{body=JSON.parse(raw)}catch{return reply(400,{message:'操作を確認してください。'})}
   if(body?.action==='audit'){
    const token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
-   if(!await verifyNightlyIdentity(token))return reply(403,{message:'点検実行の権限がありません。'});
-   const state=await maintenanceState(env);if(!state.configured)return reply(503,{message:'先に点検用SQLの設定が必要です。'});
+   let identityCode='OIDC_VERIFICATION_FAILED';
+   if(!await verifyNightlyIdentity(token,{onFailure:code=>{identityCode=code}}))return reply(identityCode==='OIDC_KEYS_UNAVAILABLE'?503:403,{code:identityCode,message:'点検実行の権限を確認できませんでした。'});
+   auditAuthorized=true;
+   const state=await maintenanceState(env);if(!state.configured)return reply(503,{code:'MAINTENANCE_SQL_REQUIRED',message:'先に点検用SQLの設定が必要です。'});
    // Result supplied by the authorized workflow is allowlisted inside the audit.
    const report=await runNightlyAudit(env,body.checks||{});
    return reply(report.busy?409:200,{busy:report.busy===true,id:report.id,status:report.status});
@@ -37,5 +40,9 @@ export async function onRequest({request,env}){
   const reportDay=report?.startedAt?new Date(Date.parse(report.startedAt)+9*3600000).toISOString().slice(0,10):null;
   const completion=Date.parse(state.lastCheckedAt||'');
   return reply(200,{state,report,scheduledCheckMissing:!report||!Number.isFinite(completion)||completion<Date.parse(report.finishedAt)-1000||Date.now()>Date.parse(state.end)&&reportDay!==today});
- }catch{return reply(503,{message:'点検状態を取得できませんでした。点検が成功したとは判定していません。'})}
+ }catch(error){
+  let code='MAINTENANCE_STATUS_UNAVAILABLE';
+  if(auditAuthorized)code=error?.code==='42501'?'AUDIT_DB_PERMISSION_DENIED':error?.status===401||error?.code==='PGRST301'?'AUDIT_DB_AUTH_FAILED':['PGRST202','42P01','42883'].includes(error?.code)?'AUDIT_DB_SCHEMA_MISSING':error?.name==='AbortError'?'AUDIT_DB_TIMEOUT':'AUDIT_EXECUTION_FAILED';
+  return reply(503,{code,message:'点検状態を取得できませんでした。点検が成功したとは判定していません。'});
+ }
 }

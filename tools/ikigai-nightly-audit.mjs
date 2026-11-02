@@ -20,7 +20,7 @@ export async function scanPublicSources(){
  return {publicSecrets:secretFound?'critical':'pass',dependencies:dependencyStatus};
 }
 async function main(){
- const checks=await scanPublicSources();
+ let checks;try{checks=await scanPublicSources()}catch{throw failure('PUBLIC_SOURCE_SCAN_FAILED')}
  checks.apiAccess='unverified';checks.apiMaintenance='unverified';
  checks.publicFiles='unverified';
  try{
@@ -47,14 +47,32 @@ async function main(){
   else checks.apiAccess=probes.some(p=>p.status>=200&&p.status<300)?'critical':probes.every(p=>[401,403].includes(p.status))?'pass':'unverified';
  }catch{}
 
- if(!process.env.ACTIONS_ID_TOKEN_REQUEST_URL||!process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN)throw Error('OIDC_UNAVAILABLE');
- const url=new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);url.searchParams.set('audience',origin+'/api/maintenance');
- const identity=await fetch(url,{headers:{Authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN},signal:AbortSignal.timeout(15000)});
- if(!identity.ok)throw Error('OIDC_UNAVAILABLE');const {value}=await identity.json();if(typeof value!=='string')throw Error('OIDC_UNAVAILABLE');
- const response=await fetch(origin+'/api/maintenance',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+value},body:JSON.stringify({action:'audit',checks}),redirect:'error',signal:AbortSignal.timeout(150000)});
- if(response.status===409){console.log('Another authorized audit is already running.');return}
- if(!response.ok)throw Error('AUDIT_REQUEST_FAILED_'+response.status);
- const result=await response.json();console.log('Audit completed. Status: '+(['critical','error','warning','incomplete'].includes(result.status)?result.status:'unknown'));
- if(['critical','error'].includes(result.status))process.exitCode=1;
+ await requestServerAudit(checks);
+
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===new URL(import.meta.url).pathname)main().catch(()=>{console.error('Audit did not complete. Inspect server configuration and workflow status. No successful check has been recorded.');process.exitCode=1});
+const SAFE_CODES=new Set(['PUBLIC_SOURCE_SCAN_FAILED','OIDC_UNAVAILABLE','OIDC_REQUEST_FAILED','OIDC_RESPONSE_INVALID','OIDC_NETWORK_FAILED','AUDIT_NETWORK_FAILED','AUDIT_RESPONSE_INVALID','AUDIT_HTTP_FAILED','UNEXPECTED_ERROR','OIDC_ALGORITHM_REJECTED','OIDC_ISSUER_REJECTED','OIDC_AUDIENCE_REJECTED','OIDC_REPOSITORY_REJECTED','OIDC_REF_REJECTED','OIDC_WORKFLOW_REJECTED','OIDC_EVENT_REJECTED','OIDC_SUBJECT_REJECTED','OIDC_TIME_REJECTED','OIDC_FORMAT_REJECTED','OIDC_CLAIMS_REJECTED','OIDC_KEYS_UNAVAILABLE','OIDC_KEY_NOT_FOUND','OIDC_SIGNATURE_REJECTED','OIDC_VERIFICATION_FAILED','MAINTENANCE_SQL_REQUIRED','AUDIT_DB_PERMISSION_DENIED','AUDIT_DB_AUTH_FAILED','AUDIT_DB_SCHEMA_MISSING','AUDIT_DB_TIMEOUT','AUDIT_EXECUTION_FAILED','MAINTENANCE_STATUS_UNAVAILABLE']);
+function failure(code,httpStatus){const error=Error('Audit diagnostic');error.diagnosticCode=code;if(Number.isInteger(httpStatus))error.httpStatus=httpStatus;return error}
+export function auditFailureMessage(error){
+ const code=SAFE_CODES.has(error?.diagnosticCode)?error.diagnosticCode:'UNEXPECTED_ERROR';
+ const status=Number.isInteger(error?.httpStatus)&&error.httpStatus>=100&&error.httpStatus<=599?' HTTP='+error.httpStatus:'';
+ return 'Audit did not complete. Code='+code+status+'. No completed audit has been confirmed. Do not share tokens or secret keys.';
+}
+export async function requestServerAudit(checks,{environment=process.env,fetcher=fetch,log=console.log}={}){
+ if(!environment.ACTIONS_ID_TOKEN_REQUEST_URL||!environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN)throw failure('OIDC_UNAVAILABLE');
+ log('Audit stage: requesting GitHub identity');
+ const url=new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL);url.searchParams.set('audience',origin+'/api/maintenance');
+ let identity;try{identity=await fetcher(url,{headers:{Authorization:'Bearer '+environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN},signal:AbortSignal.timeout(15000)})}catch{throw failure('OIDC_NETWORK_FAILED')}
+ if(!identity.ok)throw failure('OIDC_REQUEST_FAILED',identity.status);
+ const identityBody=await identity.json().catch(()=>null),value=identityBody?.value;
+ if(typeof value!=='string'||!value)throw failure('OIDC_RESPONSE_INVALID');
+ log('Audit stage: requesting server audit');
+ let response;try{response=await fetcher(origin+'/api/maintenance',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+value},body:JSON.stringify({action:'audit',checks}),redirect:'error',signal:AbortSignal.timeout(150000)})}catch{throw failure('AUDIT_NETWORK_FAILED')}
+ const result=await response.json().catch(()=>null);
+ if(response.status===409&&result?.busy===true){log('Another authorized audit is already running.');return {busy:true}}
+ if(!response.ok)throw failure(SAFE_CODES.has(result?.code)?result.code:'AUDIT_HTTP_FAILED',response.status);
+ if(!['critical','error','warning','incomplete'].includes(result?.status))throw failure('AUDIT_RESPONSE_INVALID',response.status);
+ log('Audit completed. Status: '+result.status);
+ if(['critical','error'].includes(result.status))process.exitCode=1;
+ return result;
+}
+if(process.argv[1]&&path.resolve(process.argv[1])===new URL(import.meta.url).pathname)main().catch(error=>{console.error(auditFailureMessage(error));process.exitCode=1});
