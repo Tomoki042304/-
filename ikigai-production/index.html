@@ -973,7 +973,7 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
 
 body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboard #giveReplyContext{max-height:40px}
 </style>
-</head>
+<style>#talkIntroductionForm label{display:grid;gap:6px;margin:12px 0}#talkIntroductionForm input{width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}#talkIntroductionForm[hidden]{display:none}</style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
   <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
@@ -1296,6 +1296,14 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         <div id="dmMessages" class="dm-log" aria-live="polite"></div><p id="dmStatus" role="status" class="dm-note"></p>
         <form id="dmForm" class="comp-row"><textarea id="dmInput" rows="2" maxlength="2000" placeholder="個別メッセージを入力" aria-label="個別メッセージ"></textarea><button type="submit" id="dmSend" class="send-btn" aria-label="個別メッセージを送信">↑</button></form>
       </section>
+      <form id="talkIntroductionForm" class="card" hidden>
+        <h2>自己紹介を送ってトークに参加</h2><p>４項目を入力して全体トークへ送信すると、トークを利用できます。内容は参加メンバーに公開されます。</p>
+        <label>名前<input name="name" maxlength="40" required autocomplete="name"></label>
+        <label>職業<input name="occupation" maxlength="60" required></label>
+        <label>一年後目標<input name="goal" maxlength="100" required></label>
+        <label>一言<input name="message" maxlength="60" required></label>
+        <button type="submit" class="primary">自己紹介を送信して参加する</button><p id="talkIntroductionStatus" role="status"></p>
+      </form>
       <div id="mtChat" class="view">
         <div id="groupCommon">
         <div class="card" id="buddyCard" style="padding:14px 16px" hidden>
@@ -1614,6 +1622,6 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
   await maintenance.ready;
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
-<dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p><div id="announcementList" class="admin-roster"></div></section><div id="reactionNotifications" class="admin-roster" style="margin-top:14px"></div></dialog>
+<dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p></section><div id="notificationList" class="admin-roster" style="margin-top:14px" aria-label="新しい順のお知らせ"></div></dialog>
 </body>
 </html>

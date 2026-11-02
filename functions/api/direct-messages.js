@@ -1,3 +1,4 @@
+import {hasTalkIntroduction} from '../../server/talk-introduction.js';
 import {privateKv} from '../../server/pii-storage.js';
 import {deliverPush} from '../../server/web-push.js';
 import {requireMemberRole,readPrivateChatRoster,readPrivateChatRosterIds,readChatAccessSince} from '../../server/youtube-member.js';
@@ -14,7 +15,7 @@ export async function onRequest(context){
   const {request,env}=context;
   if(request.method!=='POST')return reply(405,{message:'POSTで利用してください。'});
   const user=await requireMemberRole(request);if(!user.ok)return reply(user.status,{message:user.message});
-  try{user.chatSince=await readChatAccessSince(request)}catch{return reply(503,{message:'トークの利用情報を確認できませんでした。時間をおいてもう一度お試しください。'})}
+  try{if(!await hasTalkIntroduction(request))return reply(403,{code:'TALK_INTRODUCTION_REQUIRED',message:'先に全体トークへ自己紹介を送信してください。'});user.chatSince=await readChatAccessSince(request)}catch{return reply(503,{message:'トークの利用情報を確認できませんでした。時間をおいてもう一度お試しください。'})}
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
   const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'個別トークは接続準備中です。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>8000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object'||Array.isArray(body))throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}

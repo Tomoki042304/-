@@ -294,12 +294,18 @@
     const comments=cmtsAll.filter(c=>c.uid!==uid&&own.has(c.key)).map(c=>({id:'comment|'+c.uid+'|'+c.id,kind:'comment',by:c.uid,key:c.key,at:c.at,text:nameOf(c.uid)+'さんがあなたの投稿にコメントしました。'}));
     return [...likes,...comments].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   }
-  function renderReactionNotice(){const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length+(announcementsUi?.unread()||0);const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
+  function sortNotificationRows(){
+    const list=$('#notificationList');if(!list)return;
+    const stamp=row=>{const time=Date.parse(row.dataset.noticeAt||'');return Number.isFinite(time)?time:0};
+    const ordered=[...list.children].sort((a,b)=>stamp(b)-stamp(a));
+    for(const row of ordered)list.append(row);
+  }
+  function renderReactionNotice(){sortNotificationRows();const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length+(announcementsUi?.unread()||0);const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
   function openReactionNotices(){
     if(backend!=='cloud'||pending()){toast('承認後にお知らせを確認できます。');return}
-    const events=reactionEvents(),box=$('#reactionNotifications');box.replaceChildren();if(!events.length)box.textContent='いいね・コメントのお知らせはまだありません。';
-    for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
-    $('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
+    const events=reactionEvents(),box=$('#notificationList');box.querySelectorAll('.reaction-notice').forEach(row=>row.remove());
+    for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.dataset.noticeAt=event.at||'';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
+    sortNotificationRows();$('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
   }
   $('#notificationsClose').onclick=()=>$('#notificationsDialog').close();
   const agoText=at=>{const d=new Date(at),m=Math.floor((Date.now()-d)/60000);if(isNaN(m))return'';if(m<1)return'たった今';if(m<60)return`${m}分前`;if(m<1440)return`${Math.floor(m/60)}時間前`;return`${d.getMonth()+1}月${d.getDate()}日`};
@@ -577,6 +583,25 @@
 
   // ---------- buddy chat: each person keeps their own messages in chats/<uid> ----------
   let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false,chatSavePromise=null,chatSubmitting=false,chatComposeMode='template',chatReply=null,chatDraftStates={template:{},free:{}};
+  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false;
+  function showTalkIntroduction(){
+    const gated=!talkIntroduced;$('#talkIntroductionForm').hidden=!gated;$('#mtChat').hidden=gated;$('#dmToggle').hidden=gated;
+    if(gated){$('#dmPanel').hidden=true;$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
+  }
+  async function checkTalkIntroduction(){
+    if(backend!=='cloud'||!uid||pending())return;
+    if(talkIntroAccount!==uid){talkIntroduced=false;talkIntroAccount=uid}
+    if(talkIntroChecking)return;talkIntroChecking=true;const actor=uid;showTalkIntroduction();$('#talkIntroductionStatus').textContent='参加状態を確認しています…';
+    try{const state=await window.appAuth.talkIntroduction({action:'status'});if(uid!==actor)return;talkIntroduced=state?.introduced===true;$('#talkIntroductionStatus').textContent='';showTalkIntroduction();if(talkIntroduced){ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});renderChat()}}
+    catch{$('#talkIntroductionStatus').textContent='参加状態を確認できませんでした。未設定の場合は運営で自己紹介機能のSQL設定が必要です。トークを開き直して再試行してください。'}finally{talkIntroChecking=false}
+  }
+  $('#talkIntroductionForm').addEventListener('submit',async event=>{
+    event.preventDefault();if(talkIntroChecking||backend!=='cloud'||!uid||pending())return;
+    const form=event.currentTarget,fields=Object.fromEntries(new FormData(form));for(const key of ['name','occupation','goal','message']){fields[key]=fields[key].trim();if(!fields[key]){toast('４項目をすべて入力してください');return}}
+    const controls=[...form.querySelectorAll('input,button')];controls.forEach(el=>el.disabled=true);talkIntroChecking=true;const actor=uid;$('#talkIntroductionStatus').textContent='自己紹介を送信しています…';
+    try{const state=await window.appAuth.talkIntroduction({action:'submit',fields});if(uid!==actor)return;if(state?.introduced!==true)throw Error();talkIntroduced=true;showTalkIntroduction();$('#talkIntroductionStatus').textContent='';toast('自己紹介を送信しました');window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});const module=await import('./pull-refresh.js');await module.refreshCurrentData();renderChat()}
+    catch{$('#talkIntroductionStatus').textContent='送信を確認できませんでした。入力内容は残っています。もう一度お試しください。'}finally{talkIntroChecking=false;controls.forEach(el=>el.disabled=false)}
+  });
   const MAX_MY_MSGS=200;
   const memberOf=id=>members.find(m=>m.uid===id);
   const nameOf=id=>{const m=memberOf(id);return(m&&m.nick)||(id===uid?(profile.nick||'あなた'):'メンバー')};
@@ -610,7 +635,7 @@
   const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return'';const k=iso(d);return k===todayKey?'今日':k===yesterdayKey?'昨日':`${d.getMonth()+1}月${d.getDate()}日`};
   function mkAvatar(id){const a=document.createElement('div');a.className='avatar';a.setAttribute('role','img');a.setAttribute('aria-label',nameOf(id)+'のプロフィール');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
   function markRead(){
-    if(backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||$('#mtChat').hidden||$('#groupCommon').hidden||document.visibilityState!=='visible')return;
+    if(!talkIntroduced||backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||$('#mtChat').hidden||$('#groupCommon').hidden||document.visibilityState!=='visible')return;
     const give=chatMode==='give';
     const newest=chatAll.filter(x=>x.uid!==uid).reduce((a,x)=>x.at>a?x.at:a,'');   // one room: every message counts
     if(!newest||newest<=(give?myGiveReadAt:myReadAt))return;
@@ -753,6 +778,7 @@
     e.preventDefault();if(chatSubmitting||chatComposeMode==='group')return;
     if(backend!=='cloud'||!uid){toast('ログインするとチャットできます');return}
     if(pending()){toast('ホストの承認後にトークできます');return}
+    if(!talkIntroduced){toast('先に自己紹介を送信してください');return}
     const free=chatComposeMode==='free';
     if(free&&(!chatReady||chatLoadFailed)){toast('トークの読み込み後に送信してください');return}
     if(!free){const missing=[...templateFields,'#giveTemplateGroupName'].find(id=>!$(id).value.trim());if(missing){$('#giveTemplate').open=true;$(missing).focus();toast('グループ名・職業・名前・新たな試み・事業内容をすべて入力してください');return}}
@@ -1644,7 +1670,7 @@
     if(announcementsUi)announcementsUi.stop();
     growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
-    clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
+    talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -1832,14 +1858,14 @@
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
     return directMessages;
   }
   async function startDirectMessage(memberUid){
@@ -1916,7 +1942,7 @@
     if(tab==='timeline')renderFeed();
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
-    if(tab==='mates'){window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
+    if(tab==='mates'){void checkTalkIntroduction();window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
     if(backend==='cloud'&&uid&&!pending())ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();

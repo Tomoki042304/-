@@ -16,7 +16,7 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
    const expand=document.createElement('span');expand.className='channel-expand';expand.setAttribute('aria-hidden','true');head.append(label,expand);
    const text=document.createElement('p');text.textContent=row.text;
    const read=document.createElement('button');read.type='button';read.className='small-btn';read.textContent='既読にする';read.setAttribute('aria-label',row.title+'を既読にする');
-   read.onclick=()=>{acknowledge(row.id);$('#announcementList')?.querySelectorAll('details').forEach(el=>{if(el.dataset.id===row.id)el.querySelector('.inquiry-notice-dot')?.remove()})};
+   read.onclick=()=>{acknowledge(row.id);$('#notificationList')?.querySelectorAll('details').forEach(el=>{if(el.dataset.id===row.id)el.querySelector('.inquiry-notice-dot')?.remove()})};
    box.append(head,text,read);list.append(box);
   }
  }
@@ -26,8 +26,8 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
   renderHome();onChange();
  }
  function render(){
-  const list=$('#announcementList'),seen=new Set(getSeen()),opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));list.replaceChildren();
-  for(const row of rows){const box=document.createElement('details');box.className='announcement-item';box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.open&&$('#notificationsDialog')?.open&&visible()&&!new Set(getSeen()).has(row.id)){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
+  const list=$('#notificationList'),seen=new Set(getSeen()),opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));list.querySelectorAll('.announcement-item').forEach(el=>el.remove());
+  for(const row of rows){const box=document.createElement('details');box.className='announcement-item';box.dataset.noticeAt=row.at;box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.open&&$('#notificationsDialog')?.open&&visible()&&!new Set(getSeen()).has(row.id)){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
   const history=$('#announcementHistory');history.replaceChildren();for(const row of rows.slice(0,10)){const item=document.createElement('p');item.className='muted admin-note';item.textContent=date(row.at)+' · '+row.title;history.append(item)}onRows(rows.slice(0,10));renderHome();onChange();
  }
  async function refresh(){
@@ -40,7 +40,7 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
   finally{if(token===epoch){reading=false;if(started&&account())timer=setTimeout(refresh,30000)}}
  }
  function start(){if(started){if(!timer&&!reading)void refresh();return}started=true;void refresh()}
- function stop(){started=false;epoch++;reading=false;clearTimeout(timer);rows=[];$('#announcementList').replaceChildren();$('#announcementHistory').replaceChildren();$('#announcementStatus').textContent='';$('#announcementTitle').value='';$('#announcementText').value='';$('#announcementPublishStatus').textContent='';draftId=crypto.randomUUID();attempt=null;renderHome();onChange()}
+ function stop(){started=false;epoch++;reading=false;clearTimeout(timer);rows=[];$('#notificationList').querySelectorAll('.announcement-item').forEach(el=>el.remove());$('#announcementHistory').replaceChildren();$('#announcementStatus').textContent='';$('#announcementTitle').value='';$('#announcementText').value='';$('#announcementPublishStatus').textContent='';draftId=crypto.randomUUID();attempt=null;renderHome();onChange()}
  $('#announcementRefresh').onclick=()=>{start();void refresh()};
  $('#announcementForm').onsubmit=async event=>{
   event.preventDefault();if(publishing||!account()||!isAdmin())return;const title=$('#announcementTitle').value.trim(),text=$('#announcementText').value.trim();if(!title||!text)return;

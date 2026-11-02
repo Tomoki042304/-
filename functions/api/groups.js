@@ -1,3 +1,4 @@
+import {hasTalkIntroduction} from '../../server/talk-introduction.js';
 import {database} from '../../server/private-documents.js';
 import {operationalStore} from '../../server/supabase-runtime.js';
 import {requireMemberRole,readChatAccessSince} from '../../server/youtube-member.js';
@@ -33,7 +34,7 @@ async function groupReactionSummary(kv,id,messageId,actor,override){
  for(const row of records){if(!uuid(row.uid)||!GROUP_EMOJIS.includes(row.value?.emoji)||(override!==undefined&&row.uid===actor))continue;counts.set(row.value.emoji,counts.get(row.value.emoji)+1);if(row.uid===actor)mine=row.value.emoji}
  if(override!==undefined){mine=override;if(GROUP_EMOJIS.includes(override))counts.set(override,counts.get(override)+1)}return {counts:GROUP_EMOJIS.filter(emoji=>counts.get(emoji)).map(emoji=>({emoji,count:counts.get(emoji)})),mine};
 }
-export function createGroupHandler({authenticate=requireMemberRole,admission=readChatAccessSince,store=operationalStore,directory=participantDirectory}={}){
+export function createGroupHandler({authenticate=requireMemberRole,admission=readChatAccessSince,store=operationalStore,directory=participantDirectory,introduction=hasTalkIntroduction}={}){
  return async function({request,env}){
   const url=new URL(request.url);
   if(request.method!=='POST'||url.protocol!=='https:'||url.hostname!=='ikigai-shidoroku.pages.dev'||request.headers.get('Origin')!==url.origin)return reply(403,{message:'アプリから利用してください。'});
@@ -41,6 +42,7 @@ export function createGroupHandler({authenticate=requireMemberRole,admission=rea
   if(!['list','create','join','messages','send','unsend','delete','members','read','reaction-list','reaction-set'].includes(body.action)||body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>4096))return reply(400,{message:'操作内容を確認してください。'});
   const user=await authenticate(request);if(!user.ok)return reply(user.status,{message:user.message});
   try{
+   if(!await introduction(request))return reply(403,{code:'TALK_INTRODUCTION_REQUIRED',message:'先に全体トークへ自己紹介を送信してください。'});
    const since=await admission(request),kv=store({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv)throw Error();
    if(!Number.isFinite(since)||!uuid(user.uid))throw Error();
    const participating=async room=>{
