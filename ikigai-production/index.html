@@ -1529,6 +1529,8 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
           <p class="muted admin-note">氏名・連絡先・問い合わせ内容の保存時暗号化を確認します。鍵の内容は表示しません。</p>
           <div class="btn-row"><button type="button" class="small-btn" id="securityRefresh">設定を確認</button><button type="button" class="small-btn" id="securityMigrate">既存データを暗号化</button><button type="button" class="small-btn" id="securityVerify">移行結果を確認</button></div>
           <p class="muted admin-note" id="securityStatus" role="status" aria-live="polite"></p>
+          <hr><b>毎日のシステム点検（2:00〜2:30・日本時間）</b>
+          <button type="button" class="small-btn" id="nightlyRefresh">点検結果を確認</button><p class="muted admin-note" id="nightlyStatus" role="status"></p><div id="nightlyResults"></div>
           <hr><b>保存先の移行（無料構成）</b><p class="muted admin-note">個人トーク・問い合わせ等をSupabaseへ移し、KVの一覧取得制限から切り離します。元データは削除しません。</p>
           <div class="btn-row"><button type="button" class="small-btn" id="storageConfig">保存先を確認</button><button type="button" class="small-btn" id="storageCopy">データを移行</button><button type="button" class="small-btn" id="storageVerify">移行先を照合</button></div><p class="muted admin-note" id="storageStatus" role="status" aria-live="polite"></p>
         </details>
@@ -1592,6 +1594,10 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
   })();
   const legacy = ["localhost", "127.0.0.1"].includes(location.hostname)
     && new URLSearchParams(location.search).get("backend") === "firebase";
+  const maintenance=location.hostname==="ikigai-shidoroku.pages.dev"
+    ? await import("./maintenance.js").then(module=>module.mountMaintenance())
+    : {ready:Promise.resolve()};
+  await maintenance.ready;
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
 <dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p><div id="announcementList" class="admin-roster"></div></section><div id="reactionNotifications" class="admin-roster" style="margin-top:14px"></div></dialog>

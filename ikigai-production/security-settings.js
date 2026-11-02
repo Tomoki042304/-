@@ -51,5 +51,16 @@ export function mountSecurity({request,active,onState=()=>{}}){
   finally{transferring=false;[...buttons,...transferButtons].forEach(button=>button.disabled=false)}
  }
  if(transferButtons.every(Boolean)){transferButtons[0].onclick=()=>transfer('runtime-status');transferButtons[1].onclick=()=>transfer('runtime-copy');transferButtons[2].onclick=()=>transfer('runtime-verify')}
- return {refresh:()=>run('status')};
+ const nightlyButton=document.getElementById('nightlyRefresh');
+ async function nightly(){
+  if(!active()||!nightlyButton||nightlyButton.disabled)return;nightlyButton.disabled=true;
+  const status=document.getElementById('nightlyStatus'),list=document.getElementById('nightlyResults');list.replaceChildren();
+  try{
+   const value=await window.appAuth.nightlyReport();if(!active())return;
+   status.textContent=!value.state.configured?'点検用SQLの設定が未完了です。':value.scheduledCheckMissing?'本日の点検完了を確認できません。自動点検の実行状況を確認してください。':'最終点検：'+new Date(value.report.finishedAt).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'})+'（日本時間）。未確認の項目を含みます。';
+   for(const check of value.report?.checks||[]){const row=document.createElement('p');row.className='muted admin-note';const labels={pass:'確認済み',error:'異常・要確認',critical:'重大・要確認',warning:'注意',unverified:'未確認'};row.textContent=check.label+'：'+(labels[check.status]||'未確認')+'。'+check.detail;list.append(row)}
+  }catch(error){if(active())status.textContent=error.message||'点検結果を確認できませんでした。'}finally{nightlyButton.disabled=false}
+ }
+ if(nightlyButton)nightlyButton.onclick=nightly;
+ return {refresh:()=>{nightly();return run('status')}};
 }

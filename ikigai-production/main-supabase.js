@@ -417,6 +417,11 @@ function start() {
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
       try{const response=await fetch('/api/shin-knowledge',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'知識を更新できませんでした。');return result}finally{clearTimeout(timer)}
     },
+    nightlyReport: async () => {
+      const {data,error}=await supabase.auth.getSession();fail(error);if(!data.session)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+      try{const response=await fetch('/api/maintenance',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify({action:'report'}),cache:'no-store',redirect:'error',signal:controller.signal});const result=await response.json();if(!response.ok)throw Error(result.message||'点検結果を確認できませんでした。');return result}finally{clearTimeout(timer)}
+    },
     security: async payload => {
       const {data,error}=await supabase.auth.getSession();fail(error);if(!data.session)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
