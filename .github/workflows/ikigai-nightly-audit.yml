@@ -1,0 +1,24 @@
+name: IKIGAI nightly maintenance audit
+on:
+  schedule:
+    # JST 02:03, 02:13 and 02:23. Maintenance itself uses server time, not this scheduler.
+    - cron: '3,13,23 17 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: ikigai-nightly-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read production sources
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ikigai-seihon-production
+          persist-credentials: false
+      - name: Check public sources and request server audit
+        run: node tools/ikigai-nightly-audit.mjs
