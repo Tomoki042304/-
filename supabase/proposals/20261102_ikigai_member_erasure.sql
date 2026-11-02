@@ -76,6 +76,7 @@ CREATE TRIGGER ikigai_erasure_runtime_guard_v1 BEFORE INSERT OR UPDATE ON public
 CREATE FUNCTION public.ikigai_runtime_write_guarded_v1(p_actor uuid,p_key text,p_value text,p_expires timestamptz DEFAULT NULL) RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 DECLARE job record;v jsonb;candidate text;gid text;
 BEGIN
+ PERFORM pg_advisory_xact_lock_shared(hashtextextended('ikigai-erasure-data',0));
  IF NOT public.ikigai_account_live_v1(p_actor) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='ACCOUNT_REMOVED';END IF;
  IF octet_length(p_key) NOT BETWEEN 1 AND 512 THEN RAISE EXCEPTION 'INVALID_KEY';END IF;
  v=public.ikigai_erasure_parse_v1(p_value);
@@ -83,6 +84,10 @@ BEGIN
   IF public.ikigai_erasure_key_v1(p_key,job.target::text,job.meta) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='REMOVED_ACCOUNT_REFERENCE';END IF;
   IF v IS NOT NULL THEN v=public.ikigai_erasure_json_v1(v,job.target::text);IF v IS NULL THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='REMOVED_ACCOUNT_REFERENCE';END IF;END IF;
  END LOOP;
+ IF p_key ~ '^(inquiry|inquiry-history):v1:' OR p_key LIKE 'push:subscription:v1:%' THEN
+  candidate=CASE WHEN p_key LIKE 'push:subscription:v1:%' THEN split_part(p_key,':',4) ELSE split_part(p_key,':',3) END;
+  IF candidate !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' OR NOT public.ikigai_account_live_v1(candidate::uuid) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='ACCOUNT_REMOVED';END IF;
+ END IF;
  IF p_key LIKE 'dm:%' THEN
   FOR candidate IN SELECT (regexp_matches(p_key,'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}','g'))[1] LIMIT 2 LOOP
    IF NOT public.ikigai_account_live_v1(candidate::uuid) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='ACCOUNT_REMOVED';END IF;
@@ -122,6 +127,7 @@ CREATE FUNCTION public.ikigai_member_erasure_v1(p_actor uuid,p_action text,p_tar
 DECLARE j public.ikigai_member_erasure_jobs_v1;u text;m jsonb;row record;v jsonb;clean jsonb;last_key text;seen int=0;gid text;mid text;thread text;sender text;other_data boolean;refs jsonb='[]';groups jsonb='[]';messages jsonb='[]';
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.admins a JOIN auth.users u ON u.id=a.user_id WHERE a.user_id=p_actor) THEN RAISE EXCEPTION USING ERRCODE='42501',MESSAGE='ADMIN_REQUIRED';END IF;
+ IF p_action IN ('start','purge','finish') THEN PERFORM pg_advisory_xact_lock(hashtextextended('ikigai-erasure-data',0));END IF;
  IF p_action='list' THEN RETURN jsonb_build_object('jobs',COALESCE((SELECT jsonb_agg(to_jsonb(x)-'meta') FROM public.ikigai_member_erasure_jobs_v1 x),'[]'));END IF;
  IF p_action='start' THEN
   PERFORM pg_advisory_xact_lock(hashtextextended('ikigai-erasure-start',0));
