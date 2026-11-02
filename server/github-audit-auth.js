@@ -1,7 +1,7 @@
 const ISSUER='https://token.actions.githubusercontent.com',AUDIENCE='https://ikigai-shidoroku.pages.dev/api/maintenance';
 const decode=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
 let keys=null,expires=0,lastFetch=0,pending=null;
-export async function verifyNightlyIdentity(token,{now=Date.now(),onFailure=()=>{},fetchKeys=async()=>{const response=await fetch(ISSUER+'/.well-known/jwks',{redirect:'error',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error();return response.json()}}={}){
+export async function verifyNightlyIdentity(token,{now=Date.now(),onFailure=()=>{},fetchKeys=async()=>{const response=await fetch(ISSUER+'/.well-known/jwks',{redirect:'manual',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error();return response.json()}}={}){
  const reject=code=>{onFailure(code);return false};
  try{
   if(typeof token!=='string'||token.length>20000)return reject('OIDC_FORMAT_REJECTED');const parts=token.split('.');if(parts.length!==3)return reject('OIDC_FORMAT_REJECTED');
