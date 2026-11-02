@@ -450,9 +450,11 @@
         const wrap=document.createElement('div');wrap.className='comments';
         cs.forEach(c=>{const row=document.createElement('div');row.className='cmt';const d=document.createElement('div');
           d.innerHTML='<b></b><p></p>';d.querySelector('b').textContent=nameOf(c.uid);const t=document.createElement('small');t.textContent=agoText(c.at);d.querySelector('b').append(t);
-          d.querySelector('p').textContent=c.text;row.append(avatarEl(c.uid),d);wrap.append(row)});
+          d.querySelector('p').textContent=c.text;row.append(avatarEl(c.uid),d);
+          if(c.uid===uid&&c.id){const remove=document.createElement('button');remove.type='button';remove.className='del-comment';remove.dataset.delComment=c.id;remove.dataset.commentKey=c.key;remove.textContent='削除';remove.setAttribute('aria-label','自分の返信を削除');row.append(remove)}
+          wrap.append(row)});
         const f=document.createElement('form');f.className='cmt-form';f.dataset.cmtForm=key;
-        f.innerHTML='<input type="text" maxlength="300" placeholder="コメントを書く" aria-label="コメント"><button type="submit">送信</button>';
+        f.innerHTML='<textarea rows="2" maxlength="300" placeholder="コメントを書く（改行できます）" aria-label="コメント"></textarea><button type="submit">送信</button>';
         wrap.append(f);el.append(wrap);
       }
       box.append(el);
@@ -504,14 +506,31 @@
   });
   $('#feed').addEventListener('submit',e=>{
     const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();if(postSubmitting)return;
-    const input=f.querySelector('input'),text=input.value.trim();if(!text)return;
+    if(backend!=='cloud'||!uid||pending())return;
+    const input=f.querySelector('textarea'),text=input.value.trim();if(!text)return;
     const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
     myCmts.push(c);if(myCmts.length>MAX_CMTS)myCmts=myCmts.slice(-MAX_CMTS);
     cmtsAll=[...cmtsAll,{...c,uid}];queueReactionPush({kind:'comment',postKey:c.key,eventId:c.id});renderFeed();flushPosts();
   });
-  let delArmed='';
+  let delArmed='',commentDeleteBusy=false;
   $('#feed').addEventListener('click',e=>{
-    if(postSubmitting)return;
+    if(postSubmitting||commentDeleteBusy)return;
+    const dc=e.target.closest('[data-del-comment]');
+    if(dc){
+      if(backend!=='cloud'||!uid||pending())return;
+      const id=dc.dataset.delComment,key=dc.dataset.commentKey;
+      const own=myCmts.find(c=>c.id===id&&c.key===key);
+      if(!own)return;
+      if(dc.dataset.confirm!=='yes'){dc.dataset.confirm='yes';dc.textContent='本当に削除';setTimeout(()=>{if(dc.isConnected){delete dc.dataset.confirm;dc.textContent='削除'}},3000);return}
+      commentDeleteBusy=true;dc.disabled=true;
+      const removed=cmtsAll.filter(c=>c.uid===uid&&c.id===id&&c.key===key);
+      myCmts=myCmts.filter(c=>!(c.id===id&&c.key===key));cmtsAll=cmtsAll.filter(c=>!(c.uid===uid&&c.id===id&&c.key===key));
+      for(const [eventId,item] of pendingReactionPushes){if(item.event.kind==='comment'&&item.event.eventId===id&&item.event.postKey===key)pendingReactionPushes.delete(eventId)}
+      void flushPosts().then(ok=>{
+        if(ok)toast('返信を削除しました');
+        else{if(!myCmts.some(c=>c.id===id&&c.key===key))myCmts.push(own);if(!cmtsAll.some(c=>c.uid===uid&&c.id===id&&c.key===key))cmtsAll.push(...removed)}
+      }).finally(()=>{commentDeleteBusy=false;renderFeed()});return;
+    }
     const lk=e.target.closest('[data-like]');
     if(lk){
       if(backend!=='cloud'||!uid||pending())return;
@@ -522,7 +541,7 @@
     }
     const cb=e.target.closest('[data-cmt]');
     if(cb){const k=cb.dataset.cmt;openCmts.has(k)?openCmts.delete(k):openCmts.add(k);renderFeed();
-      if(openCmts.has(k)){const f=[...document.querySelectorAll('[data-cmt-form]')].find(x=>x.dataset.cmtForm===k);if(f)f.querySelector('input').focus()}return}
+      if(openCmts.has(k)){const f=[...document.querySelectorAll('[data-cmt-form]')].find(x=>x.dataset.cmtForm===k);if(f)f.querySelector('textarea').focus()}return}
     const dp=e.target.closest('[data-del-post]');
     if(dp){
       const id=dp.dataset.delPost;
