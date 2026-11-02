@@ -1357,7 +1357,9 @@
   const adminAccountVisible=()=>isOwnerView&&!$('#app').hidden&&!$('#v-account').hidden;
   const adminSectionOpen=id=>adminAccountVisible()&&!$('#accAdmin').hidden&&!!$(id)?.open;
   const memberNoticeRows=rows=>rows.map(r=>({id:r.user_id,version:JSON.stringify([r.member_plan,r.check_day,r.checked_today])}));
-  const securityNoticeRows=state=>[{id:'status',version:JSON.stringify([state.keyReady,!!state.database,state.database?.enforced,state.database?.remaining])}];
+  let nightlyNoticeRows=[];
+  let nightlyAlert=$('#nightlyAlert');if(!nightlyAlert){nightlyAlert=document.createElement('button');nightlyAlert.id='nightlyAlert';nightlyAlert.type='button';nightlyAlert.className='card';nightlyAlert.hidden=true;nightlyAlert.setAttribute('role','alert');nightlyAlert.style.cssText='background:#fff0f1;color:#8a1834;border:1px solid #c85d73;text-align:left;width:100%;font-weight:700;line-height:1.7';$('#accAdmin').prepend(nightlyAlert)}
+  const securityNoticeRows=state=>[{id:'status',version:JSON.stringify([state.keyReady,!!state.database,state.database?.enforced,state.database?.remaining])},...nightlyNoticeRows];
   async function ensureAdminNotices(){
     if(!isOwnerView||!uid)return null;
     if(!adminNoticeUi){
@@ -1391,10 +1393,21 @@
     }while(cursor);
     noticeSection('knowledge',items);
   }
+  function showNightlyWarning(value){
+    const report=value.report,critical=report?.status==='critical',error=report?.status==='error',missing=value.scheduledCheckMissing||!value.state.configured;
+    const alert=nightlyAlert;
+    alert.hidden=!(critical||error||missing);
+    alert.textContent=critical?'定期点検で重大な異常を確認しました。利用再開後も対応が必要です。タップして点検結果をご確認ください。':error?'定期点検で動作異常を確認しました。タップして点検結果をご確認ください。':missing?'定期点検の設定または本日の完了を確認できません。タップして状況をご確認ください。':'';
+    nightlyNoticeRows=critical||error||missing?[{id:'nightly-audit',version:(report?.id||'not-completed')+':'+(report?.status||'missing')+':'+missing}]:[];
+  }
+  nightlyAlert.onclick=()=>{$('#securityAdmin').open=true;ensureSecurity().then(()=>securityUi?.refresh()).catch(()=>{});$('#securityAdmin').scrollIntoView({block:'start',behavior:'smooth'})};
   async function pollSecurityNotices(){
     const who=uid;if(!isOwnerView||!window.appAuth?.security)return;
-    const state=await window.appAuth.security({action:'notice-status'});
-    if(who===uid&&isOwnerView)noticeSection('security',securityNoticeRows(state));
+    const [security,nightly]=await Promise.allSettled([window.appAuth.security({action:'notice-status'}),window.appAuth.nightlyReport?.()]);
+    if(who!==uid||!isOwnerView)return;
+    if(nightly.status==='fulfilled'&&nightly.value?.state)showNightlyWarning(nightly.value);
+    if(security.status==='fulfilled')noticeSection('security',securityNoticeRows(security.value));
+    else if(nightly.status==='fulfilled'&&nightly.value?.state)noticeSection('security',nightlyNoticeRows,{complete:false});
   }
   function setOwnerView(owner){
     isOwnerView=!!owner;
@@ -1403,6 +1416,7 @@
     if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
+      nightlyNoticeRows=[];nightlyAlert.hidden=true;nightlyAlert.textContent='';
       ++channelSettingsToken;channelSettingsLoaded=false;channelSettingsRevision='';if($('#youtubeChannelInput')){$('#youtubeChannelInput').value='';$('#youtubeChannelInput').disabled=true;$('#youtubeRegisteredChannels').replaceChildren();$('#youtubeChannelCount').textContent='';$('#youtubeChannelsDetails').open=false;}
       ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';

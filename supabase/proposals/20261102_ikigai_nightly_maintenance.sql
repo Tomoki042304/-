@@ -98,9 +98,9 @@ BEGIN
  RETURN jsonb_build_object('claimed',claimed,'privateTablesProtected',private_ok,'documentsRls',docs_ok,
  'maintenancePolicies',policies_ok,'privatePhotoBucket',bucket_ok,'databaseGateConfigured',hook_ok);
 END $$;
-CREATE FUNCTION public.ikigai_maintenance_finish_v1(p_critical boolean DEFAULT false) RETURNS void
+CREATE FUNCTION public.ikigai_maintenance_finish_v1(p_critical boolean DEFAULT false,p_completed boolean DEFAULT true) RETURNS void
 LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
- UPDATE public.ikigai_maintenance_config_v1 SET last_checked_at=statement_timestamp(),lease_until=NULL,
+ UPDATE public.ikigai_maintenance_config_v1 SET last_checked_at=CASE WHEN p_completed THEN statement_timestamp() ELSE last_checked_at END,lease_until=CASE WHEN p_completed THEN NULL ELSE lease_until END,
  critical_hold=critical_hold OR (hold_on_critical AND p_critical) WHERE id
 $$;
 -- SQL Editor only operational recovery: release hold without altering the daily window.
@@ -108,8 +108,8 @@ CREATE FUNCTION public.ikigai_maintenance_release_v1() RETURNS void
 LANGUAGE sql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
  UPDATE public.ikigai_maintenance_config_v1 SET critical_hold=false WHERE id
 $$;
-REVOKE ALL ON FUNCTION public.ikigai_maintenance_audit_v1(boolean),public.ikigai_maintenance_finish_v1(boolean),public.ikigai_maintenance_release_v1() FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.ikigai_maintenance_audit_v1(boolean),public.ikigai_maintenance_finish_v1(boolean),public.ikigai_maintenance_release_v1() TO service_role;
+REVOKE ALL ON FUNCTION public.ikigai_maintenance_audit_v1(boolean),public.ikigai_maintenance_finish_v1(boolean,boolean),public.ikigai_maintenance_release_v1() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.ikigai_maintenance_audit_v1(boolean),public.ikigai_maintenance_finish_v1(boolean,boolean),public.ikigai_maintenance_release_v1() TO service_role;
 NOTIFY pgrst,'reload config';
 NOTIFY pgrst,'reload schema';
 COMMIT;

@@ -14,6 +14,7 @@ export async function runNightlyAudit(env,external={}){
  const startedAt=new Date().toISOString(),id=crypto.randomUUID(),store=runtimeStore(env),checks=[];
  const add=(id,label,status,detail)=>checks.push({id,label,status,detail});
  for(const [field,label] of [['privateTablesProtected','非公開テーブルの権限'],['documentsRls','会員データの行単位アクセス制御'],['maintenancePolicies','DB・写真の点検時間制限'],['privatePhotoBucket','成長ログ写真の非公開設定'],['databaseGateConfigured','DBの停止設定']]){
+  if(typeof catalog[field]!=='boolean'){add(field,label,'error','検査結果の形式を確認できません。');continue}
   const good=catalog[field]===true;
   add(field,label,good?'pass':field==='maintenancePolicies'||field==='databaseGateConfigured'?'error':'critical',good?'設定を確認しました。':'設定を確認できません。管理者による確認が必要です。');
  }
@@ -64,6 +65,7 @@ export async function runNightlyAudit(env,external={}){
  const critical=checks.some(c=>c.status==='critical');
  const status=critical?'critical':checks.some(c=>c.status==='error')?'error':checks.some(c=>c.status==='warning')?'warning':'incomplete';
  const report={version:1,id,startedAt,finishedAt:new Date().toISOString(),status,checks};
+ if(critical){await db('ikigai_maintenance_finish_v1',{p_critical:true,p_completed:false});clearMaintenanceCache()}
  // Save evidence before finishing; a failed audit never appears as a completed success.
  await store.put('maintenance:report:v1:'+id,JSON.stringify(report),{expirationTtl:RETENTION});
  await store.put(LATEST,JSON.stringify(report),{expirationTtl:RETENTION});

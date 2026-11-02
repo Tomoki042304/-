@@ -17,7 +17,9 @@ export async function onRequest({request,env}){
   }
   if(request.method!=='POST')return reply(405,{message:'操作を確認してください。'});
   if(Number(request.headers.get('Content-Length')||0)>2048)return reply(413,{});
-  const raw=await request.text();if(raw.length>2048)return reply(413,{});
+  const reader=request.body?.getReader();if(!reader)return reply(400,{});
+  let raw='',bytes=0;const decoder=new TextDecoder();
+  try{while(true){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>2048){await reader.cancel();return reply(413,{})}raw+=decoder.decode(value,{stream:true})}raw+=decoder.decode()}finally{reader.releaseLock()}
   let body;try{body=JSON.parse(raw)}catch{return reply(400,{message:'操作を確認してください。'})}
   if(body?.action==='audit'){
    const token=(request.headers.get('Authorization')||'').replace(/^Bearer /,'');
