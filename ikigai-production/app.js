@@ -593,7 +593,7 @@
     if(talkIntroAccount!==uid){talkIntroduced=false;talkIntroAccount=uid}
     if(talkIntroChecking)return;talkIntroChecking=true;const actor=uid;showTalkIntroduction();$('#talkIntroductionStatus').textContent='参加状態を確認しています…';
     try{const state=await window.appAuth.talkIntroduction({action:'status'});if(uid!==actor)return;talkIntroduced=state?.introduced===true;$('#talkIntroductionStatus').textContent='';showTalkIntroduction();if(talkIntroduced){ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});renderChat()}}
-    catch{$('#talkIntroductionStatus').textContent='参加状態を確認できませんでした。未設定の場合は運営で自己紹介機能のSQL設定が必要です。トークを開き直して再試行してください。'}finally{talkIntroChecking=false}
+    catch{$('#talkIntroductionStatus').textContent='参加状態を確認できませんでした。トークを開き直して再試行してください。解消しない場合は運営へお問い合わせください。'}finally{talkIntroChecking=false}
   }
   $('#talkIntroductionForm').addEventListener('submit',async event=>{
     event.preventDefault();if(talkIntroChecking||backend!=='cloud'||!uid||pending())return;
