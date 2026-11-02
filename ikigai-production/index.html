@@ -511,7 +511,14 @@ nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;
 .cmt p{margin:0;font-size:16px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
 .cmt-form{display:flex;gap:6px;align-items:flex-end}
 .cmt-form textarea{width:0;min-height:76px;max-height:220px;resize:vertical;font-family:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
-.cmt>div{flex:1}
+.cmt>.cmt-content{flex:1;min-width:0}
+.cmt>.avatar{flex:0 0 28px;width:28px;height:28px;min-width:28px;max-width:28px;border-radius:50%;overflow:hidden}
+.cmt-actions{display:flex;gap:8px;margin-top:6px}
+.cmt-actions[hidden]{display:none}
+.cmt-actions .del-comment{margin-left:0}
+.cmt-edit-form textarea{box-sizing:border-box;width:100%;min-height:90px;resize:vertical;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:16px;line-height:1.65}
+.cmt-edit-form button{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:12px}
+.cmt-edit-form button[type=submit]{background:var(--accent);color:#fff}
 .del-comment{flex:none;margin-left:auto;background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--ink-2);padding:5px 8px;font:inherit;font-size:12px}
 .del-comment:disabled{opacity:.5}
 .cmt-form button{min-height:44px}

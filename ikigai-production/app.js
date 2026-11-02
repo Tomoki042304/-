@@ -448,10 +448,11 @@
       responders.addEventListener('toggle',paintResponders);responders.append(summary,people);if(responders.open)paintResponders();el.append(responders);
       if(open){
         const wrap=document.createElement('div');wrap.className='comments';
-        cs.forEach(c=>{const row=document.createElement('div');row.className='cmt';const d=document.createElement('div');
+        cs.forEach(c=>{const row=document.createElement('div');row.className='cmt';const d=document.createElement('div');d.className='cmt-content';
           d.innerHTML='<b></b><p></p>';d.querySelector('b').textContent=nameOf(c.uid);const t=document.createElement('small');t.textContent=agoText(c.at);d.querySelector('b').append(t);
           d.querySelector('p').textContent=c.text;row.append(avatarEl(c.uid),d);
-          if(c.uid===uid&&c.id){const remove=document.createElement('button');remove.type='button';remove.className='del-comment';remove.dataset.delComment=c.id;remove.dataset.commentKey=c.key;remove.textContent='削除';remove.setAttribute('aria-label','自分の返信を削除');row.append(remove)}
+          if(c.uid===uid&&c.id){const actions=document.createElement('div');actions.className='cmt-actions';
+            for(const [action,label] of [['editComment','編集'],['delComment','削除']]){const button=document.createElement('button');button.type='button';button.className='del-comment';button.dataset[action]=c.id;button.dataset.commentKey=c.key;button.textContent=label;button.setAttribute('aria-label','自分の返信を'+label);actions.append(button)}d.append(actions)}
           wrap.append(row)});
         const f=document.createElement('form');f.className='cmt-form';f.dataset.cmtForm=key;
         f.innerHTML='<textarea rows="2" maxlength="300" placeholder="コメントを書く（改行できます）" aria-label="コメント"></textarea><button type="submit">送信</button>';
@@ -505,7 +506,7 @@
     finally{postSubmitting=false;controls.forEach(([el,disabled])=>el.disabled=disabled);button.textContent='投稿する';updatePostCategories()}
   });
   $('#feed').addEventListener('submit',e=>{
-    const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();if(postSubmitting)return;
+    const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();if(postSubmitting||commentDeleteBusy)return;
     if(backend!=='cloud'||!uid||pending())return;
     const input=f.querySelector('textarea'),text=input.value.trim();if(!text)return;
     const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
@@ -515,6 +516,28 @@
   let delArmed='',commentDeleteBusy=false;
   $('#feed').addEventListener('click',e=>{
     if(postSubmitting||commentDeleteBusy)return;
+    const edit=e.target.closest('[data-edit-comment]');
+    if(edit){
+      if(backend!=='cloud'||!uid||pending())return;
+      const id=edit.dataset.editComment,key=edit.dataset.commentKey,own=myCmts.find(c=>c.id===id&&c.key===key);if(!own)return;
+      const content=edit.closest('.cmt-content');if(content.querySelector('.cmt-edit-form'))return;
+      const text=content.querySelector('p'),actions=content.querySelector('.cmt-actions');
+      const form=document.createElement('form');form.className='cmt-edit-form';
+      const input=document.createElement('textarea');input.rows=3;input.maxLength=300;input.value=own.text;input.setAttribute('aria-label','返信を編集');
+      const buttons=document.createElement('div');buttons.className='cmt-actions';const cancel=document.createElement('button');cancel.type='button';cancel.textContent='キャンセル';const save=document.createElement('button');save.type='submit';save.textContent='保存する';buttons.append(cancel,save);form.append(input,buttons);
+      text.hidden=true;actions.hidden=true;content.append(form);input.focus();
+      cancel.onclick=()=>{form.remove();text.hidden=false;actions.hidden=false};
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();if(commentDeleteBusy||postSubmitting)return;
+        const value=input.value.trim();if(!value){toast('返信を入力してください');input.focus();return}if(value.length>300){toast('返信は300文字以内で入力してください');return}
+        const current=myCmts.find(c=>c.id===id&&c.key===key);if(!current){toast('返信が見つかりません');renderFeed();return}
+        commentDeleteBusy=true;save.disabled=true;cancel.disabled=true;input.disabled=true;save.textContent='保存中…';
+        const before=current.text;current.text=value;for(const c of cmtsAll){if(c.uid===uid&&c.id===id&&c.key===key)c.text=value}
+        const ok=await flushPosts();commentDeleteBusy=false;
+        if(ok){renderFeed();toast('返信を編集しました')}
+        else{const current=myCmts.find(c=>c.id===id&&c.key===key);if(current)current.text=before;for(const c of cmtsAll){if(c.uid===uid&&c.id===id&&c.key===key)c.text=before}save.disabled=false;cancel.disabled=false;input.disabled=false;save.textContent='保存する'}
+      });return;
+    }
     const dc=e.target.closest('[data-del-comment]');
     if(dc){
       if(backend!=='cloud'||!uid||pending())return;
