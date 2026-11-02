@@ -13,7 +13,9 @@ export async function verifyNightlyIdentity(token,{now=Date.now(),onFailure=()=>
   if(claims.ref!=='refs/heads/main')return reject('OIDC_REF_REJECTED');
   if(claims.workflow_ref!=='Tomoki042304/-/.github/workflows/ikigai-nightly-audit.yml@refs/heads/main')return reject('OIDC_WORKFLOW_REJECTED');
   if(!['schedule','workflow_dispatch'].includes(claims.event_name))return reject('OIDC_EVENT_REJECTED');
-  if(claims.sub!=='repo:Tomoki042304/-:ref:refs/heads/main')return reject('OIDC_SUBJECT_REJECTED');
+  // GitHub supports customized OIDC subjects. Authorize using the independently
+  // signed repository/ref/workflow/event claims above, not a legacy sub template.
+  if(typeof claims.sub!=='string'||!claims.sub.trim()||claims.sub.length>2048||/[\u0000-\u001f\u007f]/.test(claims.sub))return reject('OIDC_SUBJECT_REJECTED');
   if(!Number.isFinite(claims.exp)||claims.exp<=seconds||!Number.isFinite(claims.iat)||claims.iat>seconds+60||seconds-claims.iat>600||claims.nbf!==undefined&&(!Number.isFinite(claims.nbf)||claims.nbf>seconds+60))return reject('OIDC_TIME_REJECTED');
   if(!keys&&lastFetch&&now-lastFetch<30000&&!pending)return reject('OIDC_KEYS_UNAVAILABLE');
   if(!keys||expires<now||!keys.some(k=>k.kid===header.kid)&&now-lastFetch>30000){
