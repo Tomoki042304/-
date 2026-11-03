@@ -1,3 +1,4 @@
+import {requireGrowthUser} from '../../server/growth-access.js';
 import {requireYoutubeMember} from '../../server/youtube-member.js';
 import {database,ROOT} from '../../server/private-documents.js';
 const BUCKET='ikigai-growth-photos',UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -34,7 +35,7 @@ export async function onRequest({request,env}){
  const url=new URL(request.url),action=url.searchParams.get('action');
  if(request.method!=='POST'||request.headers.get('Origin')!==url.origin)return reply(403,'アプリから利用してください。');
  if(!['upload','read','delete'].includes(action))return reply(400,'操作を確認してください。');
- const member=await requireYoutubeMember(request);if(!member.ok)return reply(member.status,member.message);
+ const member=await requireGrowthUser(request);if(!member.ok)return reply(member.status,member.message);
  if(!UUID.test(member.uid))return reply(403,'ログインし直してください。');
  try{
   if(action==='upload'){

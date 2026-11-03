@@ -72,7 +72,8 @@
                del(k){try{localStorage.removeItem(k)}catch(e){}}};
   let backend='local',db=null,base='',uid=null,userNs=null;
   // signed in but not yet approved by a host: personal features work, the shared ones stay closed
-  let approved=false;
+  let approved=false,growthApproved=false,growthPeople=[];
+  const growthPending=()=>backend==='cloud'&&!approved&&!growthApproved;
   const pending=()=>backend==='cloud'&&!approved;
   const PENDING_BOX=what=>`<div class="card empty"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><b style="color:var(--ink)">ホストの承認をお待ちください</b>承認されると、${what}が使えるようになります。</div>`;
   const pRef=()=>db.doc(base+'/profile');
@@ -246,7 +247,7 @@
     if(!growthPhotosUi){
       if(!growthPhotosLoading)growthPhotosLoading=import('./growth-photos.js');
       const module=await growthPhotosLoading;
-      if(!growthPhotosUi)growthPhotosUi=module.mountGrowthPhotos({request:payload=>{if(!window.appAuth?.growthPhoto)throw Error('写真を利用するには再読み込みしてください。');return window.appAuth.growthPhoto(payload)},account:()=>uid,allowed:()=>backend==='cloud'&&!!uid&&!pending()&&!$('#app').hidden,notify:toast});
+      if(!growthPhotosUi)growthPhotosUi=module.mountGrowthPhotos({request:payload=>{if(!window.appAuth?.growthPhoto)throw Error('写真を利用するには再読み込みしてください。');return window.appAuth.growthPhoto(payload)},account:()=>uid,allowed:()=>backend==='cloud'&&!!uid&&!growthPending()&&!$('#app').hidden,notify:toast});
     }
     return growthPhotosUi;
   }
@@ -269,7 +270,7 @@
         if(d.id===uid){myPosts=Array.isArray(v.posts)?clone(v.posts):[];myLikes=Array.isArray(v.likes)?clone(v.likes):[];myLikeTimes=v.likeTimes&&typeof v.likeTimes==='object'?clone(v.likeTimes):{};myCmts=Array.isArray(v.comments)?clone(v.comments):[]}
       });
       all.sort((p,q)=>q.at.localeCompare(p.at));cmts.sort((p,q)=>p.at.localeCompare(q.at));
-      feedAll=all;likesAll=likes;cmtsAll=cmts;feedReady=true;homeLogError=false;renderFeed();processPushNotice();
+      feedAll=all;likesAll=likes;cmtsAll=cmts;if(!approved&&Date.now()-growthDirectoryAt>60000)void loadGrowthPeople();feedReady=true;homeLogError=false;renderFeed();processPushNotice();
     },()=>{feedReady=true;homeLogError=true;renderFeed()});
   }
   async function flushPosts(){
@@ -284,18 +285,18 @@
   const pendingReactionPushes=new Map();let reactionPushBusy=false,reactionPushTimer=0;
   function queueReactionPush(event){if(event.postKey.startsWith(uid+':'))return;const key=event.kind+'|'+event.postKey+'|'+(event.eventId||myLikeTimes[event.postKey]||'');pendingReactionPushes.set(key,{event,attempts:0})}
   async function dispatchReactionPushes(){
-    if(reactionPushBusy||!window.appAuth?.push||backend!=='cloud'||pending())return;reactionPushBusy=true;clearTimeout(reactionPushTimer);const user=uid;
+    if(reactionPushBusy||!window.appAuth?.push||backend!=='cloud'||growthPending())return;reactionPushBusy=true;clearTimeout(reactionPushTimer);const user=uid;
     try{for(const [key,item] of pendingReactionPushes){if(uid!==user)break;try{await window.appAuth.push({action:'notify',...item.event});pendingReactionPushes.delete(key)}catch(error){item.attempts++;if(item.attempts>=3||[400,401,403,404].includes(error.status))pendingReactionPushes.delete(key)}}}finally{reactionPushBusy=false;if(pendingReactionPushes.size&&uid===user)reactionPushTimer=setTimeout(dispatchReactionPushes,30000)}
   }
-  let notificationSince=Infinity,notificationSinceAccount='';
+  let notificationSince=Infinity,communityNotificationSince=Infinity,notificationSinceAccount='';
   const isNewMemberEvent=at=>Number.isFinite(Date.parse(at))&&Date.parse(at)>=notificationSince;
   async function loadNotificationSince(){
-    const actor=uid;if(!actor||pending())return;
-    try{const value=await window.appAuth.notificationSince();if(uid!==actor)return;notificationSince=Date.parse(value);notificationSinceAccount=actor;renderReactionNotice();renderHomeLog();announcementsUi?.renderHome();if($('#notificationsDialog').open)openReactionNotices()}
+    const actor=uid;if(!actor||growthPending())return;
+    try{const value=await window.appAuth.notificationSince();if(uid!==actor)return;notificationSince=Date.parse(value);communityNotificationSince=approved?Date.parse(await window.appAuth.communityNotificationSince?.()||value):Infinity;if(uid!==actor)return;notificationSinceAccount=actor;renderReactionNotice();renderHomeLog();announcementsUi?.renderHome();if($('#notificationsDialog').open)openReactionNotices()}
     catch{if(uid===actor){notificationSince=Infinity;notificationSinceAccount=actor;renderReactionNotice();updateNewLogBadge()}}
   }
   function reactionEvents(){
-    if(backend!=='cloud'||pending()||!feedReady||homeLogError)return [];
+    if(backend!=='cloud'||growthPending()||!feedReady||homeLogError)return [];
     const own=new Map(feedAll.filter(p=>p.uid===uid).map(p=>[p.uid+':'+p.id,p]));
     const likes=likesAll.filter(l=>l.by!==uid&&own.has(l.key)).map(l=>({id:'like|'+l.by+'|'+l.key+'|'+l.at,kind:'like',by:l.by,key:l.key,at:l.at,text:nameOf(l.by)+'さんがあなたの投稿にいいねしました。'}));
     const comments=cmtsAll.filter(c=>c.uid!==uid&&own.has(c.key)).map(c=>({id:'comment|'+c.uid+'|'+c.id,kind:'comment',by:c.uid,key:c.key,at:c.at,text:nameOf(c.uid)+'さんがあなたの投稿にコメントしました。'}));
@@ -310,7 +311,7 @@
   function renderReactionNotice(){sortNotificationRows();const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length+(announcementsUi?.unread()||0);const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
   function openReactionNotices(){
     if(notificationSinceAccount!==uid||!Number.isFinite(notificationSince))void loadNotificationSince();
-    if(backend!=='cloud'||pending()){toast('承認後にお知らせを確認できます。');return}
+    if(backend!=='cloud'||growthPending()){toast('承認後にお知らせを確認できます。');return}
     const events=reactionEvents(),box=$('#notificationList');box.querySelectorAll('.reaction-notice').forEach(row=>row.remove());
     for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.dataset.noticeAt=event.at||'';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
     sortNotificationRows();$('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
@@ -328,7 +329,7 @@
   const homeLogKey=x=>x?x.uid+':'+x.id:'';
   function homeLogCanRun(){
     return !!homeLogCard&&!homeLogCard.hidden&&!$('#app').hidden&&!$('#v-home').hidden
-      &&document.visibilityState==='visible'&&backend==='cloud'&&!pending()&&!homeLogError
+      &&document.visibilityState==='visible'&&backend==='cloud'&&!growthPending()&&!homeLogError
       &&homeLogItems.length>1&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&!homeLogTouching&&homeLogInView;
   }
   function stopHomeLogTimer(){clearTimeout(homeLogTimer);homeLogTimer=0}
@@ -362,7 +363,7 @@
   }
   function updateNewLogBadge(){
     const badge=$('#homeLogNew'),dot=$('#growthLogTabDot');if(!badge)return;
-    if(backend!=='cloud'||pending()||!uid){badge.hidden=true;if(dot)dot.hidden=true;return}
+    if(backend!=='cloud'||growthPending()||!uid){badge.hidden=true;if(dot)dot.hidden=true;return}
     if(!Number.isFinite(notificationSince)||notificationSinceAccount!==uid){badge.hidden=true;if(dot)dot.hidden=true;return}
     if(!feedReady||homeLogError)return; // Keep the last known unread state on a transient failure.
     const seen=Math.max(notificationSince,Date.parse(profile.growthLogSeenAt||'')||0);
@@ -370,7 +371,7 @@
     const label=count?'新着 '+count+'件':'';if(badge.textContent!==label)badge.textContent=label;badge.hidden=!count;if(dot)dot.hidden=!count;
   }
   function markGrowthLogsSeen(){
-    if(backend!=='cloud'||pending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
+    if(backend!=='cloud'||growthPending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
     const now=Date.now(),seen=Date.parse(profile.growthLogSeenAt||'')||0;
     if(!feedAll.some(x=>x.uid!==uid&&Date.parse(x.at)>seen&&Date.parse(x.at)<=now))return;
     profile.growthLogSeenAt=new Date(now).toISOString();saveProfile(true);updateNewLogBadge();
@@ -378,7 +379,7 @@
   function renderHomeLog(){
     updateNewLogBadge();
     if(!homeLogCard)return;
-    const allowed=backend==='cloud'&&!!uid&&!pending();homeLogCard.hidden=!allowed;
+    const allowed=backend==='cloud'&&!!uid&&!growthPending();homeLogCard.hidden=!allowed;
     const previous=homeLogItems[homeLogIndex],first=homeLogKey(homeLogItems[0]);
     if(!allowed||!feedReady||homeLogError||!feedAll.length){
       homeLogItems=[];homeLogIndex=0;stopHomeLogTimer();$('#homeLogPreview').hidden=true;
@@ -393,7 +394,7 @@
     paintHomeLog();syncHomeLogTimer(homeLogKey(previous)!==homeLogKey(homeLogItems[homeLogIndex])||previous?.text!==homeLogItems[homeLogIndex].text);
   }
   function openHomeLog(key,ownOnly=false){
-    if(backend!=='cloud'||pending())return;
+    if(backend!=='cloud'||growthPending())return;
     tlQuery='';tlMine=ownOnly;$('#tlSearch').value='';$('#tlMine').setAttribute('aria-pressed',String(ownOnly));go('timeline');
     if(key){const post=[...document.querySelectorAll('#feed [data-post-key]')].find(x=>x.dataset.postKey===key);if(post){post.tabIndex=-1;post.focus({preventScroll:true});post.scrollIntoView({behavior:homeLogMotion.matches?'auto':'smooth',block:'start'})}}
   }
@@ -429,7 +430,7 @@
     const box=$('#feed'),expandedResponders=new Set([...$('#feed').querySelectorAll('.post-responders[open]')].map(el=>el.dataset.postKey));
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
     if(backend!=='cloud'){box.innerHTML=`<div class="card empty"><b style="color:var(--ink)">成長ログはまだ使えません</b>ログインすると、仲間の投稿が見られます。</div>`;return}
-    if(pending()){box.innerHTML=PENDING_BOX('成長ログ');return}
+    if(growthPending()){box.innerHTML=PENDING_BOX('成長ログ');return}
     if(!feedReady){box.innerHTML='<div class="card empty">読み込んでいます…</div>';return}
     const q=tlQuery.toLowerCase();
     const list=feedAll.filter(x=>(!tlMine||x.uid===uid)&&(!q||x.text.toLowerCase().includes(q)||nameOf(x.uid).toLowerCase().includes(q)||postCategoriesOf(x).some(c=>c.includes(q))));
@@ -484,7 +485,7 @@
   }
   $('#postCategories').addEventListener('change',updatePostCategories);
   const openComposer=on=>{$('#postForm').hidden=!on;$('#writeBtn').hidden=on;if(on){$('#postText').focus();ensureGrowthPhotos().catch(()=>toast('写真機能を読み込めませんでした。再読み込みしてください。'))}};
-  $('#writeBtn').onclick=()=>{if(backend!=='cloud'||!uid){toast('ログインすると投稿できます');return}if(pending()){toast('ホストの承認後に投稿できます');return}openComposer(true)};
+  $('#writeBtn').onclick=()=>{if(backend!=='cloud'||!uid){toast('ログインすると投稿できます');return}if(growthPending()){toast('ホストの承認後に投稿できます');return}openComposer(true)};
   $('#postCancel').onclick=()=>openComposer(false);
   $('#tlSearch').addEventListener('input',e=>{tlQuery=e.target.value.trim();renderFeed()});
   $('#tlMine').onclick=()=>{tlMine=!tlMine;$('#tlMine').setAttribute('aria-pressed',tlMine);renderFeed()};
@@ -492,7 +493,7 @@
   $('#postForm').addEventListener('submit',async e=>{
     e.preventDefault();if(postSubmitting)return;
     if(backend!=='cloud'||!uid){toast('ログインすると投稿できます');return}
-    if(pending()){toast('ホストの承認後に投稿できます');return}
+    if(growthPending()){toast('ホストの承認後に投稿できます');return}
     let photos=growthPhotosUi;
     try{if($('#postPhotoFile').files?.length&&!photos)photos=await ensureGrowthPhotos()}catch{toast('写真機能を読み込めませんでした。再度お試しください。');return}
     if(photos?.isPreparing()){toast('写真の準備が終わってから投稿してください');return}
@@ -522,7 +523,7 @@
   });
   $('#feed').addEventListener('submit',e=>{
     const f=e.target.closest('[data-cmt-form]');if(!f)return;e.preventDefault();if(postSubmitting||commentDeleteBusy)return;
-    if(backend!=='cloud'||!uid||pending())return;
+    if(backend!=='cloud'||!uid||growthPending())return;
     const input=f.querySelector('textarea'),text=input.value.trim();if(!text)return;
     const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),key:f.dataset.cmtForm,text:text.slice(0,300),at:new Date().toISOString()};
     myCmts.push(c);if(myCmts.length>MAX_CMTS)myCmts=myCmts.slice(-MAX_CMTS);
@@ -533,7 +534,7 @@
     if(postSubmitting||commentDeleteBusy)return;
     const edit=e.target.closest('[data-edit-comment]');
     if(edit){
-      if(backend!=='cloud'||!uid||pending())return;
+      if(backend!=='cloud'||!uid||growthPending())return;
       const id=edit.dataset.editComment,key=edit.dataset.commentKey,own=myCmts.find(c=>c.id===id&&c.key===key);if(!own)return;
       const content=edit.closest('.cmt-content');if(content.querySelector('.cmt-edit-form'))return;
       const text=content.querySelector('p'),actions=content.querySelector('.cmt-actions');
@@ -555,7 +556,7 @@
     }
     const dc=e.target.closest('[data-del-comment]');
     if(dc){
-      if(backend!=='cloud'||!uid||pending())return;
+      if(backend!=='cloud'||!uid||growthPending())return;
       const id=dc.dataset.delComment,key=dc.dataset.commentKey;
       const own=myCmts.find(c=>c.id===id&&c.key===key);
       if(!own)return;
@@ -571,7 +572,7 @@
     }
     const lk=e.target.closest('[data-like]');
     if(lk){
-      if(backend!=='cloud'||!uid||pending())return;
+      if(backend!=='cloud'||!uid||growthPending())return;
       const key=lk.dataset.like,i=myLikes.indexOf(key);
       if(i<0){myLikes.push(key);if(myLikes.length>MAX_LIKES)myLikes=myLikes.slice(-MAX_LIKES);myLikeTimes[key]=new Date().toISOString();likesAll.push({by:uid,key,at:myLikeTimes[key]});queueReactionPush({kind:'like',postKey:key})}
       else{myLikes.splice(i,1);delete myLikeTimes[key];for(const [id,item] of pendingReactionPushes){if(item.event.kind==='like'&&item.event.postKey===key)pendingReactionPushes.delete(id)}likesAll=likesAll.filter(l=>!(l.by===uid&&l.key===key))}
@@ -611,13 +612,13 @@
   }
   $('#talkIntroductionForm').addEventListener('submit',async event=>{
     event.preventDefault();if(talkIntroChecking||backend!=='cloud'||!uid||pending())return;
-    const form=event.currentTarget,fields=Object.fromEntries(new FormData(form));for(const key of ['name','occupation','goal','message']){fields[key]=fields[key].trim();if(!fields[key]){toast('４項目をすべて入力してください');return}}
-    const controls=[...form.querySelectorAll('input,button')];controls.forEach(el=>el.disabled=true);talkIntroChecking=true;const actor=uid;$('#talkIntroductionStatus').textContent='自己紹介を送信しています…';
-    try{const state=await window.appAuth.talkIntroduction({action:'submit',fields});if(uid!==actor)return;let noteConfirmed=state?.noteSaved===true;if(state?.introduced===true&&state.noteSaved===undefined){const notes=await window.appAuth.talkNotes();noteConfirmed=Array.isArray(notes?.notes)&&notes.notes.some(note=>note.uid===actor&&['name','occupation','goal','message'].every(key=>note[key]===fields[key]))}if(uid!==actor)return;if(state?.introduced!==true||!noteConfirmed)throw Error();talkIntroduced=true;showTalkIntroduction();$('#talkIntroductionStatus').textContent='';toast('自己紹介をトークとノートに保存しました');window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});const module=await import('./pull-refresh.js');await module.refreshCurrentData();renderChat()}
+    const form=event.currentTarget,fields=Object.fromEntries(new FormData(form));for(const key of ['name','occupation','message']){fields[key]=fields[key].trim();if(!fields[key]){toast('名前・職業・一言をすべて入力してください');return}}
+    const controls=[...form.querySelectorAll('input,textarea,button')];controls.forEach(el=>el.disabled=true);talkIntroChecking=true;const actor=uid;$('#talkIntroductionStatus').textContent='自己紹介を送信しています…';
+    try{const state=await window.appAuth.talkIntroduction({action:'submit',fields});if(uid!==actor)return;let noteConfirmed=state?.noteSaved===true;if(state?.introduced===true&&state.noteSaved===undefined){const notes=await window.appAuth.talkNotes();noteConfirmed=Array.isArray(notes?.notes)&&notes.notes.some(note=>note.uid===actor&&['name','occupation','message'].every(key=>note[key]===fields[key]))}if(uid!==actor)return;if(state?.introduced!==true||!noteConfirmed)throw Error();talkIntroduced=true;showTalkIntroduction();$('#talkIntroductionStatus').textContent='';toast('自己紹介をトークとノートに保存しました');window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});const module=await import('./pull-refresh.js');await module.refreshCurrentData();renderChat()}
     catch{$('#talkIntroductionStatus').textContent='送信を確認できませんでした。入力内容は残っています。もう一度お試しください。'}finally{talkIntroChecking=false;controls.forEach(el=>el.disabled=false)}
   });
   const MAX_MY_MSGS=200;
-  const memberOf=id=>members.find(m=>m.uid===id);
+  const memberOf=id=>members.find(m=>m.uid===id)||growthPeople.find(m=>m.uid===id);
   const nameOf=id=>{const m=memberOf(id);return(m&&m.nick)||(id===uid?(profile.nick||'あなた'):'メンバー')};
   const avatarOf=id=>{const m=memberOf(id);return m?m.avatar:(id===uid?profile.avatar:'')};
   const giveCount=id=>chatAll.filter(x=>x.type==='give'&&x.to===id&&!x.unsent).length;
@@ -868,21 +869,27 @@
         else for(const r of reflections)await rCol().doc(r.id).set(clone(r));
       }
       // the Firebase adapter has no approval step, so everyone there counts as approved
-      approved=member;
+      approved=member;const growthState=await window.appAuth?.growthAccess?.().catch(()=>({allowed:false}));growthApproved=member||growthState?.allowed===true;
       if(p.exists)void migrateActionCheckCycle();
       // Paint the account's own home before loading shared panels and background notices.
       requestAnimationFrame(()=>{
-        const background=()=>{if(uid!==id||backend!=='cloud')return;if(approved)openShared();else watchApproval();syncMember();u.isOwner().then(owner=>{if(uid===id)setOwnerView(owner)}).catch(()=>{if(uid===id)setOwnerView(false)})};
+        const background=()=>{if(uid!==id||backend!=='cloud')return;if(!growthPending())openGrowth();if(approved)openShared();else watchApproval();syncMember();u.isOwner().then(owner=>{if(uid===id)setOwnerView(owner)}).catch(()=>{if(uid===id)setOwnerView(false)})};
         if(window.requestIdleCallback)requestIdleCallback(background,{timeout:400});else setTimeout(background,0);
       });
     }catch(e){backend='local';db=null;uid=null;if(STRICT){loadFailed=true;return}}
     setStatus();renderMembers();
   }
   // members, talk, growth log and the meeting link: only once a host has approved this person
+  let growthFeedOpen=false,growthDirectoryLoading=false,growthDirectoryAt=0;
+  async function loadGrowthPeople(){
+    if(growthDirectoryLoading||growthPending()||!window.appAuth?.growthDirectory)return;
+    growthDirectoryLoading=true;try{const people=await window.appAuth.growthDirectory();growthPeople=Array.isArray(people)?people:[];growthDirectoryAt=Date.now();renderFeed()}catch{}finally{growthDirectoryLoading=false}
+  }
+  function openGrowth(){if(growthPending())return;void loadNotificationSince();if(!growthFeedOpen){growthFeedOpen=true;subscribeFeed()}void loadGrowthPeople()}
   let sharedOpen=false;
   function openShared(){
     if(sharedOpen)return;sharedOpen=true;void loadNotificationSince();
-    subscribeMembers();subscribeChat();subscribeFeed();subscribeQuotes();subscribeMeeting();
+    openGrowth();subscribeMembers();subscribeChat();subscribeQuotes();subscribeMeeting();
     ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(!$('#v-soon').hidden)openYoutube();
   }
@@ -1356,17 +1363,17 @@
   // ---------- first-run registration: membership questions ----------
   // answers go to applications/<uid>: the member writes their own, only the owner can read them all
   const OB_STEPS=5;
-  let obStep=0,ob={};
+  let obStep=0,ob={},obSubmitting=false;
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   function openOnboard(){
-    ob={name:profile.nick||'',avatar:profile.avatar||'',referrer:'',email:window.appAuth?window.appAuth.email():'',age:'',job:profile.aff||'',sns:'',reason:'',shi:profile.shi||'',goal:goal().t||''};
+    ob={name:profile.nick||'',avatar:profile.avatar||'',referrer:'',email:window.appAuth?window.appAuth.email():'',age:'',job:profile.aff||'',sns:'',reason:'',shi:profile.shi||'',goal:goal().t||'',greeting:profile.greetingDraft||''};
     obStep=0;
     $('#app').hidden=true;$('#onboard').hidden=false;
     renderOnboard();
   }
   function readOnboard(){
     const v=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
-    if(obStep===0){ob.name=v('obName');ob.referrer=v('obRef');ob.email=v('obEmail');ob.age=v('obAge')}
+    if(obStep===0){ob.name=v('obName');ob.referrer=v('obRef');ob.email=v('obEmail');ob.age=v('obAge');ob.greeting=v('obGreeting')}
     if(obStep===1){ob.job=v('obJob');ob.sns=v('obSns');ob.reason=v('obReason')}
     if(obStep===2){ob.shi=v('obShi');ob.goal=v('obGoal')}
   }
@@ -1379,7 +1386,8 @@
       +`<div class="field"><label for="obName">お名前${req}</label><input type="text" id="obName" maxlength="30" value="${esc(ob.name)}" placeholder="例：山田 太郎" autocomplete="name"></div>
         <div class="field"><label for="obRef">紹介者の名前${req}</label><input type="text" id="obRef" maxlength="30" value="${esc(ob.referrer)}" placeholder="例：佐藤 花子"></div>
         <div class="field"><label for="obEmail">メールアドレス${req}</label><input type="text" id="obEmail" inputmode="email" maxlength="120" value="${esc(ob.email)}" placeholder="name@example.com" autocomplete="email"></div>
-        <div class="field"><label for="obAge">ご年齢${req}</label><input type="text" id="obAge" inputmode="numeric" maxlength="3" value="${esc(ob.age)}" placeholder="例：28"></div>`;
+        <div class="field"><label for="obAge">ご年齢${req}</label><input type="text" id="obAge" inputmode="numeric" maxlength="3" value="${esc(ob.age)}" placeholder="例：28"></div>
+        <div class="field"><label for="obGreeting">挨拶メッセージ（一言）${req}</label><textarea id="obGreeting" rows="3" maxlength="160" placeholder="例：はじめまして。仲間と一緒に挑戦を続けたいです！">${esc(ob.greeting||'')}</textarea><p class="muted" style="font-size:12px">入力して登録を完了すると、名前・職業・一言の自己紹介が成長ログに公開され、成長ログを利用できるようになります。この内容の掲載とログ利用に同意したものとして扱います。トークなどは管理者の入会承認後に利用できます。</p></div>`;
     if(obStep===1)body=head('入会について','お仕事と、入会を希望する理由を教えてください。')
       +`<div class="field"><label for="obJob">お仕事${req}</label><input type="text" id="obJob" maxlength="40" value="${esc(ob.job)}" placeholder="例：会社員、大学生、パーソナルトレーナー"></div>
         <div class="field"><label for="obSns">SNSアカウントURL${opt}</label><input type="text" id="obSns" inputmode="url" maxlength="200" value="${esc(ob.sns)}" placeholder="https://www.instagram.com/..."></div>
@@ -1411,9 +1419,10 @@
     window.scrollTo(0,0);
   }
   $('#obForm').addEventListener('submit',async e=>{
-    e.preventDefault();readOnboard();
+    e.preventDefault();if(obSubmitting)return;readOnboard();
     if(obStep===0){
       if(!ob.name){toast('お名前を入れてください');return}
+      if(!ob.greeting||ob.greeting.length>160){toast('挨拶メッセージを160文字以内で入力してください');return}
       if(!ob.referrer){toast('紹介者の名前を入れてください');return}
       if(!EMAIL_RE.test(ob.email)){toast('メールアドレスの形を確認してください');return}
       const n=Number(ob.age);if(!/^\d{1,3}$/.test(ob.age)||n<10||n>110){toast('ご年齢は数字で入れてください');return}
@@ -1429,15 +1438,19 @@
       if(!ob.goal){toast('ワクワクする最終目標を書いてください');return}
     }
     if(obStep<OB_STEPS-1){obStep++;renderOnboard();return}
-    profile.nick=ob.name;profile.aff=ob.job;profile.avatar=ob.avatar;profile.registered=true;
-    if(ob.shi!==profile.shi){profile.shi=ob.shi;profile.shiSince=todayKey}
-    goal().t=ob.goal;
-    saveProfile();
-    if(backend==='cloud'&&uid){
-      try{await db.doc('applications/'+uid).set({name:ob.name,referrer:ob.referrer,email:ob.email,age:Number(ob.age),job:ob.job,sns:ob.sns,reason:ob.reason,at:new Date().toISOString()})}
-      catch(err){toast('入会情報を送れませんでした。あとで運営に連絡してください')}
-    }
-    showApp();go('home');toast(`ようこそ、${profile.nick}`);
+    const controls=[...$('#obForm').querySelectorAll('button,input,textarea')];obSubmitting=true;controls.forEach(el=>el.disabled=true);
+    profile.nick=ob.name;profile.aff=ob.job;profile.avatar=ob.avatar;profile.registered=false;profile.registrationPending=true;profile.greetingDraft=ob.greeting;
+    if(ob.shi!==profile.shi){profile.shi=ob.shi;profile.shiSince=todayKey}goal().t=ob.goal;
+    try{
+      if(!await saveProfile())throw Error('profile');
+      await db.doc('applications/'+uid).set({name:ob.name,referrer:ob.referrer,email:ob.email,age:Number(ob.age),job:ob.job,sns:ob.sns,reason:ob.reason,at:new Date().toISOString()});
+      const result=await window.appAuth.registrationGreeting({name:ob.name,occupation:ob.job,message:ob.greeting});
+      if(result?.allowed!==true||result?.published!==true)throw Error('greeting');
+      growthApproved=true;profile.registered=true;delete profile.registrationPending;delete profile.greetingDraft;
+      if(!await saveProfile()){profile.registered=false;profile.registrationPending=true;profile.greetingDraft=ob.greeting;throw Error('profile')}
+      openGrowth();showApp();go('timeline');toast('自己紹介を成長ログに投稿しました。成長ログを利用できます。');
+    }catch{toast('登録を完了できませんでした。入力内容は残っています。通信状態を確認して、もう一度お試しください。')}
+    finally{obSubmitting=false;controls.forEach(el=>el.disabled=false)}
   });
 
   // Administrator-only account screen. No roster data is kept in browser storage.
@@ -1672,7 +1685,7 @@
     if(offerLocal)return openMigrate();
     let out=false;try{out=localStorage.getItem(LOGOUT_KEY)==='1'}catch(e){}
     if(out)return showEnd('ログアウトしています','もう一度使うときは、ログインしてください。','ログインする');
-    if(!profile.registered&&!profile.shi)return openOnboard();
+    if(profile.registrationPending||(!profile.registered&&!profile.shi))return openOnboard();
     if(!profile.registered){profile.registered=true;saveProfile()}   // set up before registration existed
     showApp();
   }
@@ -1691,7 +1704,7 @@
     if(announcementsUi)announcementsUi.stop();
     growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
-    notificationSince=Infinity;notificationSinceAccount='';talkNotesUi?.clear();talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
+    growthApproved=false;growthPeople=[];notificationSince=Infinity;communityNotificationSince=Infinity;notificationSinceAccount='';talkNotesUi?.clear();talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -1853,7 +1866,7 @@
   let pendingPushNotice=null;const noticeUrl=new URL(location.href);
   if(['openPost','openDm','openGroup','openKind'].some(key=>noticeUrl.searchParams.has(key))){pendingPushNotice={postKey:noticeUrl.searchParams.get('openPost'),threadId:noticeUrl.searchParams.get('openDm'),groupId:noticeUrl.searchParams.get('openGroup'),kind:noticeUrl.searchParams.get('openKind'),announcementId:noticeUrl.searchParams.get('openAnnouncement')};noticeUrl.searchParams.delete('openPost');noticeUrl.searchParams.delete('openDm');for(const key of ['openGroup','openKind','openAnnouncement'])noticeUrl.searchParams.delete(key);history.replaceState(null,'',noticeUrl.href)}
   async function processPushNotice(){
-    if(!pendingPushNotice||backend!=='cloud'||pending()||$('#app').hidden)return;
+    if(!pendingPushNotice||backend!=='cloud'||growthPending()||$('#app').hidden)return;
     const notice=pendingPushNotice;if(notice.postKey&&!feedReady)return;pendingPushNotice=null;if($('#notificationsDialog').open)$('#notificationsDialog').close();
     if(typeof notice.threadId==='string'&&notice.threadId.length===73){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureDirectMessages();await ui?.open(notice.threadId)}catch{toast('個別トークを開けませんでした。')}}
     else if(typeof notice.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(notice.groupId)){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureGroups();await ui?.openById(notice.groupId)}catch{toast('グループを開けませんでした。参加状況を確認してください。')}}
@@ -1876,7 +1889,7 @@
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
-      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&isNewMemberEvent(at),markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&Number.isFinite(Date.parse(at))&&Date.parse(at)>=communityNotificationSince,markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }

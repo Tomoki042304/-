@@ -404,7 +404,12 @@ function start() {
 
   // hooks app.js calls for logout and account deletion
   window.appAuth = {
-    notificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);if(!Number.isFinite(Date.parse(data)))throw Error('入会日時を確認できませんでした。');return data},
+    communityNotificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);return data},
+    registrationGreeting:async fields=>{const {data,error}=await supabase.rpc('ikigai_register_greeting_v1',{p_fields:fields});fail(error);return data},
+    growthAccess:async()=>{const {data,error}=await supabase.rpc('ikigai_growth_access_v1');if(error?.code==='PGRST202')return {allowed:false};fail(error);return data},
+    growthDirectory:async()=>{const data=await protectedRequest({action:'growth-directory'});return data.rows||[]},
+
+    notificationSince:async()=>{const {data:scope,error:scopeError}=await supabase.rpc('ikigai_growth_access_v1');if(!scopeError&&scope?.allowed&&Number.isFinite(Date.parse(scope.startedAt)))return scope.startedAt;const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);if(!Number.isFinite(Date.parse(data)))throw Error('入会日時を確認できませんでした。');return data},
     talkNotes:async()=>{const {data,error}=await supabase.rpc('ikigai_talk_notes_v1');fail(error);return data},
     talkIntroduction:async payload=>{const {data,error}=await supabase.rpc('ikigai_talk_introduction_v1',{p_action:payload.action,p_fields:payload.fields||null});if(payload.action==='status'&&error?.code==='PGRST202')return {introduced:true,setupRequired:true};fail(error);return data},
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them

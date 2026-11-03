@@ -1,3 +1,4 @@
+import {requireGrowthUser} from '../../server/growth-access.js';
 import {requireAccountUser,requireYoutubeHost} from '../../server/youtube-member.js';
 import {privateFields,privateCollection,sealDocument,openDocument} from '../../server/pii-storage.js';
 import {database,privateRoster} from '../../server/private-documents.js';
@@ -8,6 +9,15 @@ export async function onRequest({request,env}){
  const user=await requireAccountUser(request);if(!user.ok)return reply(user.status,{message:user.message});
  let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error();const text=await request.text();if(text.length>1500000)throw Error();body=JSON.parse(text)}catch{return reply(400,{message:'入力内容を確認してください。'})}
  try{
+  if(body?.action==='growth-directory'){
+   const access=await requireGrowthUser(request);if(!access.ok)return reply(access.status,{message:access.message});
+   const visiblePosts=await database(request,'documents?select=path,data&coll=eq.posts');const authors=new Set((Array.isArray(visiblePosts)?visiblePosts:[]).filter(r=>Array.isArray(r.data?.posts)&&r.data.posts.length).map(r=>r.path.split('/').pop()));
+   const rows=[];for(let offset=0;offset<10000;offset+=100){
+    const batch=await database(null,'documents?'+new URLSearchParams({select:'path,data',coll:'eq.members',order:'path',limit:'100',offset:String(offset)}),{serviceKey:env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY});if(!Array.isArray(batch))throw Error();
+    for(const row of batch){if(!authors.has(row.path.split('/').pop()))continue;const person=await openDocument(env,row.path,row.data);rows.push({uid:row.path.split('/').pop(),nick:typeof person.nick==='string'?person.nick:'メンバー',avatar:typeof person.avatar==='string'?person.avatar:''})}
+    if(batch.length<100)return reply(200,{rows});
+   }throw Error('directory limit');
+  }
   if(body?.action==='roster'){
    const host=await requireYoutubeHost(request);if(!host.ok)return reply(host.status,{message:host.message});
    return reply(200,{rows:await privateRoster(request,env)});
