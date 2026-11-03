@@ -1387,7 +1387,7 @@
         <div class="field"><label for="obRef">紹介者の名前${req}</label><input type="text" id="obRef" maxlength="30" value="${esc(ob.referrer)}" placeholder="例：佐藤 花子"></div>
         <div class="field"><label for="obEmail">メールアドレス${req}</label><input type="text" id="obEmail" inputmode="email" maxlength="120" value="${esc(ob.email)}" placeholder="name@example.com" autocomplete="email"></div>
         <div class="field"><label for="obAge">ご年齢${req}</label><input type="text" id="obAge" inputmode="numeric" maxlength="3" value="${esc(ob.age)}" placeholder="例：28"></div>
-        <div class="field"><label for="obGreeting">挨拶メッセージ（一言）${req}</label><textarea id="obGreeting" rows="3" maxlength="160" placeholder="例：はじめまして。仲間と一緒に挑戦を続けたいです！">${esc(ob.greeting||'')}</textarea><p class="muted" style="font-size:12px">入力して登録を完了すると、名前・職業・一言の自己紹介が成長ログに公開され、成長ログを利用できるようになります。この内容の掲載とログ利用に同意したものとして扱います。トークなどは管理者の入会承認後に利用できます。</p></div>`;
+        <div class="field"><label for="obGreeting">挨拶メッセージ（一言）${req}</label><textarea id="obGreeting" rows="3" maxlength="160" placeholder="例：はじめまして。仲間と一緒に挑戦を続けたいです！">${esc(ob.greeting||'')}</textarea><p class="muted" style="font-size:12px">入力して登録を完了すると、この一言メッセージが成長ログに公開され、成長ログを利用できるようになります。この内容の掲載とログ利用に同意したものとして扱います。トークなどは管理者の入会承認後に利用できます。</p></div>`;
     if(obStep===1)body=head('入会について','お仕事と、入会を希望する理由を教えてください。')
       +`<div class="field"><label for="obJob">お仕事${req}</label><input type="text" id="obJob" maxlength="40" value="${esc(ob.job)}" placeholder="例：会社員、大学生、パーソナルトレーナー"></div>
         <div class="field"><label for="obSns">SNSアカウントURL${opt}</label><input type="text" id="obSns" inputmode="url" maxlength="200" value="${esc(ob.sns)}" placeholder="https://www.instagram.com/..."></div>
@@ -1448,7 +1448,7 @@
       if(result?.allowed!==true||result?.published!==true)throw Error('greeting');
       growthApproved=true;profile.registered=true;delete profile.registrationPending;delete profile.greetingDraft;
       if(!await saveProfile()){profile.registered=false;profile.registrationPending=true;profile.greetingDraft=ob.greeting;throw Error('profile')}
-      openGrowth();showApp();go('timeline');toast('自己紹介を成長ログに投稿しました。成長ログを利用できます。');
+      openGrowth();showApp();go('timeline');toast('一言メッセージを成長ログに投稿しました。成長ログを利用できます。');
     }catch{toast('登録を完了できませんでした。入力内容は残っています。通信状態を確認して、もう一度お試しください。')}
     finally{obSubmitting=false;controls.forEach(el=>el.disabled=false)}
   });

@@ -314,7 +314,7 @@ DECLARE actor uuid=auth.uid();body text;draft jsonb;existing jsonb;stamp text;fi
   PERFORM set_config('ikigai.runtime_write','allowed',true);
   INSERT INTO public.ikigai_runtime_values_v1(key,value,updated_at) VALUES('group:registration-greeting:v1:'||actor::text,jsonb_build_object('uid',actor,'allowed',true,'startedAt',stamp,'body',body,'consent','growth-log-publication-v1')::text,now());
   SELECT data INTO existing FROM public.documents WHERE path='posts/'||actor::text FOR UPDATE;existing=COALESCE(existing,'{}');
-  INSERT INTO public.documents(path,data,updated_at) VALUES('posts/'||actor::text,existing||jsonb_build_object('posts',COALESCE(existing->'posts','[]')||jsonb_build_array(jsonb_build_object('id','registration-introduction-v1','text',body,'at',stamp,'categories',jsonb_build_array('交流')))),now()) ON CONFLICT(path) DO UPDATE SET data=EXCLUDED.data,updated_at=EXCLUDED.updated_at;
+  INSERT INTO public.documents(path,data,updated_at) VALUES('posts/'||actor::text,existing||jsonb_build_object('posts',COALESCE(existing->'posts','[]')||jsonb_build_array(jsonb_build_object('id','registration-introduction-v1','text',btrim(p_fields->>'message'),'at',stamp,'categories',jsonb_build_array('交流')))),now()) ON CONFLICT(path) DO UPDATE SET data=EXCLUDED.data,updated_at=EXCLUDED.updated_at;
  END IF;
  PERFORM public.ikigai_publish_greeting_chat_v1(actor);
  RETURN jsonb_build_object('allowed',true,'published',true,'startedAt',COALESCE(draft->>'startedAt',stamp));
