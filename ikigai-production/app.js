@@ -71,7 +71,7 @@
                set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}},
                del(k){try{localStorage.removeItem(k)}catch(e){}}};
   let backend='local',db=null,base='',uid=null,userNs=null;
-  // signed in but not yet approved by a host: personal features work, the shared ones stay closed
+  // Growth-log permission is separate from administrator-controlled community admission.
   let approved=false,growthApproved=false,growthPeople=[];
   const growthPending=()=>backend==='cloud'&&!approved&&!growthApproved;
   const pending=()=>backend==='cloud'&&!approved;
@@ -879,11 +879,11 @@
     }catch(e){backend='local';db=null;uid=null;if(STRICT){loadFailed=true;return}}
     setStatus();renderMembers();
   }
-  // members, talk, growth log and the meeting link: only once a host has approved this person
+  // Community features open after admission; the growth feed can open earlier after a greeting.
   let growthFeedOpen=false,growthDirectoryLoading=false,growthDirectoryAt=0;
   async function loadGrowthPeople(){
     if(growthDirectoryLoading||growthPending()||!window.appAuth?.growthDirectory)return;
-    growthDirectoryLoading=true;try{const people=await window.appAuth.growthDirectory();growthPeople=Array.isArray(people)?people:[];growthDirectoryAt=Date.now();renderFeed()}catch{}finally{growthDirectoryLoading=false}
+    const actor=uid;growthDirectoryLoading=true;try{const people=await window.appAuth.growthDirectory();if(uid!==actor||growthPending()||$('#app').hidden)return;growthPeople=Array.isArray(people)?people:[];growthDirectoryAt=Date.now();renderFeed()}catch{}finally{growthDirectoryLoading=false}
   }
   function openGrowth(){if(growthPending())return;void loadNotificationSince();if(!growthFeedOpen){growthFeedOpen=true;subscribeFeed()}void loadGrowthPeople()}
   let sharedOpen=false;
@@ -1874,7 +1874,7 @@
     else if(notice.kind==='morning'){go('home');$('#zoomCard').scrollIntoView({block:'center'})}
     else if(notice.kind==='announcement'){openReactionNotices()}
     else if(notice.kind==='member'){go('home')}
-    else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,true)}
+    else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,notice.kind!=='log')}
   }
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}});
   let messageReactions=null,messageReactionsLoading=null;
