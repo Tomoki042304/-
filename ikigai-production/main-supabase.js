@@ -404,6 +404,7 @@ function start() {
 
   // hooks app.js calls for logout and account deletion
   window.appAuth = {
+    notificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);if(!Number.isFinite(Date.parse(data)))throw Error('入会日時を確認できませんでした。');return data},
     talkNotes:async()=>{const {data,error}=await supabase.rpc('ikigai_talk_notes_v1');fail(error);return data},
     talkIntroduction:async payload=>{const {data,error}=await supabase.rpc('ikigai_talk_introduction_v1',{p_action:payload.action,p_fields:payload.fields||null});if(payload.action==='status'&&error?.code==='PGRST202')return {introduced:true,setupRequired:true};fail(error);return data},
     // app.js: load only this account's records, never this browser's leftovers, and never fall back to them

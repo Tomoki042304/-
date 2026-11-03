@@ -287,12 +287,19 @@
     if(reactionPushBusy||!window.appAuth?.push||backend!=='cloud'||pending())return;reactionPushBusy=true;clearTimeout(reactionPushTimer);const user=uid;
     try{for(const [key,item] of pendingReactionPushes){if(uid!==user)break;try{await window.appAuth.push({action:'notify',...item.event});pendingReactionPushes.delete(key)}catch(error){item.attempts++;if(item.attempts>=3||[400,401,403,404].includes(error.status))pendingReactionPushes.delete(key)}}}finally{reactionPushBusy=false;if(pendingReactionPushes.size&&uid===user)reactionPushTimer=setTimeout(dispatchReactionPushes,30000)}
   }
+  let notificationSince=Infinity,notificationSinceAccount='';
+  const isNewMemberEvent=at=>Number.isFinite(Date.parse(at))&&Date.parse(at)>=notificationSince;
+  async function loadNotificationSince(){
+    const actor=uid;if(!actor||pending())return;
+    try{const value=await window.appAuth.notificationSince();if(uid!==actor)return;notificationSince=Date.parse(value);notificationSinceAccount=actor;renderReactionNotice();renderHomeLog();announcementsUi?.renderHome();if($('#notificationsDialog').open)openReactionNotices()}
+    catch{if(uid===actor){notificationSince=Infinity;notificationSinceAccount=actor;renderReactionNotice();updateNewLogBadge()}}
+  }
   function reactionEvents(){
     if(backend!=='cloud'||pending()||!feedReady||homeLogError)return [];
     const own=new Map(feedAll.filter(p=>p.uid===uid).map(p=>[p.uid+':'+p.id,p]));
     const likes=likesAll.filter(l=>l.by!==uid&&own.has(l.key)).map(l=>({id:'like|'+l.by+'|'+l.key+'|'+l.at,kind:'like',by:l.by,key:l.key,at:l.at,text:nameOf(l.by)+'さんがあなたの投稿にいいねしました。'}));
     const comments=cmtsAll.filter(c=>c.uid!==uid&&own.has(c.key)).map(c=>({id:'comment|'+c.uid+'|'+c.id,kind:'comment',by:c.uid,key:c.key,at:c.at,text:nameOf(c.uid)+'さんがあなたの投稿にコメントしました。'}));
-    return [...likes,...comments].sort((a,b)=>(b.at||'').localeCompare(a.at||''));
+    return [...likes,...comments].filter(e=>notificationSinceAccount===uid&&isNewMemberEvent(e.at)).sort((a,b)=>(b.at||'').localeCompare(a.at||''));
   }
   function sortNotificationRows(){
     const list=$('#notificationList');if(!list)return;
@@ -302,6 +309,7 @@
   }
   function renderReactionNotice(){sortNotificationRows();const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length+(announcementsUi?.unread()||0);const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
   function openReactionNotices(){
+    if(notificationSinceAccount!==uid||!Number.isFinite(notificationSince))void loadNotificationSince();
     if(backend!=='cloud'||pending()){toast('承認後にお知らせを確認できます。');return}
     const events=reactionEvents(),box=$('#notificationList');box.querySelectorAll('.reaction-notice').forEach(row=>row.remove());
     for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.dataset.noticeAt=event.at||'';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
@@ -355,8 +363,9 @@
   function updateNewLogBadge(){
     const badge=$('#homeLogNew'),dot=$('#growthLogTabDot');if(!badge)return;
     if(backend!=='cloud'||pending()||!uid){badge.hidden=true;if(dot)dot.hidden=true;return}
+    if(!Number.isFinite(notificationSince)||notificationSinceAccount!==uid){badge.hidden=true;if(dot)dot.hidden=true;return}
     if(!feedReady||homeLogError)return; // Keep the last known unread state on a transient failure.
-    const seen=Date.parse(profile.growthLogSeenAt||'')||0;
+    const seen=Math.max(notificationSince,Date.parse(profile.growthLogSeenAt||'')||0);
     const count=feedAll.filter(x=>x.uid!==uid&&Number.isFinite(Date.parse(x.at))&&Date.parse(x.at)>seen&&Date.parse(x.at)<=Date.now()).length;
     const label=count?'新着 '+count+'件':'';if(badge.textContent!==label)badge.textContent=label;badge.hidden=!count;if(dot)dot.hidden=!count;
   }
@@ -604,7 +613,7 @@
     event.preventDefault();if(talkIntroChecking||backend!=='cloud'||!uid||pending())return;
     const form=event.currentTarget,fields=Object.fromEntries(new FormData(form));for(const key of ['name','occupation','goal','message']){fields[key]=fields[key].trim();if(!fields[key]){toast('４項目をすべて入力してください');return}}
     const controls=[...form.querySelectorAll('input,button')];controls.forEach(el=>el.disabled=true);talkIntroChecking=true;const actor=uid;$('#talkIntroductionStatus').textContent='自己紹介を送信しています…';
-    try{const state=await window.appAuth.talkIntroduction({action:'submit',fields});if(uid!==actor)return;if(state?.introduced!==true)throw Error();talkIntroduced=true;showTalkIntroduction();$('#talkIntroductionStatus').textContent='';toast('自己紹介を送信しました');window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});const module=await import('./pull-refresh.js');await module.refreshCurrentData();renderChat()}
+    try{const state=await window.appAuth.talkIntroduction({action:'submit',fields});if(uid!==actor)return;if(state?.introduced!==true||state?.noteSaved!==true)throw Error();talkIntroduced=true;showTalkIntroduction();$('#talkIntroductionStatus').textContent='';toast('自己紹介をトークとノートに保存しました');window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{});ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});const module=await import('./pull-refresh.js');await module.refreshCurrentData();renderChat()}
     catch{$('#talkIntroductionStatus').textContent='送信を確認できませんでした。入力内容は残っています。もう一度お試しください。'}finally{talkIntroChecking=false;controls.forEach(el=>el.disabled=false)}
   });
   const MAX_MY_MSGS=200;
@@ -872,7 +881,7 @@
   // members, talk, growth log and the meeting link: only once a host has approved this person
   let sharedOpen=false;
   function openShared(){
-    if(sharedOpen)return;sharedOpen=true;
+    if(sharedOpen)return;sharedOpen=true;void loadNotificationSince();
     subscribeMembers();subscribeChat();subscribeFeed();subscribeQuotes();subscribeMeeting();
     ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(!$('#v-soon').hidden)openYoutube();
@@ -1682,7 +1691,7 @@
     if(announcementsUi)announcementsUi.stop();
     growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
-    talkNotesUi?.clear();talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
+    notificationSince=Infinity;notificationSinceAccount='';talkNotesUi?.clear();talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -1867,7 +1876,7 @@
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
-      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&isNewMemberEvent(at),markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }

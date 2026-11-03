@@ -1,11 +1,11 @@
-export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange,onRows=()=>{}}){
+export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange,onRows=()=>{},notificationAllowed=()=>false}){
  const $=s=>document.querySelector(s);let rows=[],timer=0,started=false,reading=false,publishing=false,epoch=0,draftId=crypto.randomUUID(),attempt=null;
  const visible=()=>document.visibilityState==='visible';
- const unread=()=>{const seen=new Set(getSeen());return rows.filter(r=>!seen.has(r.id)).length};
+ const unread=()=>{const seen=new Set(getSeen());return rows.filter(r=>notificationAllowed(r.at)&&!seen.has(r.id)).length};
  const date=at=>new Date(at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'});
  function renderHome(){
   const card=$('#homeAnnouncements'),list=$('#homeAnnouncementsList');if(!card||!list)return;
-  const seen=new Set(getSeen()),unreadRows=account()?rows.filter(r=>!seen.has(r.id)):[];
+  const seen=new Set(getSeen()),unreadRows=account()?rows.filter(r=>notificationAllowed(r.at)&&!seen.has(r.id)):[];
   const opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));
   list.replaceChildren();card.hidden=!unreadRows.length;
   const count=$('#homeAnnouncementsCount');if(count)count.textContent=unreadRows.length?'未読 '+unreadRows.length+'件':'';
@@ -27,7 +27,7 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
  }
  function render(){
   const list=$('#notificationList'),seen=new Set(getSeen()),opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));list.querySelectorAll('.announcement-item').forEach(el=>el.remove());
-  for(const row of rows){const box=document.createElement('details');box.className='announcement-item';box.dataset.noticeAt=row.at;box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.open&&$('#notificationsDialog')?.open&&visible()&&!new Set(getSeen()).has(row.id)){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
+  for(const row of rows.filter(r=>notificationAllowed(r.at))){const box=document.createElement('details');box.className='announcement-item';box.dataset.noticeAt=row.at;box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.open&&$('#notificationsDialog')?.open&&visible()&&!new Set(getSeen()).has(row.id)){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
   const history=$('#announcementHistory');history.replaceChildren();for(const row of rows.slice(0,10)){const item=document.createElement('p');item.className='muted admin-note';item.textContent=date(row.at)+' · '+row.title;history.append(item)}onRows(rows.slice(0,10));renderHome();onChange();
  }
  async function refresh(){
