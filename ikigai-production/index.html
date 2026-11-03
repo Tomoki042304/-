@@ -973,7 +973,7 @@ body.talk-open{overflow:hidden}body.talk-keyboard #talkAboutText{display:none}bo
 
 body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboard #giveReplyContext{max-height:40px}
 </style>
-<style>#talkIntroductionForm label{display:grid;gap:6px;margin:12px 0}#talkIntroductionForm input{width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}#talkIntroductionForm[hidden]{display:none}</style></head>
+<style>#talkIntroductionForm label{display:grid;gap:6px;margin:12px 0}#talkIntroductionForm input{width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}#talkIntroductionForm[hidden]{display:none}</style><style>#talkNotesDialog{width:calc(100% - 32px);max-width:560px;max-height:80svh;overflow:auto}#talkNotesDialog::backdrop{background:#0008}.talk-notes-tools{display:flex;gap:8px}.talk-notes-tools input{flex:1;min-width:0;font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}.talk-note{border:1px solid var(--line);border-radius:12px;margin:12px 0;padding:14px;background:var(--surface);color:var(--ink)}.talk-note summary{cursor:pointer;display:flex;flex-direction:column;gap:4px}.talk-note small{color:var(--ink-2);font-size:12px}.talk-note dt{font-size:12px;color:var(--ink-2);margin-top:12px}.talk-note dd{margin:3px 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px}#talkNotesOpen{align-self:flex-start;margin:8px 0}</style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
   <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
@@ -1278,6 +1278,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
       <div class="card">
         <span class="pill gold">トーク</span>
         <div class="talk-about-head"><div class="talk-title-wrap"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" id="dmToggle" aria-expanded="false" aria-controls="dmPanel" aria-label="グループ・個別トーク一覧を開く">＋<span id="dmUnreadDot" class="notice-dot" hidden></span></button></div><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">説明</button></div>
+        <button type="button" class="small-btn" id="talkNotesOpen" hidden>自己紹介ノート</button>
         <p id="talkGiveNote">（皆さんに人生に活かせる知識や考え方giveしましょう）</p>
         <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
@@ -1622,6 +1623,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
   await maintenance.ready;
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
+<dialog id="talkNotesDialog" class="card"><div class="card-head"><b>自己紹介ノート</b><button type="button" class="small-btn" id="talkNotesClose">閉じる</button></div><p class="muted">メンバーの自己紹介を、あとから見返せます。名前を押すと内容が開きます。</p><div class="talk-notes-tools"><input type="search" id="talkNotesSearch" placeholder="名前・職業・目標から探す" aria-label="自己紹介ノートを検索"><button type="button" class="small-btn" id="talkNotesRefresh">更新</button></div><p id="talkNotesStatus" role="status" class="muted"></p><div id="talkNotesList"></div></dialog>
 <dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p></section><div id="notificationList" class="admin-roster" style="margin-top:14px" aria-label="新しい順のお知らせ"></div></dialog>
 </body>
 </html>

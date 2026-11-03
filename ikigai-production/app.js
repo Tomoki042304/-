@@ -583,11 +583,16 @@
 
   // ---------- buddy chat: each person keeps their own messages in chats/<uid> ----------
   let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false,chatSavePromise=null,chatSubmitting=false,chatComposeMode='template',chatReply=null,chatDraftStates={template:{},free:{}};
-  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false;
+  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false,talkNotesUi=null;
   function showTalkIntroduction(){
-    const gated=!talkIntroduced;$('#talkIntroductionForm').hidden=!gated;$('#mtChat').hidden=gated;$('#dmToggle').hidden=gated;
+    const gated=!talkIntroduced;$('#talkNotesOpen').hidden=gated;$('#talkIntroductionForm').hidden=!gated;$('#mtChat').hidden=gated;$('#dmToggle').hidden=gated;
     if(gated){$('#dmPanel').hidden=true;$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
   }
+  async function ensureTalkNotes(){
+    if(!talkNotesUi){const module=await import('./talk-notes.js');if(!talkNotesUi)talkNotesUi=module.mountTalkNotes({account:()=>backend==='cloud'&&uid&&!pending()&&talkIntroduced?uid:null,nameOf,request:()=>window.appAuth.talkNotes()})}
+    return talkNotesUi;
+  }
+  $('#talkNotesOpen').onclick=()=>{if(!talkIntroduced)return;ensureTalkNotes().then(()=>$('#talkNotesOpen').click()).catch(()=>toast('自己紹介ノートを開けませんでした。もう一度お試しください。'))};
   async function checkTalkIntroduction(){
     if(backend!=='cloud'||!uid||pending())return;
     if(talkIntroAccount!==uid){talkIntroduced=false;talkIntroAccount=uid}
@@ -1670,7 +1675,7 @@
     if(announcementsUi)announcementsUi.stop();
     growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
-    talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
+    talkNotesUi?.clear();talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
