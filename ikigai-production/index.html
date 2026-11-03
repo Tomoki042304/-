@@ -436,6 +436,10 @@ nav.tabs button{background:none;border:0;padding:8px 0 10px;display:flex;flex-di
 nav.tabs button[aria-current="page"]{color:var(--accent)}
 nav.tabs button[aria-current="page"]::before{content:"";position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
 
+/* Home participation and purchase links */
+.home-offer{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--ink);text-decoration:none;font-weight:700;overflow-wrap:anywhere}
+.home-offer span{min-width:0}
+a.home-offer:focus-visible{outline:3px solid #8b2340;outline-offset:3px}
 /* morning meeting (Zoom) */
 .zoom{display:flex;flex-direction:column;gap:10px}
 .zoom .z-when{display:block;font-size:17px;margin-top:2px}
@@ -1158,6 +1162,13 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
           <div class="btn-row"><button type="button" class="ghost" id="zCancel">キャンセル</button><button type="submit" class="primary">保存する</button></div>
         </form>
       </div>
+
+      <a class="card home-offer" id="premiumJoinCard" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
+        <span>プレミアムメンバー参加はこちら</span><span aria-hidden="true">↗</span>
+      </a>
+      <a class="card home-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
+        <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
+      </a>
 
       <figure class="card quote" id="quoteCard" hidden>
         <span class="q-date" id="quoteDate">今日の名言</span>
