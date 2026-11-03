@@ -157,17 +157,31 @@ END $$;
 CREATE FUNCTION public.ikigai_notification_cutoff_v1(p_uid uuid) RETURNS timestamptz LANGUAGE sql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
  SELECT COALESCE((SELECT approved_at FROM public.approved_members WHERE user_id=p_uid),(SELECT created_at FROM auth.users WHERE id=p_uid AND EXISTS(SELECT 1 FROM public.admins WHERE user_id=p_uid)))
 $$;
-ALTER FUNCTION public.ikigai_push_allowed_v2(jsonb) RENAME TO ikigai_push_allowed_before_admission_v2;
-CREATE FUNCTION public.ikigai_push_allowed_v2(e jsonb) RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-DECLARE cutoff timestamptz;occurred timestamptz;
+CREATE OR REPLACE FUNCTION public.ikigai_push_allowed_v2(e jsonb) RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=pg_catalog,public AS $$
+DECLARE recipient uuid=(e->>'uid')::uuid;source uuid=NULLIF(e->>'source','')::uuid;ctx jsonb=e->'context';room jsonb;member jsonb;since_at timestamptz;meeting jsonb;cutoff timestamptz;occurred timestamptz;
 BEGIN
- cutoff=public.ikigai_notification_cutoff_v1((e->>'uid')::uuid);
+ cutoff=public.ikigai_notification_cutoff_v1(recipient);
  IF (e->'context') ? 'eventAt' THEN occurred=NULLIF(e->'context'->>'eventAt','')::timestamptz;ELSE occurred=(e->>'at')::timestamptz;END IF;
  IF cutoff IS NULL OR occurred IS NULL OR occurred<cutoff THEN RETURN false;END IF;
- RETURN public.ikigai_push_allowed_before_admission_v2(e);
+ IF NOT public.ikigai_push_member_v2(recipient) OR recipient=source OR (source IS NOT NULL AND NOT public.ikigai_push_member_v2(source)) THEN RETURN false;END IF;
+ IF e->>'kind'='morning' THEN
+  SELECT data INTO meeting FROM public.ikigai_zoom_private_v1 WHERE id;
+  RETURN (EXISTS(SELECT 1 FROM public.admins WHERE user_id=recipient) OR EXISTS(SELECT 1 FROM public.ikigai_member_plans_v1 WHERE user_id=recipient AND plan='premium')) AND meeting->>'reminderEnabled'='true' AND meeting->>'startsAt'=ctx->>'startsAt' AND now()<(ctx->>'startsAt')::timestamptz AND meeting->>'url'<>'';
+ END IF;
+ IF ctx->>'groupId' IS NOT NULL THEN
+  SELECT public.ikigai_push_json_v2(value) INTO room FROM public.ikigai_runtime_values_v1 WHERE key='group:room:v1:'||(ctx->>'groupId');
+  IF room IS NULL OR EXISTS(SELECT 1 FROM public.ikigai_runtime_values_v1 WHERE key='group:deleted:v1:'||(ctx->>'groupId')) THEN RETURN false;END IF;
+  IF EXISTS(SELECT 1 FROM public.admins WHERE user_id=recipient) THEN RETURN true;END IF;
+  SELECT approved_at INTO since_at FROM public.approved_members WHERE user_id=recipient;
+  IF room->>'ownerUid'=recipient::text AND (room->>'at')::timestamptz>=since_at THEN RETURN true;END IF;
+  SELECT public.ikigai_push_json_v2(value) INTO member FROM public.ikigai_runtime_values_v1 WHERE key='group:member:v1:'||(ctx->>'groupId')||':'||recipient::text;
+  RETURN COALESCE(member->>'uid'=recipient::text AND (member->>'at')::timestamptz>=since_at,false);
+ END IF;
+ IF ctx->>'threadId' IS NOT NULL THEN RETURN EXISTS(SELECT 1 FROM public.admins WHERE user_id::text=split_part(ctx->>'threadId',':',1)) AND recipient::text IN (split_part(ctx->>'threadId',':',1),split_part(ctx->>'threadId',':',2)) AND source::text IN (split_part(ctx->>'threadId',':',1),split_part(ctx->>'threadId',':',2));END IF;
+ RETURN true;
 EXCEPTION WHEN invalid_text_representation OR invalid_datetime_format THEN RETURN false;
 END $$;
-REVOKE ALL ON FUNCTION public.ikigai_notification_cutoff_v1(uuid),public.ikigai_push_allowed_before_admission_v2(jsonb),public.ikigai_push_allowed_v2(jsonb) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.ikigai_notification_cutoff_v1(uuid),public.ikigai_push_allowed_v2(jsonb) FROM PUBLIC,anon,authenticated;
 
 CREATE OR REPLACE FUNCTION public.ikigai_push_document_v2() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
 DECLARE prior jsonb='{}';item jsonb;owner uuid;post_owner uuid;post_id text;entry text;src uuid;
