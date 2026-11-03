@@ -1,6 +1,6 @@
 import {privateKv} from '../../server/pii-storage.js';
 import {requireAccountUser,requireYoutubeHost} from '../../server/youtube-member.js';
-const PREFIX='inquiry:v1:',TYPES=['note','training','withdrawal'],UID=/^[A-Za-z0-9-]{1,80}$/;
+const PREFIX='inquiry:v1:',TYPES=['note','training','withdrawal','plan'],UID=/^[A-Za-z0-9-]{1,80}$/;
 const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Authorization, Origin'}});
 const recordKey=(uid,type,id)=>PREFIX+uid+':'+type+':'+id;
 const valid=x=>x&&UID.test(x.uid)&&typeof x.requestId==='string'&&typeof x.reason==='string'&&TYPES.includes(x.type)&&['pending','handled'].includes(x.status)&&Number.isFinite(Date.parse(x.submittedAt));
@@ -48,6 +48,7 @@ export async function onRequest({request,env}){
     const requestId=body.requestId||crypto.randomUUID(),existing=await kv.get(recordKey(user.uid,type,requestId),'json');
     if(existing){if(!valid(existing)||existing.uid!==user.uid||existing.type!==type||existing.requestId!==requestId)throw Error('record');if(existing.reason!==body.reason.trim())return reply(409,{message:'送信内容を変更した場合は、新しい問い合わせとして送信してください。'});return reply(200,{request:existing});}
     const old=await kv.get(PREFIX+user.uid+':'+type,'json');if(old&&!valid(old))throw Error('record');
+    if(type==='plan'&&old){const canonical=(await kv.get(recordKey(user.uid,type,old.requestId),'json'))||old;if(!valid(canonical))throw Error('record');if(canonical.status==='pending')return reply(200,{request:canonical});}
     const next={type,uid:user.uid,requestId,name:typeof body.name==='string'?body.name.trim().slice(0,100):'',email:user.email,reason:body.reason.trim(),status:'pending',submittedAt:new Date().toISOString(),handledAt:null,handledBy:null};
     // Preserve the previous item before replacing the latest pointer. Never overwrite a newer canonical status.
     if(old&&!await kv.get(recordKey(user.uid,type,old.requestId),'json'))await kv.put(recordKey(user.uid,type,old.requestId),JSON.stringify(old));

@@ -1696,7 +1696,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    if(inquiryUi)inquiryUi.stop();
+    if(inquiryUi)inquiryUi.stop();premiumRequestId='';$('#premiumJoinStatus').hidden=true;$('#premiumJoinStatus').textContent='';
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -1911,12 +1911,30 @@
     if(!isOwnerView)return;
     try{const ui=await ensureDirectMessages();if(!ui)return;go('mates');await ui.create(memberUid)}catch(e){toast(e.message||'個別トークを開けませんでした。')}
   }
+  $('#planRequestsAdmin').addEventListener('toggle',()=>{if($('#planRequestsAdmin').open)openInquiry('admin')});
+  let premiumRequestBusy=false,premiumRequestId='';
+  $('#premiumJoinCard').onclick=async()=>{
+    if(premiumRequestBusy)return;
+    const who=uid,button=$('#premiumJoinCard'),status=$('#premiumJoinStatus');
+    if(!who||!window.appAuth?.inquiry){toast('ログインしてからお試しください。');return}
+    premiumRequestBusy=true;button.disabled=true;status.hidden=false;status.textContent='申請状況を確認しています…';
+    try{
+      const previous=await window.appAuth.inquiry('self',undefined,undefined,'plan');
+      if(uid!==who)return;
+      if(previous.request?.status==='pending'){status.textContent='運営へ申請済みです。確認までお待ちください。';return}
+      if(!premiumRequestId)premiumRequestId=crypto.randomUUID();
+      const result=await window.appAuth.inquiry('self',{name:profile.nick||'',reason:'プレミアムメンバーへの参加を希望します。',requestId:premiumRequestId},undefined,'plan');
+      if(uid!==who)return;if(!result.request)throw Error('申請結果を確認できませんでした。');
+      premiumRequestId='';status.textContent='プレミアムへの参加申請を運営へ送信しました。確認までお待ちください。';toast('運営へプラン変更の申請を送信しました');
+    }catch(error){if(uid===who)status.textContent=error.message||'申請を送信できませんでした。もう一度お試しください。'}
+    finally{premiumRequestBusy=false;button.disabled=false}
+  };
   let inquiryUi=null,inquiryLoading=null;
   async function openInquiry(which){
     if(!['inquiry','admin','notify'].includes(which))return;
     try{
       if(!inquiryUi){if(!inquiryLoading)inquiryLoading=import('./inquiry.js');const module=await inquiryLoading;
-        if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||'',onNotice:(rows,options)=>noticeSection('inquiries',rows.filter(r=>r.status==='pending').map(r=>({id:r.requestId,version:r.submittedAt})),options),viewing:()=>adminSectionOpen('#inquiryAdmin')});}
+        if(!inquiryUi)inquiryUi=module.mountInquiry({request:(...args)=>{if(!window.appAuth?.inquiry)throw Error('連絡機能を更新するには再読み込みしてください。');return window.appAuth.inquiry(...args)},account:()=>backend==='cloud'&&!$('#app').hidden&&uid?uid:null,isAdmin:()=>isOwnerView,name:()=>profile.nick||'',onNotice:(rows,options)=>{for(const [key,plan] of [['inquiries',false],['plans',true]])noticeSection(key,rows.filter(r=>r.status==='pending'&&(r.type==='plan')===plan).map(r=>({id:r.requestId,version:r.submittedAt})),{...options,viewed:adminSectionOpen(plan?'#planRequestsAdmin':'#inquiryAdmin')})},viewing:()=>adminSectionOpen('#inquiryAdmin')});}
       if(which==='notify'){inquiryUi.startNotices();return}
       if((which==='inquiry'&&!$('#accInquiry').hidden)||(which==='admin'&&isOwnerView&&!$('#accAdmin').hidden))inquiryUi.open(which);
     }catch(e){const status=$(which==='admin'?'#inquiryAdminStatus':'#inquiryStatus');if(status)status.textContent='連絡欄を開けませんでした。再読み込みしてください。';inquiryLoading=null;}
@@ -1936,7 +1954,7 @@
     if(which==='profile')fillForm();
     if(which==='settings')openPushSettings();
     if(which==='announcements')ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementPublishStatus').textContent='配信画面を読み込めませんでした。'})
-    if(which==='inquiry'||(which==='admin'&&$('#inquiryAdmin').open))openInquiry(which);
+    if(which==='inquiry'||(which==='admin'&&($('#inquiryAdmin').open||$('#planRequestsAdmin').open)))openInquiry(which);
     if(which==='admin'){ensureAdminNotices().then(ui=>ui?.refresh()).catch(()=>{});ensureSecurity().catch(()=>{});ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});

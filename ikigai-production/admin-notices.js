@@ -1,7 +1,7 @@
 // Only record IDs and revision markers are persisted in the viewer's private profile.
 // Failed reads never replace a successful snapshot or acknowledge unseen content.
 export function mountAdminNotices({account,allowed,active,getSeen,saveSeen,load}){
- const sections={applications:'applicationsAdminDot',members:'membersAdminDot',announcements:'announcementsAdminDot',channels:'channelsAdminDot',inquiries:'inquiryAdminDot',knowledge:'knowledgeAdminDot',security:'securityAdminDot'};
+ const sections={applications:'applicationsAdminDot',members:'membersAdminDot',announcements:'announcementsAdminDot',channels:'channelsAdminDot',plans:'planRequestsAdminDot',inquiries:'inquiryAdminDot',knowledge:'knowledgeAdminDot',security:'securityAdminDot'};
  let owner=null,current=new Map(),timer=0,running=null,epoch=0;
  const clean=items=>new Map(items.filter(x=>x&&typeof x.id==='string'&&typeof x.version==='string').map(x=>[x.id,x.version]));
  function reset(){epoch++;owner=account();current=new Map();running=null;render()}

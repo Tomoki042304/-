@@ -1163,9 +1163,10 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         </form>
       </div>
 
-      <a class="card home-offer" id="premiumJoinCard" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
-        <span>プレミアムメンバー参加はこちら</span><span aria-hidden="true">↗</span>
-      </a>
+      <button type="button" class="card home-offer" id="premiumJoinCard" style="width:100%;text-align:left;font:inherit;font-weight:700">
+        <span>プレミアムメンバーに参加はこちら</span><span aria-hidden="true">›</span>
+      </button>
+      <p id="premiumJoinStatus" class="muted" role="status" hidden></p>
       <a class="card home-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
         <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
       </a>
@@ -1523,6 +1524,12 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
           <div id="adminRoster" class="admin-roster"></div>
           <p class="muted admin-note" id="adminUpdated"></p>
         </div></details>
+        <details class="card admin-panel" id="planRequestsAdmin">
+          <summary class="channel-summary"><b>プラン変更 <span id="planRequestsAdminDot" class="inquiry-notice-dot" aria-label="新しいプラン変更申請があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
+          <div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="planRequestsRefresh">更新</button>
+          <p class="muted admin-note">プレミアムへの参加申請です。内容を確認し、「メンバー情報」のメニューからプランを変更してください。申請だけでプランや料金は変更されません。</p>
+          <p id="planRequestsStatus" class="muted admin-note" role="status"></p><div id="planRequestsList" class="admin-roster"></div><button type="button" class="small-btn" id="planRequestsMore" hidden>もっと見る</button></div>
+        </details>
         <section class="card admin-panel" id="announcementAdmin"><button type="button" class="channel-summary" data-acc="announcements" style="background:none;border:0;padding:0;color:inherit;text-align:left;width:100%"><b>お知らせ配信 <span id="announcementsAdminDot" class="inquiry-notice-dot" aria-label="新しい配信情報があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></button></section>
         <form class="card admin-panel" id="youtubeChannelsForm">
           <details id="youtubeChannelsDetails">

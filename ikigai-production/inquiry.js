@@ -1,4 +1,4 @@
-const TYPES={note:'志動録ノート購入',training:'企業研修について',withdrawal:'退会について'};
+const TYPES={plan:'プレミアムへのプラン変更',note:'志動録ノート購入',training:'企業研修について',withdrawal:'退会について'};
 export function mountInquiry({request,account,isAdmin,name,onNotice,viewing=()=>false}){
   const $=s=>document.querySelector(s),form=$('#inquiryForm'),type=$('#inquiryType'),reason=$('#inquiryReason'),confirm=$('#inquiryConfirm'),submit=$('#inquirySubmit');
   let selfToken=0,adminToken=0,selfBusy=false,adminBusy=false,current=null,rows=[],cursor=null,draftKey='',draftSignature='';
@@ -38,11 +38,13 @@ export function mountInquiry({request,account,isAdmin,name,onNotice,viewing=()=>
   }
   const pendingRows=()=>rows.filter(row=>row.status==='pending'&&!handledIds.has(row.requestId));
   function renderAdmin(){
-    const list=$('#inquiryAdminList');list.replaceChildren();
+    const list=$('#inquiryAdminList'),plans=$('#planRequestsList');list.replaceChildren();plans.replaceChildren();
     for(const row of pendingRows()){const box=document.createElement('article');box.className='inquiry-item';const head=document.createElement('b');head.textContent=(row.name||'メンバー')+' ／ '+TYPES[row.type];const info=document.createElement('small');info.textContent=date(row.submittedAt)+' · '+(row.status==='pending'?'未確認':'確認済み');const who=document.createElement('small');who.textContent=(row.email?row.email+' ／ ':'')+'ID: '+row.uid;const text=document.createElement('p');text.textContent=row.reason;box.append(head,info,who,text);
-      if(row.status==='pending'){const button=document.createElement('button');button.type='button';button.className='small-btn';button.textContent='確認済みにする';button.onclick=()=>handle(row);box.append(button)}else if(row.handledAt){const done=document.createElement('small');done.textContent='確認：'+date(row.handledAt);box.append(done)}list.append(box)}
+      if(row.status==='pending'){const button=document.createElement('button');button.type='button';button.className='small-btn';button.textContent='確認済みにする';button.onclick=()=>handle(row);box.append(button)}else if(row.handledAt){const done=document.createElement('small');done.textContent='確認：'+date(row.handledAt);box.append(done)}(row.type==='plan'?plans:list).append(box)}
+    $('#planRequestsMore').hidden=!cursor;
+    $('#planRequestsStatus').textContent=pendingRows().filter(r=>r.type==='plan').length?'未確認 '+pendingRows().filter(r=>r.type==='plan').length+'件':cursor?'「もっと見る」で続きを確認できます。':'未確認のプラン変更申請はありません。';
     $('#inquiryAdminMore').hidden=!cursor;
-    $('#inquiryAdminStatus').textContent=pendingRows().length?'未確認 '+pendingRows().length+'件':cursor?'この範囲に未確認の問い合わせはありません。「もっと見る」で続きを確認できます。':'未確認の問い合わせはありません。';
+    $('#inquiryAdminStatus').textContent=pendingRows().filter(r=>r.type!=='plan').length?'未確認 '+pendingRows().filter(r=>r.type!=='plan').length+'件':cursor?'この範囲に未確認の問い合わせはありません。「もっと見る」で続きを確認できます。':'未確認の問い合わせはありません。';
   }
   async function loadAdmin(more=false){
     if(!account()||!isAdmin()||adminBusy)return;
@@ -53,15 +55,15 @@ export function mountInquiry({request,account,isAdmin,name,onNotice,viewing=()=>
   }
   async function handle(row){
     if(!account()||!isAdmin()||adminBusy)return;
-    const token=++adminToken,uid=account();adminBusy=true;$('#inquiryAdminList').querySelectorAll('button').forEach(b=>b.disabled=true);
+    const token=++adminToken,uid=account();adminBusy=true;document.querySelectorAll('#inquiryAdminList button,#planRequestsList button').forEach(b=>b.disabled=true);
     try{const data=await request('admin',{action:'handle',uid:row.uid,type:row.type,requestId:row.requestId});if(token!==adminToken||account()!==uid||!isAdmin())return;handledIds.add(row.requestId);rows=rows.map(r=>r.requestId===row.requestId?data.request:r);renderAdmin();void pollNotices();$('#inquiryAdminStatus').textContent='確認済みにして一覧から非表示にしました。'+(pendingRows().length?' 未確認 '+pendingRows().length+'件':cursor?'「もっと見る」で続きを確認できます。':'未確認の問い合わせはありません。');}
-    catch(e){if(token===adminToken)$('#inquiryAdminStatus').textContent=e.message||'確認状況を保存できませんでした。';}
-    finally{if(token===adminToken){adminBusy=false;$('#inquiryAdminList').querySelectorAll('button').forEach(b=>b.disabled=false)}}
+    catch(e){if(token===adminToken)$(row.type==='plan'?'#planRequestsStatus':'#inquiryAdminStatus').textContent=e.message||'確認状況を保存できませんでした。';}
+    finally{if(token===adminToken){adminBusy=false;document.querySelectorAll('#inquiryAdminList button,#planRequestsList button').forEach(b=>b.disabled=false)}}
   }
   form.onsubmit=e=>{e.preventDefault();loadSelf(true)};
   type.onchange=()=>{current=null;reason.value='';confirm.checked=false;loadSelf()};
-  $('#inquiryReload').onclick=()=>loadSelf();$('#inquiryAdminRefresh').onclick=()=>loadAdmin();$('#inquiryAdminMore').onclick=()=>loadAdmin(true);
-  function clearAdmin(){noticesStarted=false;clearTimeout(noticeTimer);noticeToken++;noticeBusy=false;handledIds.clear();noticeDot(false);adminToken++;adminBusy=false;rows=[];cursor=null;$('#inquiryAdminList').replaceChildren();$('#inquiryAdminStatus').textContent='';$('#inquiryAdminMore').hidden=true;$('#inquiryAdminRefresh').disabled=false;}
+  $('#inquiryReload').onclick=()=>loadSelf();$('#planRequestsRefresh').onclick=()=>loadAdmin();$('#planRequestsMore').onclick=()=>loadAdmin(true);$('#inquiryAdminRefresh').onclick=()=>loadAdmin();$('#inquiryAdminMore').onclick=()=>loadAdmin(true);
+  function clearAdmin(){noticesStarted=false;clearTimeout(noticeTimer);noticeToken++;noticeBusy=false;handledIds.clear();noticeDot(false);adminToken++;adminBusy=false;rows=[];cursor=null;$('#planRequestsList').replaceChildren();$('#planRequestsStatus').textContent='';$('#planRequestsMore').hidden=true;$('#inquiryAdminList').replaceChildren();$('#inquiryAdminStatus').textContent='';$('#inquiryAdminMore').hidden=true;$('#inquiryAdminRefresh').disabled=false;}
   function stop(){draftKey='';draftSignature='';selfToken++;selfBusy=false;current=null;reason.value='';confirm.checked=false;selfControls(false);clearAdmin();$('#inquiryStatus').textContent='';}
   return {startNotices,open(which){if(which==='admin')loadAdmin();else loadSelf()},stop,clearAdmin};
 }
