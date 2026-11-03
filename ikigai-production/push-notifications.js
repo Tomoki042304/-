@@ -7,7 +7,7 @@ export async function disableDevicePush(request){
 export function mountPushNotifications({request,allowed}){
   const $=s=>document.querySelector(s);let busy=false;
   function unsupported(){const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);if(ios&&!navigator.standalone&&!matchMedia('(display-mode: standalone)').matches)return 'iPhone・iPadではSafariからホーム画面に追加し、そのアプリで通知を有効にしてください。';if(!supported())return 'この端末・ブラウザはプッシュ通知に対応していません。';return ''}
-  async function refresh(){const hint=unsupported();$('#pushEnable').disabled=!!hint||!allowed();$('#pushDisable').disabled=true;if(hint){$('#pushStatus').textContent=hint;return}if(!allowed()){$('#pushStatus').textContent='承認後にプッシュ通知を利用できます。';return}try{const registration=await navigator.serviceWorker.getRegistration(),sub=await registration?.pushManager.getSubscription();const data=sub?await request({action:'status',endpoint:sub.endpoint}):{enabled:false};$('#pushStatus').textContent=data.enabled?'この端末へのプッシュ通知は有効です。':'通知を許可すると、いいね・コメント・個別トークをスマホにお知らせします。';$('#pushDisable').disabled=!data.enabled;}catch{$('#pushStatus').textContent='通知の状態を確認できませんでした。'}}
+  async function refresh(){const hint=unsupported();$('#pushEnable').disabled=!!hint||!allowed();$('#pushDisable').disabled=true;if(hint){$('#pushStatus').textContent=hint;return}if(!allowed()){$('#pushStatus').textContent='承認後にプッシュ通知を利用できます。';return}try{const registration=await navigator.serviceWorker.getRegistration(),sub=await registration?.pushManager.getSubscription();const data=sub?await request({action:'status',endpoint:sub.endpoint}):{enabled:false};$('#pushStatus').textContent=data.enabled?'この端末へのプッシュ通知は有効です。':'通知を許可すると、新メンバー・成長ログ・トーク・自分への反応・運営のお知らせを携帯に届けます。プレミアム会員には朝活リマインドも届きます。';$('#pushDisable').disabled=!data.enabled;}catch{$('#pushStatus').textContent='通知の状態を確認できませんでした。'}}
   $('#pushEnable').onclick=async()=>{
     if(busy||!allowed()||unsupported())return;busy=true;$('#pushEnable').disabled=true;
     try{
@@ -22,4 +22,17 @@ export function mountPushNotifications({request,allowed}){
   };
   $('#pushDisable').onclick=async()=>{if(busy)return;busy=true;$('#pushDisable').disabled=true;try{await disableDevicePush(request);$('#pushStatus').textContent='この端末へのプッシュ通知を停止しました。'}catch{$('#pushStatus').textContent='通知を停止できませんでした。'}finally{busy=false}};
   return {refresh};
+}
+// Call directly from a user tap; browsers control the permission prompt.
+export async function enableDevicePush(request){
+ const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+ if(ios&&!navigator.standalone&&!matchMedia('(display-mode: standalone)').matches)throw Error('Safariの共有メニューでホーム画面に追加し、IKIGAIのアイコンから開いて通知を許可してください。');
+ if(!supported())throw Error('この端末・ブラウザは通知に対応していません。対応する端末からご利用ください。');
+ const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+ if(permission!=='granted')throw Error('通知は許可されていません。あとから端末の設定で変更できます。');
+ const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();
+ if(subscription){const state=await request({action:'status',endpoint:subscription.endpoint});if(state.enabled)return {enabled:true};await subscription.unsubscribe()}
+ const key=await request({action:'key'});subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes(key.publicKey)});
+ try{await request({action:'subscribe',keyId:key.keyId,subscription:subscription.toJSON()})}catch(error){await subscription.unsubscribe().catch(()=>false);throw error}
+ return {enabled:true};
 }

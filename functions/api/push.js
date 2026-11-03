@@ -1,14 +1,15 @@
 import {operationalStore} from '../../server/supabase-runtime.js';
-import {requireYoutubeMember,readNotificationDocument} from '../../server/youtube-member.js';
+import {requireYoutubeMember,requireAccountUser,readNotificationDocument} from '../../server/youtube-member.js';
 import {newVapidKey,validateSubscription,digest,deliverPush} from '../../server/web-push.js';
 const UID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','Vary':'Authorization, Origin','X-Content-Type-Options':'nosniff'}});
 export async function onRequest(context){
   const {request,env}=context;if(request.method!=='POST')return reply(405,{message:'POSTで利用してください。'});
-  const user=await requireYoutubeMember(request);if(!user.ok)return reply(user.status,{message:user.message});
+  let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>10000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object')throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
+  const url=new URL(request.url);if(url.origin!=='https://ikigai-shidoroku.pages.dev'||request.headers.get('Origin')!==url.origin)return reply(403,{message:'アプリから利用してください。'});
+  const user=await (body.action==='notify'?requireYoutubeMember(request):requireAccountUser(request,{verifyLive:true}));if(!user.ok)return reply(user.status,{message:user.message});
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
   const kv=operationalStore({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv?.get||!kv?.put||!kv?.list||!kv?.delete)return reply(503,{message:'通知機能は接続準備中です。'});
-  let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>10000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object')throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
   try{
     if(body.action==='key'){
       const id=crypto.randomUUID(),key=await newVapidKey();await kv.put('push:key:v1:'+id,JSON.stringify({...key,uid:user.uid}));return reply(200,{keyId:id,publicKey:key.publicKey});
@@ -29,6 +30,7 @@ export async function onRequest(context){
       await kv.put('push:subscription:v1:'+user.uid+':'+await digest(subscription.endpoint),JSON.stringify({...subscription,keyId:body.keyId}));return reply(200,{enabled:true});
     }
     if(body.action==='notify'){
+      if(await kv.get('system:push-outbox:v2'))return reply(200,{accepted:true,queued:true});
       if(!['like','comment'].includes(body.kind)||typeof body.postKey!=='string'||body.postKey.length>150)return reply(400,{message:'通知対象を確認できませんでした。'});
       const split=body.postKey.indexOf(':'),owner=body.postKey.slice(0,split),postId=body.postKey.slice(split+1);if(!UID.test(owner)||!/^[A-Za-z0-9_-]{1,100}$/.test(postId))return reply(400,{message:'通知対象を確認できませんでした。'});
       if(owner===user.uid)return reply(200,{accepted:false});

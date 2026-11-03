@@ -1,5 +1,5 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v88-talk-notes";
+const CACHE = "ikigai-v89-device-notifications";
 const SHELL = ["./", "index.html", "main-supabase.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
@@ -55,10 +55,11 @@ self.addEventListener("push", event => {
   let payload={};try{payload=event.data?.json()||{}}catch{}
   const title=typeof payload.title==='string'?payload.title.slice(0,80):'IKIGAI';
   const body=typeof payload.body==='string'?payload.body.slice(0,160):'新しいお知らせがあります。';
-  const data={};if(['like','comment'].includes(payload.data?.kind))data.kind=payload.data.kind;if(typeof payload.data?.postKey==='string'&&payload.data.postKey.length<151)data.postKey=payload.data.postKey;if(typeof payload.data?.threadId==='string'&&payload.data.threadId.length===73)data.threadId=payload.data.threadId;
+  const data={};if(['member','log','talk','like','comment','reaction','announcement','morning'].includes(payload.data?.kind))data.kind=payload.data.kind;if(typeof payload.data?.postKey==='string'&&payload.data.postKey.length<151)data.postKey=payload.data.postKey;if(typeof payload.data?.threadId==='string'&&payload.data.threadId.length===73)data.threadId=payload.data.threadId;
+  if(typeof payload.data?.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(payload.data.groupId))data.groupId=payload.data.groupId;if(typeof payload.data?.announcementId==='string'&&/^[0-9a-f-]{36}$/i.test(payload.data.announcementId))data.announcementId=payload.data.announcementId;
   event.waitUntil(self.registration.showNotification(title,{body,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:typeof payload.tag==='string'?payload.tag.slice(0,200):undefined,data}));
 });
 self.addEventListener("notificationclick", event => {
   event.notification.close();const data=event.notification.data||{};
-  event.waitUntil((async()=>{const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){if(new URL(client.url).origin===self.location.origin){await client.focus();client.postMessage({type:'ikigai-open-notification',...data});return}}const url=new URL('./',self.registration.scope);if(data.postKey)url.searchParams.set('openPost',data.postKey);if(data.threadId)url.searchParams.set('openDm',data.threadId);await self.clients.openWindow(url.href)})());
+  event.waitUntil((async()=>{const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){if(new URL(client.url).origin===self.location.origin){await client.focus();client.postMessage({type:'ikigai-open-notification',...data});return}}const url=new URL('./',self.registration.scope);if(data.postKey)url.searchParams.set('openPost',data.postKey);if(data.threadId)url.searchParams.set('openDm',data.threadId);if(data.groupId)url.searchParams.set('openGroup',data.groupId);if(data.kind)url.searchParams.set('openKind',data.kind);if(data.announcementId)url.searchParams.set('openAnnouncement',data.announcementId);await self.clients.openWindow(url.href)})());
 });

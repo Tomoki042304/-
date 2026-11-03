@@ -1061,7 +1061,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
 
 <section class="onboard" id="onboard" hidden>
   <div class="ob-head"><span class="mark">IKIGAI</span><span class="sub">志ある仲間と、最高な朝を。</span></div>
-  <div class="ob-bar" id="obBar"><span></span><span></span><span></span><span></span></div>
+  <div class="ob-bar" id="obBar"><span></span><span></span><span></span><span></span><span></span></div>
   <form class="card" id="obForm" style="display:flex;flex-direction:column;gap:14px" novalidate></form>
 </section>
 
@@ -1153,6 +1153,8 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
           <div class="field"><label for="zUrl">ZoomのURL</label><input type="text" id="zUrl" inputmode="url" placeholder="https://us02web.zoom.us/j/..."></div>
           <div class="field"><label for="zWhen">日時</label><input type="text" id="zWhen" maxlength="60" placeholder="例：10月27日（月）6:00〜6:45"></div>
           <div class="field"><label for="zMemo">メモ（ミーティングID・パスコードなど）</label><textarea id="zMemo" rows="2" maxlength="200"></textarea></div>
+          <div class="field"><label for="zStartsAt">朝活の開始日時（日本時間）</label><input type="datetime-local" id="zStartsAt"></div>
+          <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="zReminder">開始30分前にプレミアム会員へ携帯通知を送る</label><p class="muted" style="font-size:12px">１回分の開催日時を指定します。通知の許可がある端末に届きます。配信には１分程度の遅れが生じる場合があります。</p>
           <div class="btn-row"><button type="button" class="ghost" id="zCancel">キャンセル</button><button type="submit" class="primary">保存する</button></div>
         </form>
       </div>

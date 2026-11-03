@@ -985,7 +985,7 @@
   }
 
   // ---------- morning meeting: server checks the account plan before returning private Zoom settings ----------
-  let meeting={url:'',when:'',memo:''},isOwnerView=false,zoomMembership=null,zoomReadFailed=false;
+  let meeting={url:'',when:'',memo:'',startsAt:null,reminderEnabled:false},isOwnerView=false,zoomMembership=null,zoomReadFailed=false;
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
     if(!zoomMembership?.can_zoom||pending()){
@@ -1010,17 +1010,19 @@
     db.doc('config/meeting').onSnapshot(snap=>{
       const v=snap.exists?snap.data():{};
       zoomMembership=v._membership||null;zoomReadFailed=false;
-      meeting={url:typeof v.url==='string'?v.url:'',when:typeof v.when==='string'?v.when:'',memo:typeof v.memo==='string'?v.memo:''};
+      meeting={url:typeof v.url==='string'?v.url:'',when:typeof v.when==='string'?v.when:'',memo:typeof v.memo==='string'?v.memo:'',startsAt:typeof v.startsAt==='string'?v.startsAt:null,reminderEnabled:v.reminderEnabled===true};
       renderZoom();
     },()=>{meeting={url:'',when:'',memo:''};zoomMembership=null;zoomReadFailed=true;renderZoom()});
   }
-  $('#zoomEditBtn').onclick=()=>{$('#zUrl').value=meeting.url;$('#zWhen').value=meeting.when;$('#zMemo').value=meeting.memo;$('#zoomForm').hidden=false;$('#zoomView').hidden=true;$('#zoomEmpty').hidden=true;$('#zoomEditBtn').hidden=true;$('#zUrl').focus()};
+  $('#zoomEditBtn').onclick=()=>{$('#zUrl').value=meeting.url;$('#zWhen').value=meeting.when;$('#zMemo').value=meeting.memo;$('#zStartsAt').value=meeting.startsAt?new Date(Date.parse(meeting.startsAt)+9*3600000).toISOString().slice(0,16):'';$('#zReminder').checked=meeting.reminderEnabled===true;$('#zoomForm').hidden=false;$('#zoomView').hidden=true;$('#zoomEmpty').hidden=true;$('#zoomEditBtn').hidden=true;$('#zUrl').focus()};
   $('#zCancel').onclick=()=>{$('#zoomForm').hidden=true;renderZoom()};
   $('#zoomForm').addEventListener('submit',async e=>{
     e.preventDefault();
     const url=$('#zUrl').value.trim();
     if(url&&!safeUrl(url)){toast('URLは https:// から始まる形で入れてください');return}
-    const next={url,when:$('#zWhen').value.trim().slice(0,60),memo:$('#zMemo').value.trim().slice(0,200)};
+    const rawStart=$('#zStartsAt').value,starts=rawStart?new Date(rawStart+':00+09:00'):null,reminderEnabled=$('#zReminder').checked;
+    if(reminderEnabled&&(!url||!starts||!Number.isFinite(starts.getTime())||starts.getTime()<=Date.now())){toast('通知するには、Zoomリンクと未来の開始日時を入力してください');return}
+    const next={url,when:$('#zWhen').value.trim().slice(0,60),memo:$('#zMemo').value.trim().slice(0,200),startsAt:starts&&Number.isFinite(starts.getTime())?starts.toISOString():null,reminderEnabled};
     try{await db.doc('config/meeting').set(next);meeting=next;$('#zoomForm').hidden=true;renderZoom();toast('朝会のリンクを保存しました')}
     catch(err){toast('保存できませんでした。通信状況を確認してください')}
   });
@@ -1344,7 +1346,7 @@
 
   // ---------- first-run registration: membership questions ----------
   // answers go to applications/<uid>: the member writes their own, only the owner can read them all
-  const OB_STEPS=4;
+  const OB_STEPS=5;
   let obStep=0,ob={};
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   function openOnboard(){
@@ -1377,13 +1379,18 @@
     if(obStep===2)body=head('志言の設定','あなたの志を、二字熟語か四字熟語で表しましょう。短い言葉ほど、毎朝思い出しやすくなります。ホームのいちばん上に表示され、あとから変更もできます。')
       +`<div class="field"><label for="obShi">志言（二字熟語・四字熟語）${req}</label><input type="text" id="obShi" maxlength="4" value="${esc(ob.shi)}" placeholder="例：挑戦　／　一意専心" autocomplete="off"></div>
         <div class="field" style="margin-top:8px"><label for="obGoal">ワクワクする最終目標の設定${req}</label><span class="muted" style="font-size:12px">自分が本当に達成したい最終目標を、なるべく簡潔に書きましょう。</span><input type="text" id="obGoal" maxlength="40" value="${esc(ob.goal)}" placeholder="例：自分の店を持つ"></div>`;
-    if(obStep===3)body=head('アイコンの写真','最後に、トークや成長ログで表示されるアイコンの写真を登録しましょう。あとから変更もできます。')
+    if(obStep===3)body=head('アイコンの写真','トークや成長ログで表示されるアイコンの写真を登録しましょう。あとから変更もできます。')
       +`<div class="ob-photo"><div class="avatar big" id="obAvatar"></div>
           <label class="file-btn">写真を選ぶ<input type="file" id="obAvatarFile" accept="image/*"></label>
           <button type="button" class="small-btn" id="obAvatarClear">写真を外す</button>
           <p class="muted" style="font-size:12px;text-align:center">写真は丸く切り取って表示されます。登録しない場合は、お名前の頭文字のアイコンになります。</p></div>`;
     body+=`<div class="btn-row">${obStep>0?'<button type="button" class="ghost" id="obBack">戻る</button>':''}<button type="submit" class="primary">${obStep===OB_STEPS-1?'登録してはじめる':'次へ'}</button></div>`;
+    if(obStep===4)body=head('携帯に通知を届ける','入会後の新しい成長ログ・トーク・自分の投稿への反応・運営のお知らせを、携帯の通知画面で受け取れます。')
+      +`<p>新メンバーの参加もお知らせします。プレミアム会員には、朝活開始30分前のリマインドも届きます。</p><button type="button" class="primary" id="obPushEnable" disabled>携帯の通知を許可する</button><p id="obPushStatus" role="status" class="muted">通知機能を確認しています…</p><p class="muted" style="font-size:12px">iPhone・iPadはホーム画面に追加したIKIGAIから操作してください。通知を許可しなくても入会手続きは完了できます。配信は管理者の承認後に始まります。</p>`
+      +`<div class="btn-row"><button type="button" class="ghost" id="obBack">戻る</button><button type="submit" class="primary">入会手続きを完了する</button></div>`;
     $('#obForm').innerHTML=body;
+    if(obStep===4){import('./push-notifications.js').then(module=>{const button=$('#obPushEnable');if(!button)return;button.disabled=false;$('#obPushStatus').textContent='「携帯の通知を許可する」を押し、端末の確認画面で「許可」を選んでください。';button.onclick=async()=>{button.disabled=true;try{await module.enableDevicePush(payload=>window.appAuth.push(payload));if($('#obPushStatus'))$('#obPushStatus').textContent='この端末への通知を有効にしました。入会手続きを完了してください。'}catch(error){if($('#obPushStatus'))$('#obPushStatus').textContent=error.message||'通知を有効にできませんでした。あとから設定できます。'}finally{button.disabled=false}}}).catch(()=>{if($('#obPushStatus'))$('#obPushStatus').textContent='通知機能を読み込めませんでした。あとから各種設定で有効にできます。'})}
+
     if(obStep===3){
       const pa=()=>paintAvatar($('#obAvatar'),ob.avatar,ob.name);pa();
       $('#obAvatarFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
@@ -1835,11 +1842,16 @@
   async function openPushSettings(){try{if(!pushUi){const module=await import('./push-notifications.js');pushUi=module.mountPushNotifications({request:payload=>{if(!window.appAuth?.push)throw Error('通知を更新するには再読み込みしてください。');return window.appAuth.push(payload)},allowed:()=>backend==='cloud'&&!!uid&&!pending()})}await pushUi.refresh()}catch{$('#pushStatus').textContent='通知の設定を開けませんでした。再読み込みしてください。'}}
   async function shutdownPush(){try{const module=await import('./push-notifications.js');await module.disableDevicePush(payload=>window.appAuth?.push?window.appAuth.push(payload):Promise.reject(Error('offline')))}catch{}}
   let pendingPushNotice=null;const noticeUrl=new URL(location.href);
-  if(noticeUrl.searchParams.has('openPost')||noticeUrl.searchParams.has('openDm')){pendingPushNotice={postKey:noticeUrl.searchParams.get('openPost'),threadId:noticeUrl.searchParams.get('openDm')};noticeUrl.searchParams.delete('openPost');noticeUrl.searchParams.delete('openDm');history.replaceState(null,'',noticeUrl.href)}
+  if(['openPost','openDm','openGroup','openKind'].some(key=>noticeUrl.searchParams.has(key))){pendingPushNotice={postKey:noticeUrl.searchParams.get('openPost'),threadId:noticeUrl.searchParams.get('openDm'),groupId:noticeUrl.searchParams.get('openGroup'),kind:noticeUrl.searchParams.get('openKind'),announcementId:noticeUrl.searchParams.get('openAnnouncement')};noticeUrl.searchParams.delete('openPost');noticeUrl.searchParams.delete('openDm');for(const key of ['openGroup','openKind','openAnnouncement'])noticeUrl.searchParams.delete(key);history.replaceState(null,'',noticeUrl.href)}
   async function processPushNotice(){
     if(!pendingPushNotice||backend!=='cloud'||pending()||$('#app').hidden)return;
     const notice=pendingPushNotice;if(notice.postKey&&!feedReady)return;pendingPushNotice=null;if($('#notificationsDialog').open)$('#notificationsDialog').close();
-    if(typeof notice.threadId==='string'&&notice.threadId.length===73){go('mates');try{const ui=await ensureDirectMessages();await ui?.open(notice.threadId)}catch{toast('個別トークを開けませんでした。')}}
+    if(typeof notice.threadId==='string'&&notice.threadId.length===73){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureDirectMessages();await ui?.open(notice.threadId)}catch{toast('個別トークを開けませんでした。')}}
+    else if(typeof notice.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(notice.groupId)){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureGroups();await ui?.openById(notice.groupId)}catch{toast('グループを開けませんでした。参加状況を確認してください。')}}
+    else if(notice.kind==='talk'||notice.kind==='reaction'){go('mates')}
+    else if(notice.kind==='morning'){go('home');$('#zoomCard').scrollIntoView({block:'center'})}
+    else if(notice.kind==='announcement'){openReactionNotices()}
+    else if(notice.kind==='member'){go('home')}
     else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,true)}
   }
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}});

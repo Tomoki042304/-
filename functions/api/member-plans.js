@@ -4,7 +4,7 @@ const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'
 const missing=e=>['PGRST202','42883'].includes(e?.code);
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const rpc=(request,name,body={})=>database(request,'rpc/'+name,{method:'POST',body});
-export async function onRequest({request}){
+export async function onRequest({request,env}){
  const url=new URL(request.url);
  if(request.method!=='POST'||request.headers.get('Origin')!==url.origin)return reply(403,{message:'アプリから利用してください。'});
  let body;try{const raw=await request.text();if(raw.length>10000||!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error();body=JSON.parse(raw)}catch{return reply(400,{message:'入力内容を確認してください。'})}
@@ -34,8 +34,9 @@ export async function onRequest({request}){
   if(body.action==='meeting-write'){
    const m=body.meeting;
    if(!m||typeof m!=='object'||!['url','when','memo'].every(k=>typeof m[k]==='string')||m.url.length>2000||m.when.length>60||m.memo.length>200||(m.url&&!/^https:\/\/[^\s<>"']+$/i.test(m.url)))return reply(400,{message:'Zoomの入力内容を確認してください。'});
+   if(m.reminderEnabled===true){const ready=await database(null,'ikigai_runtime_values_v1?select=key&key=eq.system%3Apush-outbox%3Av2',{serviceKey:env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY});if(!Array.isArray(ready)||!ready.length)return reply(503,{message:'リマインド配信の準備ができていません。通知機能の設定を完了してください。'});if(typeof m.startsAt!=='string'||!Number.isFinite(Date.parse(m.startsAt))||Date.parse(m.startsAt)<=Date.now())return reply(400,{message:'未来の開始日時を指定してください。'});}
    // Never write the legacy row: old clients cannot accidentally republish a private URL.
-   return reply(200,await rpc(request,'ikigai_zoom_write_v1',{p_meeting:{url:m.url,when:m.when,memo:m.memo}}));
+   return reply(200,await rpc(request,'ikigai_zoom_write_v1',{p_meeting:{url:m.url,when:m.when,memo:m.memo,startsAt:typeof m.startsAt==='string'?m.startsAt:null,reminderEnabled:m.reminderEnabled===true}}));
   }
  }catch(error){
   const denied=[401,403].includes(error.status)||error.code==='42501';

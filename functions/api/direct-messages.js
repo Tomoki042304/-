@@ -87,7 +87,7 @@ export async function onRequest(context){
       const sort=sortKey(message),recipient=user.uid===thread.hostUid?thread.memberUid:thread.hostUid;
       await kv.put('dm:messages:v1:'+thread.id+':'+sort,JSON.stringify(message));await kv.put(incoming(recipient,thread.id)+sort,JSON.stringify({id:message.id}));
       const pushKey='dm:push:v1:'+thread.id+':'+message.id;
-      if(!await kv.get(pushKey)){await kv.put(pushKey,'queued',{expirationTtl:86400});const job=deliverPush(env,recipient,{title:'IKIGAI 個別トーク',body:'個別メッセージが届きました。',tag:pushKey,data:{threadId:thread.id}}).catch(()=>{});if(context.waitUntil)context.waitUntil(job);else await job;}
+      if(!await kv.get('system:push-outbox:v2')&&!await kv.get(pushKey)){await kv.put(pushKey,'queued',{expirationTtl:86400});const job=deliverPush(env,recipient,{title:'IKIGAI 個別トーク',body:'個別メッセージが届きました。',tag:pushKey,data:{threadId:thread.id}}).catch(()=>{});if(context.waitUntil)context.waitUntil(job);else await job;}
       return reply(200,{message});
     }
     return reply(400,{message:'利用できない操作です。'});

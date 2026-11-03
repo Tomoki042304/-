@@ -25,10 +25,37 @@ export async function encryptedPush(subscription,key,payload){
 }
 export async function digest(text){return b64url(await crypto.subtle.digest('SHA-256',encoder.encode(text)))}
 export async function deliverPush(env,uid,payload){
-  const store=operationalStore(env);let cursor;do{
+  const store=operationalStore({...env,IKIGAI_ACTOR_UID:uid});let cursor;const result={delivered:0,failed:0,expired:0,skipped:0};
+  do{
     const page=await store.list({prefix:'push:subscription:v1:'+uid+':',limit:10,...(cursor?{cursor}:{})});
-    // Send a bounded batch; no notification content or subscription secrets are logged.
-    await Promise.all(page.keys.map(async item=>{try{const subscription=await store.get(item.name,'json');if(!subscription)return;const vapid=await store.get('push:key:v1:'+subscription.keyId,'json');if(!vapid||vapid.uid!==uid)return;const encrypted=await encryptedPush(subscription,vapid,payload),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);try{const response=await fetch(subscription.endpoint,{method:'POST',headers:encrypted.headers,body:encrypted.body,redirect:'manual',signal:controller.signal});if([404,410].includes(response.status)&&store.delete)await store.delete(item.name)}finally{clearTimeout(timer)}}catch{}}));
-    cursor=page.list_complete?null:page.cursor;
-  }while(cursor);
+    await Promise.all(page.keys.map(async item=>{
+      try{
+        const subscription=await store.get(item.name,'json');if(!subscription)return;
+        const receipt=payload.tag?'push:delivery:v2:'+uid+':'+await digest(payload.tag+'|'+subscription.endpoint):null;
+        if(receipt&&await store.get(receipt)){result.skipped++;return}
+        const vapid=await store.get('push:key:v1:'+subscription.keyId,'json');if(!vapid||vapid.uid!==uid){result.failed++;return}
+        const encrypted=await encryptedPush(subscription,vapid,payload),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+        try{
+          const response=await fetch(subscription.endpoint,{method:'POST',headers:encrypted.headers,body:encrypted.body,redirect:'manual',signal:controller.signal});
+          if([404,410].includes(response.status)){if(store.delete)await store.delete(item.name);result.expired++}
+          else if(response.ok){if(receipt)await store.put(receipt,'1',{expirationTtl:172800});result.delivered++}
+          else result.failed++;
+        }finally{clearTimeout(timer)}
+      }catch{result.failed++}
+    }));cursor=page.list_complete?null:page.cursor;
+  }while(cursor);return result;
+}
+// Dispatcher batches contain only service-role SQL results. At most two device sends per job.
+export async function deliverPreparedPush(env,job,payload){
+ const entries=Array.isArray(job.subscriptions)?job.subscriptions:[],result={failed:entries.length>2?1:0,receipts:[],expired:[]};
+ await Promise.all(entries.slice(0,2).map(async entry=>{
+  try{
+   if(entry.vapid?.uid!==job.uid)throw Error('vapid owner');
+   const encrypted=await encryptedPush(entry.subscription,entry.vapid,payload);if(Number.isFinite(payload.ttl))encrypted.headers.TTL=String(Math.max(0,Math.min(86400,Math.floor(payload.ttl))));
+   const response=await fetch(entry.subscription.endpoint,{method:'POST',headers:encrypted.headers,body:encrypted.body,redirect:'manual',signal:AbortSignal.timeout(8000)});
+   if([404,410].includes(response.status))result.expired.push(entry.key);
+   else if(response.ok)result.receipts.push(entry.receipt);
+   else result.failed++;
+  }catch{result.failed++}
+ }));return result;
 }
