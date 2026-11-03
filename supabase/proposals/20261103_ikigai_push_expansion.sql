@@ -26,7 +26,7 @@ BEGIN
   SELECT public.ikigai_push_json_v2(value) INTO member FROM public.ikigai_runtime_values_v1 WHERE key='group:member:v1:'||(ctx->>'groupId')||':'||recipient::text;
   RETURN COALESCE(member->>'uid'=recipient::text AND (member->>'at')::timestamptz>=since_at,false);
  END IF;
- IF ctx->>'threadId' IS NOT NULL THEN RETURN recipient::text IN (split_part(ctx->>'threadId',':',1),split_part(ctx->>'threadId',':',2)) AND source::text IN (split_part(ctx->>'threadId',':',1),split_part(ctx->>'threadId',':',2));END IF;
+ IF ctx->>'threadId' IS NOT NULL THEN RETURN EXISTS(SELECT 1 FROM public.admins WHERE user_id::text=split_part(ctx->>'threadId',':',1)) AND recipient::text IN (split_part(ctx->>'threadId',':',1),split_part(ctx->>'threadId',':',2)) AND source::text IN (split_part(ctx->>'threadId',':',1),split_part(ctx->>'threadId',':',2));END IF;
  RETURN true;
 EXCEPTION WHEN invalid_text_representation OR invalid_datetime_format THEN RETURN false;
 END $$;
