@@ -10,8 +10,9 @@ export function mountAdminNotices({account,allowed,active,getSeen,saveSeen,load}
   let any=false;const receipts=allowed()?getSeen()||{}:{};
   for(const [key,id] of Object.entries(sections)){
    const seen=receipts[key]||{},rows=current.get(key)||new Map();
-   const unread=allowed()&&[...rows].some(([id,v])=>seen[id]!==v);any||=unread;
+   const unread=allowed()&&[...rows].some(([id,v])=>seen[id]!==v);any||=key!=='oneonone'&&unread;
    const dot=document.getElementById(id);if(dot)dot.hidden=!unread;
+   if(key==='oneonone'){const entry=document.getElementById('oneOnOneEntryDot');if(entry)entry.hidden=!unread;}
   }
   const entry=document.getElementById('inquiryEntryDot');if(entry)entry.hidden=!any;
  }

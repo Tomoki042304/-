@@ -50,6 +50,7 @@ img{max-width:100%}
 .dm-meta{display:flex;gap:7px;align-items:center;font-size:11px;color:#bcbcbc}.dm-delivery{font-size:11px;color:#bcbcbc}
 .dm-row .dm-bubble.dm-unsent{background:transparent;color:#aaa;font-size:13px;padding:6px 0}
 .dm-actions button{padding:9px 14px;background:#292929;border:1px solid #666;border-radius:10px;color:#fff;font-size:14px;cursor:pointer;min-height:40px}
+.session-thread{display:flex;align-items:center;gap:12px;width:100%;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);text-align:left;font:inherit}.session-thread-body{display:flex;flex:1;min-width:0;flex-direction:column;gap:6px}.session-thread small{font-size:12px;color:var(--ink-2)}.session-thread-preview{font-size:14px;color:var(--ink-2)}
 .dm-thread:active,.dm-start-btn:active{opacity:.7;transform:scale(.98)}
 #adminMembersDetails > summary .channel-expand::before{content:"＋"}
 #adminMembersDetails[open] > summary .channel-expand::before{content:"−"}
@@ -1448,7 +1449,9 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
       <div class="card acc-list" id="adminEntry" hidden>
         <button type="button" class="acc-row" data-acc="admin"><span class="icon-tile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4v6c0 4-8 8-8 8s-8-4-8-8V7Z"/><path d="m8 12 3 3 5-6"/></svg></span><span><b>管理者権利 <span id="inquiryEntryDot" class="inquiry-notice-dot" aria-label="管理者向けの新しい情報があります" hidden></span></b><small>在籍メンバー・行動チェック・入会承認</small></span><svg class="i chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
       </div>
+      <div class="card acc-list" id="oneOnOneEntry" hidden><button type="button" class="acc-row" data-acc="oneonone"><span class="icon-tile">💬</span><span><b>1on1面談申し込み依頼 <span id="oneOnOneEntryDot" class="inquiry-notice-dot" aria-label="新しい1on1申込みがあります" hidden></span></b><small>申込者との個人トーク</small></span><span class="chev">›</span></button></div>
       </div>
+      <div id="accOneOnOne" class="view" hidden><button type="button" class="back-link" data-acc="menu">‹ アカウント</button><h2 class="view-title">1on1面談申し込み依頼 <span id="oneOnOneAdminDot" class="inquiry-notice-dot" aria-label="新しい申込みがあります" hidden></span></h2><section class="card admin-panel" id="oneOnOneAdmin"><div class="card-head"><b>トーク一覧</b><button type="button" class="small-btn" id="oneOnOneRefresh">更新</button></div><p class="muted admin-note">申込み時に「面談希望」が届いたトークを表示します。相手をタップすると、そのまま会話できます。</p><p id="oneOnOneAdminStatus" class="muted" role="status"></p><div id="oneOnOneList" class="admin-roster"></div><button type="button" class="small-btn" id="oneOnOneMore" hidden>もっと見る</button></section></div>
       <div id="accInquiry" class="view" hidden><button type="button" class="back-link" data-acc="menu">‹ アカウント</button><h2 class="view-title">問い合わせ</h2>
       <form class="card admin-panel" id="inquiryForm">
         <b>問い合わせ</b>
@@ -1518,7 +1521,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         <summary class="channel-summary"><span><b style="font-size:16px">入会申込の一覧 <span id="applicationsAdminDot" class="inquiry-notice-dot" aria-label="新しい入会申込があります" hidden></span></b><span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span> <span class="mono" id="appCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary>
         <div class="box-list" id="appList" style="margin-top:14px"><p class="muted">読み込んでいます…</p></div>
       </details>
-        <details class="card admin-panel" id="oneOnOneAdmin"><summary class="channel-summary"><b>1on1申し込み依頼 <span id="oneOnOneAdminDot" class="inquiry-notice-dot" aria-label="新しい1on1申込みがあります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="oneOnOneRefresh">更新</button><p id="oneOnOneAdminStatus" class="muted" role="status"></p><div id="oneOnOneList" class="admin-roster"></div><button type="button" class="small-btn" id="oneOnOneMore" hidden>もっと見る</button></div></details>
+
         <details class="card admin-panel" id="inquiryAdmin">
           <summary class="channel-summary"><b>問い合わせ連絡 <span id="inquiryAdminDot" class="inquiry-notice-dot" aria-label="新しい問い合わせがあります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
           <div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button>

@@ -1532,13 +1532,13 @@
     else adminNoticeUi?.stop();
     if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
     if(!isOwnerView&&oneOnOneUi)oneOnOneUi.stop();
-    $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
+    $('#adminEntry').hidden=!isOwnerView;$('#oneOnOneEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
       nightlyNoticeRows=[];nightlyAlert.hidden=true;nightlyAlert.textContent='';
       ++channelSettingsToken;channelSettingsLoaded=false;channelSettingsRevision='';if($('#youtubeChannelInput')){$('#youtubeChannelInput').value='';$('#youtubeChannelInput').disabled=true;$('#youtubeRegisteredChannels').replaceChildren();$('#youtubeChannelCount').textContent='';$('#youtubeChannelsDetails').open=false;}
       ++adminLoadToken;adminRows=[];adminLoaded=false;$('#adminRoster').replaceChildren();$('#appList').replaceChildren();
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
-      if(!$('#accAdmin').hidden||!$('#accAnnouncements').hidden)showAcc('menu');
+      if(!$('#accAdmin').hidden||!$('#accAnnouncements').hidden||!$('#accOneOnOne').hidden)showAcc('menu');
     }
     renderZoom();renderMembers();
   }
@@ -1929,7 +1929,7 @@
   let oneOnOneUi=null,oneOnOneLoading=null;
   async function ensureOneOnOne(){
     if(!uid||backend!=='cloud'||$('#app').hidden)return null;
-    try{if(!oneOnOneUi){if(!oneOnOneLoading)oneOnOneLoading=import('./one-on-one.js');const module=await oneOnOneLoading;if(!uid||$('#app').hidden)return null;if(!oneOnOneUi)oneOnOneUi=module.mountOneOnOne({request:body=>window.appAuth.oneOnOne(body),account:()=>uid&&!$('#app').hidden?uid:null,isAdmin:()=>isOwnerView,isBasic:()=>!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false,viewing:()=>adminSectionOpen('#oneOnOneAdmin'),onRows:(rows,options)=>noticeSection('oneonone',rows.map(row=>({id:row.uid,version:row.at})),options),openChat:async threadId=>{if(!isOwnerView)return;if(!talkIntroduced)throw Error('自己紹介を完了してから個人チャットを開いてください。');const ui=await ensureDirectMessages();if(!ui)throw Error('個人チャットを開けませんでした。');go('mates');await ui.open(threadId)}})}oneOnOneUi.start();return oneOnOneUi}catch{oneOnOneLoading=null;return null}
+    try{if(!oneOnOneUi){if(!oneOnOneLoading)oneOnOneLoading=import('./one-on-one.js');const module=await oneOnOneLoading;if(!uid||$('#app').hidden)return null;if(!oneOnOneUi)oneOnOneUi=module.mountOneOnOne({request:body=>window.appAuth.oneOnOne(body),account:()=>uid&&!$('#app').hidden?uid:null,isAdmin:()=>isOwnerView,isBasic:()=>!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false,viewing:()=>adminAccountVisible()&&!$('#accOneOnOne').hidden,onRows:(rows,options)=>noticeSection('oneonone',rows.map(row=>({id:row.uid,version:row.at})),options),openChat:async threadId=>{if(!isOwnerView)return;if(!talkIntroduced)throw Error('自己紹介を完了してから個人チャットを開いてください。');const ui=await ensureDirectMessages();if(!ui)throw Error('個人チャットを開けませんでした。');go('mates');await ui.open(threadId)}})}oneOnOneUi.start();return oneOnOneUi}catch{oneOnOneLoading=null;return null}
   }
   $('#premiumJoinCard').onclick=()=>{
     if(isOwnerView||pending()||zoomMembership?.plan!=='basic'||zoomMembership?.can_zoom!==false)return;
@@ -1965,10 +1965,11 @@
     if(!securityUi){const module=await import('./security-settings.js');securityUi=module.mountSecurity({request:payload=>window.appAuth.security(payload),active:()=>isOwnerView&&!$('#accAdmin').hidden,onState:state=>noticeSection('security',securityNoticeRows(state),{viewed:adminSectionOpen('#securityAdmin')})})}
   }
   function showAcc(which){
-    if(!['menu','profile','settings','admin','inquiry','announcements'].includes(which))which='menu';
-    if((which==='admin'||which==='announcements')&&!isOwnerView)which='menu';
+    if(!['menu','profile','settings','admin','inquiry','announcements','oneonone'].includes(which))which='menu';
+    if((which==='admin'||which==='announcements'||which==='oneonone')&&!isOwnerView)which='menu';
     if(which!=='admin')++adminLoadToken;
-    $('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accInquiry').hidden=which!=='inquiry';$('#accAdmin').hidden=which!=='admin';$('#accAnnouncements').hidden=which!=='announcements';
+    $('#accOneOnOne').hidden=which!=='oneonone';$('#accMenu').hidden=which!=='menu';$('#accProfile').hidden=which!=='profile';$('#accSettings').hidden=which!=='settings';$('#accInquiry').hidden=which!=='inquiry';$('#accAdmin').hidden=which!=='admin';$('#accAnnouncements').hidden=which!=='announcements';
+    if(which==='oneonone')ensureOneOnOne().then(ui=>ui?.refresh()).catch(()=>{});
     if(which==='profile')fillForm();
     if(which==='settings')openPushSettings();
     if(which==='announcements')ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementPublishStatus').textContent='配信画面を読み込めませんでした。'})
