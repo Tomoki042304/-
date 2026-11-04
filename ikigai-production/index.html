@@ -1033,6 +1033,13 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 
 #talkLanding{gap:0}#talkLanding .talk-entry,#talkLanding .dm-thread,#talkLanding .group-list-item{display:flex;align-items:center;gap:14px;width:100%;min-width:0;text-align:left;padding:16px 2px;background:transparent;border:0;border-radius:0;box-shadow:none;color:#f4f4f4;font:inherit}#talkLanding [hidden]{display:none!important}#talkLanding .icon-tile,#talkLanding .avatar{width:54px;height:54px;min-width:54px;border-radius:50%;object-fit:cover;overflow:hidden;flex:none}#talkLanding .avatar img{width:100%;height:100%;object-fit:cover}.talk-preview-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}.talk-preview-copy b{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.talk-preview-copy small{font-size:13px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.talk-preview-meta{display:flex;flex-direction:column;align-items:flex-end;gap:9px;font-size:11px;color:#999;flex:none}#talkLanding .unread{position:static;width:12px;height:12px;border-radius:50%;background:#26bd68}.talk-filter-label{display:flex;align-items:center;gap:12px;color:#aaa;font-size:12px;padding:0 0 12px}.talk-filter-label select{width:auto;background:#262626;border:1px solid #444;border-radius:24px;color:#fff;padding:9px 15px}#talkUnifiedList{min-width:0}
 #talkLanding .group-member-count{display:none}#talkLanding .group-list-item>.avatar{display:grid;place-items:center;background:#314547;font-size:24px}
+
+#premiumJoinCard.photo-offer,#shidorokuPurchaseLink.photo-offer{min-height:176px;padding:22px;align-items:flex-end;border:1px solid #ffffff26;color:#fff;background-color:#252020;background-repeat:no-repeat;background-size:cover;text-shadow:0 1px 8px #0009;line-height:1.7;overflow:hidden}
+#premiumJoinCard.photo-offer{background-image:linear-gradient(90deg,#160d17d9 0%,#160d1733 75%),linear-gradient(0deg,#120a12b3,transparent 75%),url('./images/premium-shin.jpg');background-position:center,center,center 44%}
+#shidorokuPurchaseLink.photo-offer{background-image:linear-gradient(0deg,#090909cc,transparent 85%),url('./images/shidoroku-journal.jpg');background-position:center,center 53%}
+#premiumJoinCard.photo-offer>span:first-child{max-width:76%;font-size:17px}#shidorokuPurchaseLink.photo-offer>span:first-child{font-size:18px}
+.photo-offer>span:last-child{font-size:24px;flex:none;line-height:1.25}.photo-offer:focus-visible{outline:3px solid #d4b46c;outline-offset:3px}
+@media(min-width:700px){#premiumJoinCard.photo-offer,#shidorokuPurchaseLink.photo-offer{min-height:200px}}
 </style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
@@ -1221,10 +1228,10 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 
       <button type="button" class="card home-offer" id="oneOnOneApply" disabled hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><span style="line-height:1.7"><span style="display:block">一度きり！</span><span style="display:block">SHIN 1on1セッションを</span><span style="display:block">申し込む🔥</span></span><span id="oneOnOneSent" role="status" style="flex:none;font-size:13px;white-space:nowrap" hidden>送信済み</span><span id="oneOnOneArrow" aria-hidden="true">›</span></button>
       <p id="oneOnOneStatus" class="muted" role="status" hidden></p>
-      <button type="button" class="card home-offer" id="premiumJoinCard" hidden style="width:100%;text-align:left;font:inherit;font-weight:700">
-        <span>プレミアムメンバーに参加はこちら✨</span><span aria-hidden="true">›</span>
+      <button type="button" class="card home-offer photo-offer" id="premiumJoinCard" hidden style="width:100%;text-align:left;font:inherit;font-weight:700">
+        <span>プレミアムメンバーに<br>参加はこちら✨</span><span aria-hidden="true">›</span>
       </button>
-      <a class="card home-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
+      <a class="card home-offer photo-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
         <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
       </a>
 
