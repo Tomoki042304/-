@@ -1531,6 +1531,7 @@
     if(isOwnerView){ensureAdminNotices().then(ui=>ui?.start()).catch(()=>{});void openInquiry('notify')}
     else adminNoticeUi?.stop();
     if(!isOwnerView&&inquiryUi)inquiryUi.clearAdmin();
+    if(!isOwnerView&&oneOnOneUi)oneOnOneUi.stop();
     $('#adminEntry').hidden=!isOwnerView;$('#appCard').hidden=!isOwnerView;
     if(!isOwnerView){
       nightlyNoticeRows=[];nightlyAlert.hidden=true;nightlyAlert.textContent='';
