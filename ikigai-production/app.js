@@ -1042,7 +1042,7 @@
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
     const showPremiumOffer=!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false;
-    $('#oneOnOneApply').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)closePremiumGuide();
+    $('#oneOnOneApply').hidden=!showPremiumOffer||$('#oneOnOneApply').dataset.checked!=='true'||$('#oneOnOneApply').dataset.handled==='true';if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)closePremiumGuide();
     if(!zoomMembership?.can_zoom||pending()){
       $('#zoomView').hidden=true;$('#zoomJoin').removeAttribute('href');$('#zoomUrl').textContent='';$('#zoomWhen').textContent='';$('#zoomMemo').textContent='';
       $('#zoomJoin').hidden=true;$('#zoomCopy').hidden=true;$('#zoomEditBtn').hidden=true;$('#zoomForm').hidden=true;

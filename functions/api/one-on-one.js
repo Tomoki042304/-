@@ -22,10 +22,22 @@ export async function onRequest({request,env}){
   }
   const membership=await database(request,'rpc/ikigai_my_membership_v1',{method:'POST',body:{}});
   if(user.isHost||membership?.plan!=='basic'||membership?.can_zoom!==false)return reply(403,{message:'ベーシック会員限定の申込みです。'});
-  if(body.action==='status'){const previous=await kv.get(PREFIX+user.uid,'json');return reply(200,{applied:previous?.sent===true,repeatAllowed:true});}
+  const pointer=await kv.get(PREFIX+user.uid,'json');
+  const previous=pointer||await kv.get(PREFIX+user.uid+':'+SHIN+':'+user.uid,'json');
+  if(previous&&(!valid(previous)||previous.uid!==user.uid))throw Error('invalid request');
+  if(!pointer&&previous?.sent===true)await kv.put(PREFIX+user.uid,JSON.stringify(previous));
+  async function applicationState(){
+   let handled=false;
+   if(previous?.sent===true){const recent=await kv.list({prefix:'dm:incoming:v1:'+user.uid+':'+previous.threadId+':',limit:1});if(recent.keys.length){const id=recent.keys[0].name.split(':').at(-1),message=await kv.get('dm:message:v1:'+previous.threadId+':'+id,'json');handled=message?.senderUid===SHIN&&message.threadId===previous.threadId&&Date.parse(message.at)>=Date.parse(previous.at)}}
+   return {applied:previous?.sent===true,handled,repeatAllowed:false};
+  }
+  if(body.action==='status')return reply(200,await applicationState());
+  if(previous?.sent===true)return reply(200,{...await applicationState(),already:true});
   if(typeof body.requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId))return reply(400,{message:'アプリを更新してからもう一度お申し込みください。'});
-  const requestKey=PREFIX+user.uid+':'+SHIN+':'+body.requestId;
-  let record=await kv.get(requestKey,'json');if(record&&(!valid(record)||record.uid!==user.uid||record.id!==body.requestId))throw Error('invalid request');
+  // A stable identity also deduplicates concurrent submissions and new retry IDs.
+  const applicationId=user.uid;
+  const requestKey=PREFIX+user.uid+':'+SHIN+':'+applicationId;
+  let record=await kv.get(requestKey,'json');if(record&&(!valid(record)||record.uid!==user.uid||record.id!==applicationId))throw Error('invalid request');
   if(record?.sent===true)return reply(200,{applied:true,already:true});
   if(env.PII_MIGRATION_MODE==='locked')return reply(503,{message:'保護設定の更新中です。しばらくしてからお試しください。'});
   if(!await hasTalkIntroduction(request))return reply(403,{message:'先に自己紹介を送信してからお申し込みください。'});
@@ -34,7 +46,7 @@ export async function onRequest({request,env}){
   if(!Array.isArray(hosts)||hosts.length!==1)return reply(503,{message:'SHINの送信先を確認できませんでした。運営へご連絡ください。'});
   if(!record){
    const rows=await database(request,'documents?'+new URLSearchParams({select:'path,data',path:'eq.members/'+user.uid}));const member=rows?.[0]?await openDocument(env,rows[0].path,rows[0].data):{};
-   const id=body.requestId;
+   const id=applicationId;
    record={uid:user.uid,hostUid:SHIN,name:typeof member.nick==='string'?member.nick.slice(0,100):'メンバー',id,threadId:SHIN+':'+user.uid,at:new Date().toISOString(),sent:false};
    await kv.put(requestKey,JSON.stringify(record));
   }
