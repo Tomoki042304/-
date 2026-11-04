@@ -876,7 +876,6 @@ details[open] > .channel-summary .channel-expand::before{content:"−"}
 </style>
 <style>
 .talk-title-wrap{display:flex;align-items:center;gap:8px;min-width:0}
-#dmToggle{position:relative;width:32px;height:32px;min-width:32px;border:1px solid #444;border-radius:50%;background:#262626;color:#fff;font-size:24px;padding:0;line-height:1}
 .notice-dot{position:absolute;width:9px;height:9px;border-radius:50%;background:#ed414f;border:2px solid #1a1a1a;right:0;top:0}.notice-dot[hidden]{display:none}
 #dmTabDot,#growthLogTabDot{top:7px;right:calc(50% - 19px)}
 #v-mates #talkAboutToggle{font-size:12px;width:auto;min-width:46px;height:32px;padding:0 8px}
@@ -940,8 +939,8 @@ body.shin-chat-keyboard #v-ai #shinAiInput{max-height:100px}
 
 /* A bounded chat viewport: only conversation history and expanded lists scroll. */
 body.talk-open{overflow:hidden}body.talk-open header.top{display:none}
-.talk-sections{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}.talk-sections button{position:relative;padding:11px 6px;background:#292929;color:#c8bfc3;border:1px solid #444;border-radius:12px;font:inherit;font-size:14px;font-weight:700}.talk-sections button[aria-selected="true"]{background:#7a1f33;color:#fff;border-color:#a4425d}
-#talkTitle{display:none}#v-mates #privateChatList{flex:1;min-height:0;overflow-y:auto;margin:0;padding:14px;background:#fff;color:#2b1418}#privateChatList .muted{color:#65585d}#privateChatList #dmInbox{gap:10px}body.talk-keyboard #talkAboutText{display:none}body.talk-keyboard nav.tabs,body.talk-keyboard header.top{visibility:hidden;pointer-events:none}
+.talk-sections{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.8fr);gap:6px;margin:0 0 8px}.talk-sections button{min-width:0;position:relative;padding:11px 6px;background:#292929;color:#c8bfc3;border:1px solid #444;border-radius:12px;font:inherit;font-size:13px;font-weight:700}.talk-sections button[aria-selected="true"]{background:#7a1f33;color:#fff;border-color:#a4425d}
+#talkTitle{display:none}#giveTalkTools{justify-content:flex-end;gap:8px;margin-top:0}#giveTalkTools button{width:auto;height:auto;font-size:13px;line-height:1.5;padding:7px 12px}#v-mates #privateChatList{flex:1;min-height:0;overflow-y:auto;margin:0;padding:14px;background:#fff;color:#2b1418}#privateChatList .muted{color:#65585d}#privateChatList #dmInbox{gap:10px}body.talk-keyboard #talkAboutText{display:none}body.talk-keyboard nav.tabs,body.talk-keyboard header.top{visibility:hidden;pointer-events:none}
 #v-mates{position:fixed;top:var(--talk-top,80px);height:var(--talk-height,calc(100dvh - 155px));left:50%;transform:translateX(-50%);width:min(480px,100%);padding:0 12px;min-height:0;background:#1a1a1a;z-index:21;overflow:hidden;gap:0}
 #v-mates > .card:first-child{flex:none;margin:0;padding:6px 0 10px}#v-mates .talk-desc{max-height:32dvh;overflow:auto}#v-mates #mtChat{flex:1;min-height:0;margin:0;overflow:hidden}#groupCommon{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}#groupCommon #buddyCard{flex:none}
 #v-mates #chatLog{flex:1;min-height:60px;max-height:none;height:auto;margin:0;padding:12px 6px;overflow-y:auto;overscroll-behavior-y:contain}
@@ -975,7 +974,7 @@ body.talk-open{overflow:hidden}body.talk-open header.top{display:none}
 
 #groupMessages .message-reaction-picker button{font-size:24px;padding:2px;width:40px;height:40px}#groupMessages .message-reaction-counts button{font-size:13px;padding:3px 9px;min-height:30px}body.talk-keyboard #groupRoom>.template-note{display:none}body.talk-keyboard #groupParticipantsStatus{display:none}body.talk-keyboard #groupParticipants .avatar{width:28px;height:28px;font-size:11px}body.talk-keyboard #groupReplyContext{max-height:44px}
 
-#composer .give-composer-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}#talkGiveNote{margin:6px 0 0;color:#c8bfc3;font-size:11px;line-height:1.6;overflow-wrap:anywhere}body.talk-keyboard #talkGiveNote{display:none}#v-mates #dmPanel{inset:var(--talk-menu-top,82px) 0 0}.message-reply-action{align-self:flex-start;margin-top:5px;background:#292929;color:#eee;border-color:#555;font-size:11px}
+#composer .give-composer-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}#talkGiveNote{margin:6px 0 0;color:#c8bfc3;font-size:11px;line-height:1.6;overflow-wrap:anywhere}body.talk-keyboard #talkGiveNote{display:none}#v-mates #dmPanel{position:static;inset:auto;flex:1;min-height:0;border-radius:16px}#dmPanel #groupInvites{margin:0;padding:0;border:0}.message-reply-action{align-self:flex-start;margin-top:5px;background:#292929;color:#eee;border-color:#555;font-size:11px}
 
 .public-message-row{display:flex;gap:8px;align-items:flex-end;min-width:0;width:100%}.public-message-row #giveFreeText{flex:1;min-width:0;width:0;line-height:1.5}.public-message-row #giveFreeSend{flex:none;min-height:42px;margin:0;padding:8px 14px;border-radius:22px;background:#7a1f33;border-color:#7a1f33;color:#fff;white-space:nowrap}#giveReplyContext .small-btn{background:#f5f1f3;color:#2b2023;border-color:#d6cdd0}
 
@@ -1297,9 +1296,8 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
     <!-- MATES -->
     <section class="view" id="v-mates" hidden>
       <div class="card">
-        <div class="talk-sections" role="tablist" aria-label="トークの種類"><button type="button" id="talkGiveTab" role="tab" aria-selected="true" aria-controls="mtChat">GIVE BUDDIES</button><button type="button" id="talkPrivateTab" role="tab" aria-selected="false" aria-controls="privateChatList">個人チャット<span id="dmUnreadDot" class="notice-dot" hidden></span></button></div>
-        <div class="talk-about-head" id="giveTalkTools"><div class="talk-title-wrap"><h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><button type="button" id="dmToggle" aria-expanded="false" aria-controls="dmPanel" aria-label="グループ一覧を開く">＋</button></div><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">説明</button></div>
-        <button type="button" class="small-btn" id="talkNotesOpen" hidden>自己紹介ノート</button>
+        <div class="talk-sections" role="tablist" aria-label="トークの種類"><button type="button" id="talkGiveTab" role="tab" aria-selected="true" aria-controls="mtChat">GIVE BUDDIES</button><button type="button" id="talkPrivateTab" role="tab" aria-selected="false" aria-controls="privateChatList">個人チャット<span id="dmUnreadDot" class="notice-dot" hidden></span></button><button type="button" id="talkGroupTab" role="tab" aria-selected="false" aria-controls="dmPanel">グループ</button></div>
+        <h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><div class="talk-about-head" id="giveTalkTools"><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVE BUDDIESの説明を開く">説明</button><button type="button" class="small-btn" id="talkNotesOpen" style="margin:0" hidden>自己紹介ノート</button></div>
         <p id="talkGiveNote">（皆さんに人生に活かせる知識や考え方giveしましょう）</p>
         <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
@@ -1311,7 +1309,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         </div>
       </div>
       <section id="privateChatList" class="card admin-panel" hidden><div class="card-head"><b>個人チャット</b><button type="button" class="small-btn" id="dmRefresh">更新</button></div><p class="muted admin-note" id="dmInboxStatus" role="status"></p><div id="dmInbox" class="admin-roster"></div></section>
-      <section id="dmPanel" class="card admin-panel" hidden><div class="card-head"><b>グループ</b><button type="button" id="talkListClose" class="small-btn">閉じる</button></div><details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループ <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details></section>
+      <section id="dmPanel" class="card admin-panel" hidden><details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループ <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details></section>
       <section id="dmConversation" hidden>
         <div class="dm-heading"><button type="button" id="dmBack" class="small-btn">‹ 個人チャット一覧へ</button><b id="dmPeer"></b></div>
         <p class="dm-note">個別のやり取りを表示しています。</p>
@@ -1367,7 +1365,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         </form>
       </div>
       <section id="groupRoom" class="card" hidden aria-label="グループトーク">
-        <div class="group-room-head"><button type="button" id="groupBack" class="small-btn">全体に戻る</button><div class="group-title-group"><h2 id="groupRoomTitle"></h2><span id="groupRoomCount"></span></div><button type="button" id="groupDelete" class="small-btn group-delete" hidden>グループ削除</button></div>
+        <div class="group-room-head"><button type="button" id="groupBack" class="small-btn">グループ一覧へ</button><div class="group-title-group"><h2 id="groupRoomTitle"></h2><span id="groupRoomCount"></span></div><button type="button" id="groupDelete" class="small-btn group-delete" hidden>グループ削除</button></div>
         <div class="group-participants-area"><p id="groupParticipantsStatus" role="status"></p><div id="groupParticipants" role="list" aria-label="グループ参加者"></div></div>
         <p class="template-note">参加者と管理者のみ閲覧できます。管理者は自動参加します。参加する前のメッセージは表示されません。</p>
         <button type="button" id="groupOlder" class="small-btn" hidden>以前のメッセージ</button><div id="groupMessages" aria-live="polite"></div><p id="groupStatus" class="template-note" role="status"></p>

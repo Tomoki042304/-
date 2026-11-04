@@ -595,27 +595,30 @@
   let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false,chatSavePromise=null,chatSubmitting=false,chatComposeMode='template',chatReply=null,chatDraftStates={template:{},free:{}};
   let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false,talkNotesUi=null,talkSection='give';
   function showTalkIntroduction(){
-    const personal=talkSection==='private',gated=!talkIntroduced,privateGated=gated&&!isOwnerView;
-    $('#talkNotesOpen').hidden=gated||personal;$('#talkIntroductionForm').hidden=!gated||(personal&&isOwnerView);
-    $('#mtChat').hidden=gated||personal||!$('#dmConversation').hidden;$('#dmToggle').hidden=gated||personal;
+    const personal=talkSection==='private',groups=talkSection==='groups',gated=!talkIntroduced,privateGated=gated&&!isOwnerView,groupActive=groups&&!$('#groupRoom').hidden;
+    $('#talkNotesOpen').hidden=gated||talkSection!=='give';$('#talkIntroductionForm').hidden=!gated||(personal&&isOwnerView);
+    $('#mtChat').hidden=gated||personal||(groups&&!groupActive)||!$('#dmConversation').hidden;
     $('#privateChatList').hidden=!personal||privateGated||!$('#dmConversation').hidden;
-    if(gated&&!personal){$('#dmPanel').hidden=true;$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
-    if(personal&&privateGated){$('#dmConversation').hidden=true;$('#dmPanel').hidden=true}
+    $('#dmPanel').hidden=!groups||gated||groupActive;
+    if(gated&&!personal){$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
+    if(personal&&privateGated)$('#dmConversation').hidden=true;
   }
   function setTalkSection(section,preserve=false){
-    talkSection=section==='private'?'private':'give';
+    talkSection=['private','groups'].includes(section)?section:'give';
     if(!preserve){directMessages?.leave();groupUi?.leave();$('#dmConversation').hidden=true;}
-    $('#talkGiveTab').setAttribute('aria-selected',String(talkSection==='give'));$('#talkPrivateTab').setAttribute('aria-selected',String(talkSection==='private'));
-    $('#giveTalkTools').hidden=talkSection!=='give';$('#talkGiveNote').hidden=talkSection!=='give';$('#dmPanel').hidden=true;
-    if(talkSection==='private')$('#talkAboutText').hidden=true;
+    for(const [id,mode] of [['talkGiveTab','give'],['talkPrivateTab','private'],['talkGroupTab','groups']])$('#'+id).setAttribute('aria-selected',String(talkSection===mode));
+    $('#giveTalkTools').hidden=talkSection!=='give';$('#talkGiveNote').hidden=talkSection!=='give';
+    if(talkSection!=='give')$('#talkAboutText').hidden=true;
     showTalkIntroduction();
     if(talkSection==='private')ensureDirectMessages().then(ui=>{ui?.start();return ui?.refresh()}).catch(()=>{$('#dmInboxStatus').textContent='個人チャットを読み込めませんでした。「更新」でお試しください。'});
+    if(talkSection==='groups')ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='グループを読み込めませんでした。「更新」でお試しください。'});
     window.dispatchEvent(new Event('resize'));
   }
-  $('#talkGiveTab').onclick=()=>setTalkSection('give');$('#talkPrivateTab').onclick=()=>setTalkSection('private');
+  $('#talkGiveTab').onclick=()=>setTalkSection('give');$('#talkPrivateTab').onclick=()=>setTalkSection('private');$('#talkGroupTab').onclick=()=>setTalkSection('groups');
   window.addEventListener('ikigai-direct-open',()=>setTalkSection('private',true));
   window.addEventListener('ikigai-direct-back',()=>setTalkSection('private',true));
-  window.addEventListener('ikigai-group-open',()=>setTalkSection('give',true));
+  window.addEventListener('ikigai-group-open',()=>setTalkSection('groups',true));
+  window.addEventListener('ikigai-group-back',()=>setTalkSection('groups',true));
   async function ensureTalkNotes(){
     if(!talkNotesUi){const module=await import('./talk-notes.js');if(!talkNotesUi)talkNotesUi=module.mountTalkNotes({account:()=>backend==='cloud'&&uid&&!pending()&&talkIntroduced?uid:null,nameOf,request:()=>window.appAuth.talkNotes()})}
     return talkNotesUi;
@@ -1729,7 +1732,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#giveTalkTools').hidden=false;$('#talkGiveNote').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
+    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#talkGroupTab').setAttribute('aria-selected','false');$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=false;$('#talkGiveNote').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
