@@ -1933,14 +1933,14 @@
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,timeLabel:hhmm,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#giveGroupTab').onclick=()=>{setChatComposeMode('group');ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupCreateStatus').textContent='グループを開けませんでした。再読み込みしてください。'})};
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,avatar:mkAvatar,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,avatar:mkAvatar,day:dayLabel,timeLabel:hhmm,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
     return directMessages;
   }
   async function startDirectMessage(memberUid){

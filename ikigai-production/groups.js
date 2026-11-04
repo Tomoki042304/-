@@ -1,4 +1,5 @@
-export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},onChange=()=>{},avatar=null,day=at=>new Date(at).toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo'})}){
+import {messageBlocks,messageShell,dayDivider} from './talk-message-layout.js';
+export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},onChange=()=>{},avatar=null,day=at=>new Date(at).toLocaleDateString('ja-JP',{timeZone:'Asia/Tokyo'}),timeLabel=at=>new Date(at).toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'})}){
  const $=s=>document.querySelector(s);let rooms=[],active=null,messages=[],older=null,isAdmin=false,timer=0,started=false,epoch=0,roomEpoch=0,busy=false,loading=false,listCursor=null,listPages=1,listError='';
  const rosters=new Map();let rosterLoading=false,readPending=false,menuId='',replyTo=null,pressTimer=0,suppressMenuClick=0;const readMarks=new Map();
  const drafts=new Map();let createDraft={id:crypto.randomUUID(),signature:''};
@@ -62,12 +63,12 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   try{await request({action:'read',groupId:id,ids:incoming.map(m=>m.id)});if(uid===account()&&version===epoch)readMarks.set(id,latest)}catch{}finally{if(version===epoch)readPending=false}
  }
  function renderMessages(scroll=false){
-  const box=$('#groupMessages'),near=box.scrollHeight-box.scrollTop-box.clientHeight<80,top=box.scrollTop,height=box.scrollHeight;box.replaceChildren();let previousDay='';
+  const box=$('#groupMessages'),near=box.scrollHeight-box.scrollTop-box.clientHeight<80,top=box.scrollTop,height=box.scrollHeight;box.replaceChildren();const block=messageBlocks(day);
   for(const m of messages.filter(m=>!m.unsent)){
-   const label=day(m.at);if(label!==previousDay){const divider=document.createElement('div');divider.className='chat-day';divider.textContent=label;box.append(divider);previousDay=label}
-   const mine=m.senderUid===account(),row=document.createElement('div');row.className='group-message'+(mine?' mine':'');row.dataset.messageId=m.id;
-   const name=document.createElement('small');name.textContent=nameOf(m.senderUid);const author=document.createElement('div');author.className='group-message-author';author.append(personAvatar(m.senderUid),name);const body=document.createElement('p');body.textContent=m.unsent?'送信を取り消しました':m.text;body.className='group-bubble';if(!m.unsent){body.dataset.reactionScope='private-group';body.dataset.reactionThread=active.id;body.dataset.reactionSender=m.senderUid;body.dataset.reactionMessage=m.id;body.tabIndex=0;body.setAttribute('role','button');body.setAttribute('aria-label',mine?'メッセージの操作とリアクションを開く':'メッセージのリアクションを開く');if(mine)body.dataset.groupMine=m.id}
-   const meta=document.createElement('div');meta.className='group-message-meta';if(mine&&!m.unsent&&m.readCount>0){const read=document.createElement('small');read.className='group-read-count';read.textContent='既読 '+m.readCount;meta.append(read)}const time=document.createElement('time');time.textContent=new Date(m.at).toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit'});meta.append(time);row.append(author,body,meta);if(mine&&!m.unsent&&menuId===m.id){const actions=document.createElement('div');actions.className='group-message-actions';actions.append(button('送信取り消し',()=>unsend(m.id)));row.append(actions)}box.append(row);
+   const state=block(m.senderUid,m.at);if(state.day)box.append(dayDivider(state.day));
+   const mine=m.senderUid===account(),{row,body:messageBody,line}=messageShell({mine,first:state.first,name:nameOf(m.senderUid),avatar:()=>personAvatar(m.senderUid),className:'group-message'+(mine?' mine':'')});row.dataset.messageId=m.id;
+   const body=document.createElement('p');body.textContent=m.unsent?'送信を取り消しました':m.text;body.className='group-bubble bubble';if(!m.unsent){body.dataset.reactionScope='private-group';body.dataset.reactionThread=active.id;body.dataset.reactionSender=m.senderUid;body.dataset.reactionMessage=m.id;body.tabIndex=0;body.setAttribute('role','button');body.setAttribute('aria-label',mine?'メッセージの操作とリアクションを開く':'メッセージのリアクションを開く');if(mine)body.dataset.groupMine=m.id}
+   const meta=document.createElement('div');meta.className='group-message-meta meta';if(mine&&!m.unsent&&m.readCount>0){const read=document.createElement('small');read.className='group-read-count read';read.textContent='既読 '+m.readCount;meta.append(read)}const time=document.createElement('time');time.textContent=timeLabel(m.at);meta.append(time);line.append(body,meta);if(mine&&!m.unsent&&menuId===m.id){const actions=document.createElement('div');actions.className='group-message-actions';actions.append(button('送信取り消し',()=>unsend(m.id)));messageBody.append(actions)}box.append(row);
   }
   if(scroll||near)box.scrollTop=box.scrollHeight;else box.scrollTop=top+Math.max(0,box.scrollHeight-height);$('#groupOlder').hidden=!older;
  }
@@ -75,7 +76,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   if(!active||!visible())return;const id=active.id,uid=account(),version=roomEpoch;
   try{const data=await request({action:'messages',groupId:id,...(more&&older?{cursor:older}:{})});if(uid!==account()||version!==roomEpoch||active?.id!==id)return;
    isAdmin=data.isAdmin===true;active=data.group;$('#groupRoomTitle').textContent=active.name;$('#groupDelete').hidden=!isAdmin;
-   const map=new Map(messages.map(m=>[m.id,m]));for(const m of data.messages){const old=map.get(m.id);map.set(m.id,{...m,...(old?.unsent?{unsent:true,text:''}:{})})}messages=[...map.values()].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));if(more||messages.length===data.messages.length)older=data.cursor;renderMessages();status(messages.some(m=>!m.unsent)?'':'まだメッセージはありません。');await markRead();
+   const map=new Map(messages.map(m=>[m.id,m]));for(const m of data.messages){const old=map.get(m.id);map.set(m.id,{...m,readCount:Math.max(old?.readCount||0,m.readCount||0),...(old?.unsent?{unsent:true,text:''}:{})})}messages=[...map.values()].sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id));if(more||messages.length===data.messages.length)older=data.cursor;renderMessages();status(messages.some(m=>!m.unsent)?'':'まだメッセージはありません。');await markRead();
   }catch(error){if(uid!==account()||version!==roomEpoch)return;if([403,404,410].includes(error.status)){leave();window.dispatchEvent(new Event('ikigai-group-back'));rooms=rooms.filter(r=>r.id!==id);renderInvites();$('#groupInviteStatus').textContent=error.message}else status(error.message||'会話を読み込めませんでした。')}
  }
  async function open(room){

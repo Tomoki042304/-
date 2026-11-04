@@ -991,6 +991,20 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
 #v-mates #groupRoom .group-delete{background:#38252c;color:#ffafc5!important}
 #v-mates #dmInput{background:#292929;color:#fff;caret-color:#fff;border-color:#555}#v-mates #dmInput::placeholder{color:#aaa}
 #v-mates .dm-heading{flex-wrap:wrap;gap:8px}.dm-peer-label{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 140px}#dmPeer{min-width:0;overflow-wrap:anywhere}#dmPeerAvatar{display:flex;flex:none}#dmPeerAvatar .avatar{width:36px;height:36px;flex:none;font-size:15px}
+</style><style>
+/* The same message rows, avatars and metadata as GIVE BUDDIES. */
+#dmMessages .msg,#groupMessages .msg{display:flex;flex-direction:row;align-items:flex-start;align-self:stretch;gap:6px;width:100%;max-width:100%;margin:0;flex:none}
+#dmMessages .msg.me,#groupMessages .msg.me{flex-direction:row-reverse;align-items:flex-start}
+#dmMessages .msg.cont,#groupMessages .msg.cont{margin-top:-2px}
+#dmMessages .msg .bubble,#groupMessages .msg .bubble{max-width:100%;min-width:0;margin:0;padding:8px 16px;border:0;border-radius:22px;background:#2a2a2a;color:#fff;font-size:16px;font-weight:400;line-height:1.4}
+#dmMessages .msg.me .bubble,#groupMessages .msg.me .bubble{background:#65e576;color:#111}
+#dmMessages .msg.first:not(.me) .bubble::before,#groupMessages .msg.first:not(.me) .bubble::before{background:#2a2a2a}
+#dmMessages .msg.first.me .bubble::before,#groupMessages .msg.first.me .bubble::before{background:#65e576}
+#dmMessages .msg .from,#groupMessages .msg .from,#dmMessages .msg .meta,#groupMessages .msg .meta{color:#bcbcbc}
+#dmMessages .msg .meta,#groupMessages .msg .meta{display:flex;flex-direction:column;align-items:flex-end;gap:0;font-size:11px;line-height:1.3}
+#dmMessages .msg time,#groupMessages .msg time,#dmMessages .msg .read,#groupMessages .msg .read{font-size:11px;color:#bcbcbc;white-space:nowrap}
+#dmMessages .msg:not(.me) .meta,#groupMessages .msg:not(.me) .meta{align-items:flex-start}
+#groupMessages{display:flex;flex-direction:column;gap:12px}#dmMessages .chat-day,#groupMessages .chat-day{flex:none}
 </style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
