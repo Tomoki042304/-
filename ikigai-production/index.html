@@ -1026,6 +1026,13 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 .premium-benefits{list-style:none;padding:0;margin:0;display:grid;gap:16px}.premium-benefits li{display:flex;align-items:flex-start;gap:12px;padding:18px 16px;background:#fff9;border:1px solid #e7dac9;border-radius:16px;min-width:0}.premium-benefits li>div{min-width:0}
 .premium-benefit-number{flex:none;font-family:var(--logo);font-size:22px;line-height:1.5;color:#a57e43}.premium-benefits h3{font-family:var(--display);font-weight:400;font-size:17px;line-height:1.75;letter-spacing:.03em;margin:0 0 9px;color:#552533;overflow-wrap:anywhere}.premium-benefits p{font-size:14px;line-height:1.95;color:#6b5551;margin:0;overflow-wrap:anywhere}
 #premiumGuideDialog .premium-payment{display:block;text-align:center;text-decoration:none;margin-top:26px;padding:16px 14px;border-radius:14px;font-size:15px;letter-spacing:.06em;background:#7a1f33;color:#fff}
+</style><style>
+#talkLandingHeading h2{font-size:22px;margin:10px 0 14px;color:#f4f4f4}#talkPageHeader{display:flex;align-items:center;gap:12px;padding:6px 0 12px}#talkPageHeader h2{font-size:18px;margin:0;color:#f4f4f4}#talkPageBack{width:34px;height:34px;padding:0;font-size:26px;line-height:1;background:#292929;color:#eee;border-color:#555}
+.talk-landing{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+.talk-entry{display:flex;align-items:center;gap:14px;width:100%;min-width:0;padding:18px 16px;background:#242424;border:1px solid #444;border-radius:16px;color:#f4f4f4;font:inherit;text-align:left;cursor:pointer}.talk-entry:active{background:#303030}.talk-entry .icon-tile{background:#34242a;color:#e6c589;flex:none}.talk-entry-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}.talk-entry-copy b{font-size:17px;overflow-wrap:anywhere}.talk-entry-copy small{font-size:12px;color:#bcbcbc}.talk-entry .notice-dot{position:static;flex:none}
+
+#talkLanding{gap:0}#talkLanding .talk-entry,#talkLanding .dm-thread,#talkLanding .group-list-item{display:flex;align-items:center;gap:14px;width:100%;min-width:0;text-align:left;padding:16px 2px;background:transparent;border:0;border-radius:0;box-shadow:none;color:#f4f4f4;font:inherit}#talkLanding [hidden]{display:none!important}#talkLanding .icon-tile,#talkLanding .avatar{width:54px;height:54px;min-width:54px;border-radius:50%;object-fit:cover;overflow:hidden;flex:none}#talkLanding .avatar img{width:100%;height:100%;object-fit:cover}.talk-preview-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}.talk-preview-copy b{font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.talk-preview-copy small{font-size:13px;color:#999;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.talk-preview-meta{display:flex;flex-direction:column;align-items:flex-end;gap:9px;font-size:11px;color:#999;flex:none}#talkLanding .unread{position:static;width:12px;height:12px;border-radius:50%;background:#26bd68}.talk-filter-label{display:flex;align-items:center;gap:12px;color:#aaa;font-size:12px;padding:0 0 12px}.talk-filter-label select{width:auto;background:#262626;border:1px solid #444;border-radius:24px;color:#fff;padding:9px 15px}#talkUnifiedList{min-width:0}
+#talkLanding .group-member-count{display:none}#talkLanding .group-list-item>.avatar{display:grid;place-items:center;background:#314547;font-size:24px}
 </style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
@@ -1342,7 +1349,7 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
     <!-- MATES -->
     <section class="view" id="v-mates" hidden>
       <div class="card">
-        <div class="talk-sections" role="tablist" aria-label="トークの種類"><button type="button" id="talkGiveTab" role="tab" aria-selected="true" aria-controls="mtChat">GIVE BUDDIES</button><button type="button" id="talkPrivateTab" role="tab" aria-selected="false" aria-controls="privateChatList">個人チャット<span id="dmUnreadDot" class="notice-dot" hidden></span></button><button type="button" id="talkGroupTab" role="tab" aria-selected="false" aria-controls="dmPanel">グループ</button></div>
+        <div id="talkLandingHeading"><h2>トーク</h2></div><div id="talkPageHeader" hidden><button type="button" id="talkPageBack" class="small-btn" aria-label="トーク一覧へ戻る">‹</button><h2 id="talkPageName"></h2></div>
         <h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><div class="talk-about-head" id="giveTalkTools"><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVEBUDDYSとは？の説明を開く">GIVEBUDDYSとは？</button><button type="button" class="small-btn" id="talkNotesOpen" style="margin:0" hidden>自己紹介ノート</button></div>
         <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
@@ -1353,10 +1360,15 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
           <p class="cta"><span>GIVEから始まる</span><span>成幸の循環をつくろう！</span></p>
         </div>
       </div>
+      <section id="talkLanding" class="talk-landing" aria-label="トーク一覧"><label class="talk-filter-label">表示 <select id="talkFilter"><option value="all">すべてのトーク</option><option value="give">GIVE BUDDIES</option><option value="private">個人チャット</option><option value="groups">グループ</option></select></label><div id="talkUnifiedList"></div>
+        <button type="button" id="talkGiveTab" class="talk-entry"><span class="icon-tile" aria-hidden="true">◎</span><span class="talk-entry-copy"><b>GIVE BUDDIES</b><small>全体トーク</small></span><span class="talk-preview-meta" aria-hidden="true"></span></button>
+        <button type="button" id="talkPrivateTab" class="talk-entry" hidden><span class="icon-tile" aria-hidden="true">✉</span><span class="talk-entry-copy"><b>個人チャット</b><small>管理者との個別メッセージ</small></span><span id="dmUnreadDot" class="notice-dot" aria-label="未読があります" hidden></span><span aria-hidden="true">›</span></button>
+        <button type="button" id="talkGroupTab" class="talk-entry" hidden><span class="icon-tile" aria-hidden="true">♧</span><span class="talk-entry-copy"><b>グループ</b><small>参加中のグループ</small></span><span aria-hidden="true">›</span></button>
+      </section>
       <section id="privateChatList" class="card admin-panel" hidden><div class="card-head"><b>個人チャット</b><button type="button" class="small-btn" id="dmRefresh">更新</button></div><p class="muted admin-note" id="dmInboxStatus" role="status"></p><div id="dmInbox" class="admin-roster"></div></section>
       <section id="dmPanel" class="card admin-panel" hidden><details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループ <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details></section>
       <section id="dmConversation" hidden>
-        <div class="dm-heading"><button type="button" id="dmBack" class="small-btn">‹ 個人チャット一覧へ</button><div class="dm-peer-label"><span id="dmPeerAvatar" aria-hidden="false"></span><b id="dmPeer"></b></div></div>
+        <div class="dm-heading"><button type="button" id="dmBack" class="small-btn">‹ トーク一覧へ</button><div class="dm-peer-label"><span id="dmPeerAvatar" aria-hidden="false"></span><b id="dmPeer"></b></div></div>
         <p class="dm-note">個別のやり取りを表示しています。</p>
         <button type="button" id="dmOlder" class="small-btn" hidden>前のメッセージを見る</button>
         <div id="dmMessages" class="dm-log" aria-live="polite"></div><p id="dmStatus" role="status" class="dm-note"></p>

@@ -54,7 +54,7 @@ export function createGroupHandler({authenticate=requireMemberRole,admission=rea
    const validRoom=r=>r&&uuid(r.id)&&uuid(r.ownerUid)&&typeof r.name==='string'&&typeof r.description==='string'&&Number.isFinite(Date.parse(r.at));
    if(body.action==='list'){
     const page=await kv.list({prefix:'group:room:v1:',limit:30,...(body.cursor?{cursor:body.cursor}:{})});
-    const rows=await Promise.all(page.keys.map(async key=>{const room=await kv.get(key.name,'json');if(!validRoom(room)||await kv.get(deletedKey(room.id)))return null;return {...room,joined:(await participating(room)).joined}}));
+    const rows=await Promise.all(page.keys.map(async key=>{const room=await kv.get(key.name,'json');if(!validRoom(room)||await kv.get(deletedKey(room.id)))return null;const access=await participating(room);let preview={};if(access.joined){const recent=await kv.list({prefix:'group:timeline:v1:'+room.id+':',limit:1});if(recent.keys.length){const mid=recent.keys[0].name.split(':').at(-1),last=await kv.get(messageKey(room.id,mid),'json');if(last&&last.groupId===room.id&&Date.parse(last.at)>=access.since){preview={updatedAt:last.at,lastText:await kv.get(cancelKey(room.id,mid))?'メッセージの送信が取り消されました':String(last.text||'').slice(0,160)}}}}return {...room,joined:access.joined,...preview}}));
     return reply(200,{groups:rows.filter(Boolean),cursor:page.list_complete?null:page.cursor,isAdmin:user.isHost});
    }
    if(!uuid(body.groupId))return reply(400,{message:'グループを選んでください。'});

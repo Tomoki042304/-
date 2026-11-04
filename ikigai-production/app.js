@@ -593,32 +593,47 @@
 
   // ---------- buddy chat: each person keeps their own messages in chats/<uid> ----------
   let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false,chatSavePromise=null,chatSubmitting=false,chatComposeMode='template',chatReply=null,chatDraftStates={template:{},free:{}};
-  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false,talkNotesUi=null,talkSection='give';
+  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false,talkNotesUi=null,talkSection='home';
   function showTalkIntroduction(){
-    const personal=talkSection==='private',groups=talkSection==='groups',gated=!talkIntroduced,privateGated=gated&&!isOwnerView,groupActive=groups&&!$('#groupRoom').hidden;
-    $('#talkNotesOpen').hidden=gated||talkSection!=='give';$('#talkIntroductionForm').hidden=!gated||(personal&&isOwnerView);
-    $('#mtChat').hidden=gated||personal||(groups&&!groupActive)||!$('#dmConversation').hidden;
+    const landing=talkSection==='home',personal=talkSection==='private',groups=talkSection==='groups',gated=!talkIntroduced,privateGated=gated&&!isOwnerView,groupActive=groups&&!$('#groupRoom').hidden;
+    $('#talkLanding').hidden=!landing;$('#talkLandingHeading').hidden=!landing;$('#talkPageHeader').hidden=landing;
+    $('#talkNotesOpen').hidden=gated||talkSection!=='give';$('#talkIntroductionForm').hidden=landing||!gated||(personal&&isOwnerView);
+    $('#mtChat').hidden=landing||gated||personal||(groups&&!groupActive)||!$('#dmConversation').hidden;
     $('#privateChatList').hidden=!personal||privateGated||!$('#dmConversation').hidden;
     $('#dmPanel').hidden=!groups||gated||groupActive;
-    if(gated&&!personal){$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
+    if(landing||(gated&&!personal)){$('#dmConversation').hidden=true;if(!landing)$('#groupRoom').hidden=true}
     if(personal&&privateGated)$('#dmConversation').hidden=true;
   }
   function setTalkSection(section,preserve=false){
-    talkSection=['private','groups'].includes(section)?section:'give';
+    talkSection=['private','groups','give'].includes(section)?section:'home';
     if(!preserve){directMessages?.leave();groupUi?.leave();$('#dmConversation').hidden=true;}
-    for(const [id,mode] of [['talkGiveTab','give'],['talkPrivateTab','private'],['talkGroupTab','groups']])$('#'+id).setAttribute('aria-selected',String(talkSection===mode));
+    $('#talkPageName').textContent=({give:'GIVE BUDDIES',private:'個人チャット',groups:'グループ'})[talkSection]||'';
     $('#giveTalkTools').hidden=talkSection!=='give';
     if(talkSection!=='give'){$('#talkAboutText').hidden=true;$('#talkAboutToggle').textContent='GIVEBUDDYSとは？';$('#talkAboutToggle').setAttribute('aria-expanded','false');$('#talkAboutToggle').setAttribute('aria-label','GIVEBUDDYSとは？の説明を開く');}
     showTalkIntroduction();
-    if(talkSection==='private')ensureDirectMessages().then(ui=>{ui?.start();return ui?.refresh()}).catch(()=>{$('#dmInboxStatus').textContent='個人チャットを読み込めませんでした。「更新」でお試しください。'});
-    if(talkSection==='groups')ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='グループを読み込めませんでした。「更新」でお試しください。'});
+    if(talkSection==='private'||talkSection==='home')ensureDirectMessages().then(ui=>{ui?.start();return ui?.refresh()}).catch(()=>{$('#dmInboxStatus').textContent='個人チャットを読み込めませんでした。「更新」でお試しください。'});
+    if(['home','groups','give'].includes(talkSection))ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='グループを読み込めませんでした。「更新」でお試しください。'});
     window.dispatchEvent(new Event('resize'));
   }
-  $('#talkGiveTab').onclick=()=>setTalkSection('give');$('#talkPrivateTab').onclick=()=>setTalkSection('private');$('#talkGroupTab').onclick=()=>setTalkSection('groups');
+  function renderTalkOverview(){
+    const box=$('#talkUnifiedList'),filter=$('#talkFilter').value,give=$('#talkGiveTab');box.replaceChildren();
+    give.hidden=!['all','give'].includes(filter);
+    const entries=[];
+    for(const [selector,kind] of [['#dmInbox .dm-thread','private'],['#groupInviteList .group-list-item','groups']]){
+      if(filter!=='all'&&filter!==kind)continue;
+      for(const source of document.querySelectorAll(selector)){const row=source.cloneNode(true);row.removeAttribute('id');row.onclick=()=>{setTalkSection(kind);source.click()};entries.push(row)}
+    }
+    if(['all','give'].includes(filter))entries.push(give);else box.append(give);
+    entries.sort((a,b)=>(b.dataset.at||'').localeCompare(a.dataset.at||''));box.append(...entries);
+    if(!entries.length&&['private','groups'].includes(filter)){const empty=document.createElement('p');empty.className='muted';empty.textContent=filter==='private'?'管理者からのメッセージが届くと、ここに表示されます。':'GIVE BUDDIESから参加したグループが、ここに表示されます。';box.append(empty)}
+  }
+  $('#talkFilter').onchange=renderTalkOverview;
+  for(const selector of ['#dmInbox','#groupInviteList'])new MutationObserver(renderTalkOverview).observe($(selector),{childList:true,subtree:true,characterData:true});
+  $('#talkGiveTab').onclick=()=>setTalkSection('give');$('#talkPrivateTab').onclick=()=>setTalkSection('private');$('#talkGroupTab').onclick=()=>setTalkSection('groups');$('#talkPageBack').onclick=()=>setTalkSection('home');
   window.addEventListener('ikigai-direct-open',()=>setTalkSection('private',true));
-  window.addEventListener('ikigai-direct-back',()=>setTalkSection('private',true));
+  window.addEventListener('ikigai-direct-back',()=>setTalkSection('home',true));
   window.addEventListener('ikigai-group-open',()=>setTalkSection('groups',true));
-  window.addEventListener('ikigai-group-back',()=>setTalkSection('groups',true));
+  window.addEventListener('ikigai-group-back',()=>setTalkSection('home',true));
   async function ensureTalkNotes(){
     if(!talkNotesUi){const module=await import('./talk-notes.js');if(!talkNotesUi)talkNotesUi=module.mountTalkNotes({account:()=>backend==='cloud'&&uid&&!pending()&&talkIntroduced?uid:null,nameOf,request:()=>window.appAuth.talkNotes()})}
     return talkNotesUi;
@@ -714,7 +729,8 @@
     if(retry){const button=document.createElement('button');button.type='button';button.className='small-btn';button.textContent='再取得';button.onclick=async()=>{button.disabled=true;try{const module=await import('./pull-refresh.js');await module.refreshCurrentData();if(chatLoadFailed||groupUi?.invitationError?.())throw Error('取得できませんでした。通信状況を確認してもう一度お試しください。');toast('最新の投稿を確認しました')}catch(error){toast(error.message||'取得できませんでした。もう一度お試しください。')}finally{button.disabled=false}};note.append(button)}log.append(note);
   }
   function renderChat(){
-    const log=$('#chatLog');
+    const log=$('#chatLog');const latest=chatAll.filter(m=>!m.unsent).sort((a,b)=>b.at.localeCompare(a.at))[0];if(latest){$('#talkGiveTab small').textContent=latest.text||'全体トーク';$('#talkGiveTab').dataset.at=latest.at;$('#talkGiveTab').lastElementChild.textContent=hhmm(latest.at);}renderTalkOverview();
+
     if(backend!=='cloud'){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">チャットはまだ使えません</b>ログインすると、仲間とチャットできます。</div>`;return}
     if(pending()){log.innerHTML=PENDING_BOX('トーク');return}
     const groupError=groupUi?.invitationError?.()||'',syncNotice=[!chatReady?'トークを読み込んでいます…':chatLoadFailed?'通常のトークを更新できませんでした。': '',groupError].filter(Boolean).join(' ');
@@ -1732,7 +1748,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#talkGroupTab').setAttribute('aria-selected','false');$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;closePremiumGuide();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
+    talkSection='home';$('#talkLanding').hidden=false;$('#talkLandingHeading').hidden=false;$('#talkPageHeader').hidden=true;$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=true;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;closePremiumGuide();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -2049,7 +2065,7 @@
     if(tab==='timeline')renderFeed();
     if(tab==='rfview')renderRfView();
     if(tab==='account'){fillForm();showAcc('menu')}
-    if(tab==='mates'){void checkTalkIntroduction();window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
+    if(tab==='mates'){setTalkSection('home');void checkTalkIntroduction();window.dispatchEvent(new Event('ikigai-talk-open'));ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='招待を読み込めませんでした。再読み込みしてください。'});renderChat.stick=true;renderChat();ensureMessageReactions().then(ui=>ui?.start()).catch(()=>{})}else if(directMessages)directMessages.leave();
     if(backend==='cloud'&&uid&&!pending())ensureDirectMessages().then(ui=>ui?.start()).catch(()=>{});
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();

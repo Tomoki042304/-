@@ -32,14 +32,14 @@ export async function onRequest(context){
       stage='CREATE_STORE';const id=user.uid+':'+body.memberUid;let thread=await kv.get(tkey(id),'json');
       if(thread&&!validThread(thread))throw Error('thread');
       if(!thread){thread={id,hostUid:user.uid,memberUid:body.memberUid,hostName:String(host?.display_name||'管理者').slice(0,100),memberName:String(member.display_name||'メンバー').slice(0,100),createdAt:new Date().toISOString()};await kv.put(tkey(id),JSON.stringify(thread));}
-      await kv.put(ikey(user.uid,id),JSON.stringify({id}));await kv.put(ikey(body.memberUid,id),JSON.stringify({id}));
+      await kv.put(ikey(user.uid,id),JSON.stringify({id}));
       return reply(200,{thread});
     }
     if(body.action==='inbox'){
       stage='INBOX';
       const page=await kv.list({prefix:'dm:inbox:v1:'+user.uid+':',limit:10,...(body.cursor?{cursor:body.cursor}:{})});
       const links=await Promise.all(page.keys.map(k=>kv.get(k.name,'json'))),threads=[];
-      await Promise.all(links.map(async link=>{if(!link?.id)return;const t=await kv.get(tkey(link.id),'json');if(!canRead(user,t))return;const state=await unread(kv,user,t);threads.push({id:t.id,peerUid:t.hostUid===user.uid?t.memberUid:t.hostUid,peerName:t.hostUid===user.uid?t.memberName:t.hostName,...state});}));threads.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.id.localeCompare(b.id));
+      await Promise.all(links.map(async link=>{if(!link?.id)return;const t=await kv.get(tkey(link.id),'json');if(!canRead(user,t))return;const state=await unread(kv,user,t);const recent=await kv.list({prefix:'dm:messages:v1:'+t.id+':',limit:1});const last=recent.keys.length?await kv.get(recent.keys[0].name,'json'):null;if(last&&last.threadId===t.id&&Date.parse(last.at)>=user.chatSince){state.updatedAt=last.at;state.lastText=last.unsent?'メッセージの送信が取り消されました':String(last.text||'').slice(0,160)}threads.push({id:t.id,peerUid:t.hostUid===user.uid?t.memberUid:t.hostUid,peerName:t.hostUid===user.uid?t.memberName:t.hostName,...state});}));threads.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)||a.id.localeCompare(b.id));
       return reply(200,{threads,cursor:page.list_complete?null:page.cursor,isHost:user.isHost});
     }
     if(typeof body.threadId!=='string'||body.threadId.length!==73)return reply(400,{message:'個別トークを選んでください。'});
@@ -92,6 +92,7 @@ export async function onRequest(context){
       if(!message){message={id:body.id,threadId:thread.id,senderUid:user.uid,text:body.text.trim(),at:new Date().toISOString()};await kv.put(key,JSON.stringify(message));}
       const sort=sortKey(message),recipient=user.uid===thread.hostUid?thread.memberUid:thread.hostUid;
       await kv.put('dm:messages:v1:'+thread.id+':'+sort,JSON.stringify(message));await kv.put(incoming(recipient,thread.id)+sort,JSON.stringify({id:message.id}));
+      await kv.put(ikey(thread.hostUid,thread.id),JSON.stringify({id:thread.id}));await kv.put(ikey(thread.memberUid,thread.id),JSON.stringify({id:thread.id}));
       const pushKey='dm:push:v1:'+thread.id+':'+message.id;
       if(!await kv.get('system:push-outbox:v2')&&!await kv.get(pushKey)){await kv.put(pushKey,'queued',{expirationTtl:86400});const job=deliverPush(env,recipient,{title:'IKIGAI 個別トーク',body:'個別メッセージが届きました。',tag:pushKey,data:{threadId:thread.id}}).catch(()=>{});if(context.waitUntil)context.waitUntil(job);else await job;}
       return reply(200,{message});
