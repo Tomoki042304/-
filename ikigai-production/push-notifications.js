@@ -36,3 +36,13 @@ export async function enableDevicePush(request){
  try{await request({action:'subscribe',keyId:key.keyId,subscription:subscription.toJSON()})}catch(error){await subscription.unsubscribe().catch(()=>false);throw error}
  return {enabled:true};
 }
+
+// Read-only registration gate: require browser permission, subscription and server activation.
+export async function devicePushEnabled(request){
+ if(!supported()||Notification.permission!=='granted')return false;
+ const registration=await navigator.serviceWorker.getRegistration();
+ const subscription=await registration?.pushManager.getSubscription();
+ if(!subscription)return false;
+ const state=await request({action:'status',endpoint:subscription.endpoint});
+ return state?.enabled===true;
+}
