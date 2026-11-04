@@ -1035,11 +1035,12 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 #talkLanding .group-member-count{display:none}#talkLanding .group-list-item>.avatar{display:grid;place-items:center;background:#314547;font-size:24px}
 
 #premiumJoinCard.photo-offer,#shidorokuPurchaseLink.photo-offer{min-height:176px;padding:22px;align-items:flex-end;border:1px solid #ffffff26;color:#fff;background-color:#252020;background-repeat:no-repeat;background-size:cover;text-shadow:0 1px 8px #0009;line-height:1.7;overflow:hidden}
-#premiumJoinCard.photo-offer{background-image:linear-gradient(90deg,#160d17d9 0%,#160d1733 75%),linear-gradient(0deg,#120a12b3,transparent 75%),url('./images/premium-shin.jpg');min-height:320px;background-size:cover,cover,auto 190%;background-position:center,center,center 67%}
+#premiumJoinCard.photo-offer{background-image:linear-gradient(90deg,#160d17e6 0%,#160d1773 75%),linear-gradient(0deg,#120a12b3,transparent 75%),url('./images/premium-shin.jpg');background-size:cover,cover,auto 190%;background-position:center,center,center 67%}
 #shidorokuPurchaseLink.photo-offer{background-image:linear-gradient(0deg,#090909cc,transparent 85%),url('./images/shidoroku-journal.jpg');background-position:center,center 53%}
+#premiumJoinCard.photo-offer{position:relative;isolation:isolate;background-image:none}#premiumJoinCard.photo-offer::before{content:'';position:absolute;inset:-14px;z-index:-1;background:url('./images/premium-shin.jpg') center 48%/cover no-repeat;filter:blur(12px) brightness(.3)}#premiumJoinCard.photo-offer::after{content:'';position:absolute;inset:0 auto 0 50%;width:calc(var(--premium-photo-height,176px) * 1.0661);transform:translateX(-50%);z-index:0;background-image:linear-gradient(90deg,#160d17e6 0%,#160d1773 75%),linear-gradient(0deg,#120a12b3,transparent 75%),url('./images/premium-shin.jpg');background-size:cover,cover,auto 190%;background-repeat:no-repeat;background-position:center,center,center 67%;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}#premiumJoinCard.photo-offer>span{position:relative;z-index:1}
 #premiumJoinCard.photo-offer>span:first-child{max-width:76%;font-size:17px}#shidorokuPurchaseLink.photo-offer>span:first-child{font-size:18px}
 .photo-offer>span:last-child{font-size:24px;flex:none;line-height:1.25}.photo-offer:focus-visible{outline:3px solid #d4b46c;outline-offset:3px}
-@media(min-width:700px){#premiumJoinCard.photo-offer{min-height:340px}#shidorokuPurchaseLink.photo-offer{min-height:200px}}
+@media(min-width:700px){#premiumJoinCard.photo-offer{--premium-photo-height:200px}#premiumJoinCard.photo-offer,#shidorokuPurchaseLink.photo-offer{min-height:200px}}
 </style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
