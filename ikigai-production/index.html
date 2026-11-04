@@ -1005,6 +1005,15 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
 #dmMessages .msg time,#groupMessages .msg time,#dmMessages .msg .read,#groupMessages .msg .read{font-size:11px;color:#bcbcbc;white-space:nowrap}
 #dmMessages .msg:not(.me) .meta,#groupMessages .msg:not(.me) .meta{align-items:flex-start}
 #groupMessages{display:flex;flex-direction:column;gap:12px}#dmMessages .chat-day,#groupMessages .chat-day{flex:none}
+</style><style>
+/* Keep message tails inside the viewport; history scrolls vertically only. */
+body.talk-open{overflow-x:hidden;overscroll-behavior-x:none}
+#v-mates,#v-mates #dmConversation,#v-mates #groupRoom,#v-mates #mtChat{min-width:0;max-width:100%;overscroll-behavior-x:none}
+#v-mates #dmMessages,#v-mates #groupMessages{min-width:0;max-width:100%;overflow-x:hidden;overflow-y:auto;padding-left:6px;padding-right:6px;overscroll-behavior-x:none;touch-action:pan-y}
+#v-mates #dmForm,#v-mates #groupComposer{min-width:0;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y}
+#v-mates #dmInput,#v-mates #groupText{min-width:0;max-width:100%;overflow-x:hidden;overflow-wrap:anywhere;white-space:pre-wrap;touch-action:pan-y}
+#v-mates #privateChatList,#v-mates #dmPanel{min-width:0;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y}
+#v-mates .dm-thread b{min-width:0;overflow-wrap:anywhere}
 </style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
