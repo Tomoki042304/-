@@ -17,13 +17,15 @@ export async function onRequest({request,env}){
    const cursor=typeof body.cursor==='string'&&body.cursor.length<=4096?body.cursor:undefined;
    const page=await kv.list({prefix:PREFIX,limit:20,...(cursor?{cursor}:{})});const values=await Promise.all(page.keys.map(k=>kv.get(k.name,'json')));
    if(values.some(r=>!valid(r)))throw Error('invalid request');
-   const rows=values.filter(r=>r.sent===true).map(r=>({uid:r.uid,name:r.name,at:r.at,threadId:r.threadId,canChat:user.uid===SHIN})).sort((a,b)=>b.at.localeCompare(a.at));
+   const rows=values.filter(r=>r.sent===true).map(r=>({uid:r.uid,name:r.name,at:r.at,requestId:r.id,threadId:r.threadId,canChat:user.uid===SHIN})).sort((a,b)=>b.at.localeCompare(a.at));
    return reply(200,{rows,cursor:page.list_complete?null:page.cursor});
   }
   const membership=await database(request,'rpc/ikigai_my_membership_v1',{method:'POST',body:{}});
   if(user.isHost||membership?.plan!=='basic'||membership?.can_zoom!==false)return reply(403,{message:'ベーシック会員限定の申込みです。'});
-  let record=await kv.get(PREFIX+user.uid,'json');if(record&&(!valid(record)||record.uid!==user.uid))throw Error('invalid request');
-  if(body.action==='status')return reply(200,{applied:record?.sent===true});
+  if(body.action==='status'){const previous=await kv.get(PREFIX+user.uid,'json');return reply(200,{applied:previous?.sent===true,repeatAllowed:true});}
+  if(typeof body.requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.requestId))return reply(400,{message:'アプリを更新してからもう一度お申し込みください。'});
+  const requestKey=PREFIX+user.uid+':'+SHIN+':'+body.requestId;
+  let record=await kv.get(requestKey,'json');if(record&&(!valid(record)||record.uid!==user.uid||record.id!==body.requestId))throw Error('invalid request');
   if(record?.sent===true)return reply(200,{applied:true,already:true});
   if(env.PII_MIGRATION_MODE==='locked')return reply(503,{message:'保護設定の更新中です。しばらくしてからお試しください。'});
   if(!await hasTalkIntroduction(request))return reply(403,{message:'先に自己紹介を送信してからお申し込みください。'});
@@ -32,9 +34,9 @@ export async function onRequest({request,env}){
   if(!Array.isArray(hosts)||hosts.length!==1)return reply(503,{message:'SHINの送信先を確認できませんでした。運営へご連絡ください。'});
   if(!record){
    const rows=await database(request,'documents?'+new URLSearchParams({select:'path,data',path:'eq.members/'+user.uid}));const member=rows?.[0]?await openDocument(env,rows[0].path,rows[0].data):{};
-   const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ikigai-one-on-one-v1:'+user.uid)));const hex=[...hash].map(b=>b.toString(16).padStart(2,'0')).join('');const id=hex.slice(0,8)+'-'+hex.slice(8,12)+'-4'+hex.slice(13,16)+'-a'+hex.slice(17,20)+'-'+hex.slice(20,32);
+   const id=body.requestId;
    record={uid:user.uid,hostUid:SHIN,name:typeof member.nick==='string'?member.nick.slice(0,100):'メンバー',id,threadId:SHIN+':'+user.uid,at:new Date().toISOString(),sent:false};
-   await kv.put(PREFIX+user.uid,JSON.stringify(record));
+   await kv.put(requestKey,JSON.stringify(record));
   }
   const threadKey='dm:thread:v1:'+record.threadId;let thread=await kv.get(threadKey,'json');
   if(thread&&(thread.hostUid!==SHIN||thread.memberUid!==user.uid||thread.id!==record.threadId))throw Error('invalid thread');
@@ -48,6 +50,6 @@ export async function onRequest({request,env}){
    const sort=String(9999999999999-Date.parse(message.at)).padStart(13,'0')+':'+record.id;
    await kv.put('dm:messages:v1:'+thread.id+':'+sort,JSON.stringify(message));await kv.put('dm:incoming:v1:'+SHIN+':'+thread.id+':'+sort,JSON.stringify({id:record.id}));
   }
-  await kv.put(PREFIX+user.uid,JSON.stringify({...record,sent:true}));return reply(200,{applied:true,already:false});
- }catch{return reply(503,{message:'申込みを完了できませんでした。もう一度お試しください。送信済みの申込みは重複しません。'})}
+  await kv.put(requestKey,JSON.stringify({...record,sent:true}));await kv.put(PREFIX+user.uid,JSON.stringify({...record,sent:true}));return reply(200,{applied:true,already:false});
+ }catch{return reply(503,{message:'申込みを完了できませんでした。もう一度お試しください。同じ送信の再試行ではメッセージは重複しません。'})}
 }
