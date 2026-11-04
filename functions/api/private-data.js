@@ -1,5 +1,5 @@
 import {requireGrowthUser} from '../../server/growth-access.js';
-import {requireAccountUser,requireYoutubeHost} from '../../server/youtube-member.js';
+import {requireAccountUser,requireYoutubeHost,requireYoutubeMember} from '../../server/youtube-member.js';
 import {privateFields,privateCollection,sealDocument,openDocument} from '../../server/pii-storage.js';
 import {database,privateRoster} from '../../server/private-documents.js';
 const reply=(status,body)=>Response.json(body,{status,headers:{'Cache-Control':'no-store','Vary':'Authorization, Origin','X-Content-Type-Options':'nosniff'}});
@@ -17,6 +17,13 @@ export async function onRequest({request,env}){
     for(const row of batch){if(!authors.has(row.path.split('/').pop()))continue;const person=await openDocument(env,row.path,row.data);rows.push({uid:row.path.split('/').pop(),nick:typeof person.nick==='string'?person.nick:'メンバー',avatar:typeof person.avatar==='string'?person.avatar:''})}
     if(batch.length<100)return reply(200,{rows});
    }throw Error('directory limit');
+  }
+  if(body?.action==='member-directory'){
+   const access=await requireYoutubeMember(request);if(!access.ok)return reply(access.status,{message:access.message});
+   const collect=async coll=>{const rows=[];for(let offset=0;offset<10000;offset+=100){const batch=await database(request,'documents?'+new URLSearchParams({select:'path,data',coll:'eq.'+coll,order:'path',limit:'100',offset:String(offset)}));if(!Array.isArray(batch))throw Error();rows.push(...batch);if(batch.length<100)return rows}throw Error('directory limit')};
+   const members=await collect('members');
+   const rows=await Promise.all(members.map(async row=>{const person=await openDocument(env,row.path,row.data);const goal=person.goal;return {name:typeof person.nick==='string'?person.nick.slice(0,80):'',occupation:typeof person.aff==='string'?person.aff.slice(0,100):'',finalGoal:typeof goal==='string'?goal.slice(0,200):''}}));
+   rows.sort((a,b)=>a.name.localeCompare(b.name,'ja'));return reply(200,{rows});
   }
   if(body?.action==='roster'){
    const host=await requireYoutubeHost(request);if(!host.ok)return reply(host.status,{message:host.message});

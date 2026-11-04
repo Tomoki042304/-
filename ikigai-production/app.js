@@ -1696,7 +1696,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    if(inquiryUi)inquiryUi.stop();premiumRequestId='';$('#premiumJoinStatus').hidden=true;$('#premiumJoinStatus').textContent='';
+    $('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();premiumRequestId='';$('#premiumJoinStatus').hidden=true;$('#premiumJoinStatus').textContent='';
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -1929,6 +1929,17 @@
     }catch(error){if(uid===who)status.textContent=error.message||'申請を送信できませんでした。もう一度お試しください。'}
     finally{premiumRequestBusy=false;button.disabled=false}
   };
+  let memberDirectoryVersion=0;
+  async function loadMemberDirectory(){
+    const token=++memberDirectoryVersion,actor=uid,list=$('#memberDirectoryList'),status=$('#memberDirectoryStatus');list.replaceChildren();status.textContent='読み込んでいます…';
+    try{if(!actor||!window.appAuth?.memberDirectory)throw Error('ログインしてアプリを更新してください。');const rows=await window.appAuth.memberDirectory();if(token!==memberDirectoryVersion||uid!==actor)return;if(!Array.isArray(rows))throw Error('一覧を読み込めませんでした。');
+      for(const row of rows){const card=document.createElement('article');card.className='inquiry-item';for(const [label,value] of [['名前',row.name],['職業',row.occupation],['最終ゴール',row.finalGoal]]){const line=document.createElement('p'),heading=document.createElement('b'),text=document.createElement('span');heading.textContent=label+'：';text.textContent=typeof value==='string'&&value.trim()?value:'未登録';line.style.whiteSpace='pre-wrap';line.style.overflowWrap='anywhere';line.append(heading,text);card.append(line)}list.append(card)}status.textContent=rows.length?rows.length+'人の参加メンバー':'表示できる参加メンバーはいません。';
+    }catch(error){if(token===memberDirectoryVersion&&uid===actor)status.textContent=error.message||'一覧を読み込めませんでした。「更新」でお試しください。'}
+  }
+  $('#memberDirectoryOpen').onclick=()=>{$('#memberDirectoryDialog').showModal();void loadMemberDirectory()};
+  $('#memberDirectoryClose').onclick=()=>$('#memberDirectoryDialog').close();
+  $('#memberDirectoryRefresh').onclick=()=>void loadMemberDirectory();
+  $('#memberDirectoryDialog').addEventListener('close',()=>{memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();$('#memberDirectoryStatus').textContent=''});
   let inquiryUi=null,inquiryLoading=null;
   async function openInquiry(which){
     if(!['inquiry','admin','notify'].includes(which))return;

@@ -407,6 +407,7 @@ function start() {
     communityNotificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);return data},
     registrationGreeting:async fields=>{const {data,error}=await supabase.rpc('ikigai_register_greeting_v1',{p_fields:fields});fail(error);return data},
     growthAccess:async()=>{const {data,error}=await supabase.rpc('ikigai_growth_access_v1');if(error?.code==='PGRST202')return {allowed:false};fail(error);return data},
+    memberDirectory:async()=>{const data=await protectedRequest({action:'member-directory'});return data.rows||[]},
     growthDirectory:async()=>{const data=await protectedRequest({action:'growth-directory'});return data.rows||[]},
 
     notificationSince:async()=>{const {data:scope,error:scopeError}=await supabase.rpc('ikigai_growth_access_v1');if(!scopeError&&scope?.allowed&&Number.isFinite(Date.parse(scope.startedAt)))return scope.startedAt;const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);if(!Number.isFinite(Date.parse(data)))throw Error('入会日時を確認できませんでした。');return data},

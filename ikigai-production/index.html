@@ -1171,6 +1171,8 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
       </a>
 
+      <button type="button" class="card home-offer" id="memberDirectoryOpen" style="width:100%;text-align:left;font:inherit;font-weight:700"><span>参加メンバー一覧</span><span aria-hidden="true">›</span></button>
+
       <figure class="card quote" id="quoteCard" hidden>
         <span class="q-date" id="quoteDate">今日の名言</span>
         <blockquote id="quoteText"></blockquote>
@@ -1643,6 +1645,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
 <dialog id="talkNotesDialog" class="card"><div class="card-head"><b>自己紹介ノート</b><button type="button" class="small-btn" id="talkNotesClose">閉じる</button></div><p class="muted">メンバーの自己紹介を、あとから見返せます。名前を押すと内容が開きます。</p><div class="talk-notes-tools"><input type="search" id="talkNotesSearch" placeholder="名前・職業・一言から探す" aria-label="自己紹介ノートを検索"><button type="button" class="small-btn" id="talkNotesRefresh">更新</button></div><p id="talkNotesStatus" role="status" class="muted"></p><div id="talkNotesList"></div></dialog>
+<dialog id="memberDirectoryDialog" class="card" style="width:min(540px,calc(100% - 32px));max-height:80dvh;overflow:auto"><div class="card-head"><b>参加メンバー一覧</b><button type="button" class="small-btn" id="memberDirectoryClose">閉じる</button></div><button type="button" class="small-btn" id="memberDirectoryRefresh">更新</button><p id="memberDirectoryStatus" class="muted" role="status"></p><div id="memberDirectoryList" class="admin-roster"></div></dialog>
 <dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p></section><div id="notificationList" class="admin-roster" style="margin-top:14px" aria-label="新しい順のお知らせ"></div></dialog>
 </body>
 </html>
