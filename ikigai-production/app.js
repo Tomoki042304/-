@@ -608,7 +608,7 @@
     if(!preserve){directMessages?.leave();groupUi?.leave();$('#dmConversation').hidden=true;}
     for(const [id,mode] of [['talkGiveTab','give'],['talkPrivateTab','private'],['talkGroupTab','groups']])$('#'+id).setAttribute('aria-selected',String(talkSection===mode));
     $('#giveTalkTools').hidden=talkSection!=='give';
-    if(talkSection!=='give')$('#talkAboutText').hidden=true;
+    if(talkSection!=='give'){$('#talkAboutText').hidden=true;$('#talkAboutToggle').textContent='GIVEBUDDYSとは？';$('#talkAboutToggle').setAttribute('aria-expanded','false');$('#talkAboutToggle').setAttribute('aria-label','GIVEBUDDYSとは？の説明を開く');}
     showTalkIntroduction();
     if(talkSection==='private')ensureDirectMessages().then(ui=>{ui?.start();return ui?.refresh()}).catch(()=>{$('#dmInboxStatus').textContent='個人チャットを読み込めませんでした。「更新」でお試しください。'});
     if(talkSection==='groups')ensureGroups().then(ui=>ui?.start()).catch(()=>{$('#groupInviteStatus').textContent='グループを読み込めませんでした。「更新」でお試しください。'});
@@ -669,7 +669,7 @@
   }
   const hhmm=iso=>{const d=new Date(iso);return isNaN(d)?'':`${d.getHours()}:${pad(d.getMinutes())}`};
   const dayLabel=at=>{const d=new Date(at);if(isNaN(d))return'';const k=iso(d);return k===todayKey?'今日':k===yesterdayKey?'昨日':`${d.getMonth()+1}月${d.getDate()}日`};
-  function mkAvatar(id){const a=document.createElement('div');a.className='avatar';a.setAttribute('role','img');a.setAttribute('aria-label',nameOf(id)+'のプロフィール');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),nameOf(id));return a}
+  function mkAvatar(id,fallbackName=''){const label=fallbackName||nameOf(id);const a=document.createElement('div');a.className='avatar';a.setAttribute('role','img');a.setAttribute('aria-label',label+'のプロフィール');a.style.backgroundColor=colorOf(id);paintAvatar(a,avatarOf(id),label);return a}
   function markRead(){
     if(!talkIntroduced||backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||$('#mtChat').hidden||$('#groupCommon').hidden||document.visibilityState!=='visible')return;
     const give=chatMode==='give';
@@ -1829,7 +1829,7 @@
     showEnd(failed?'一部のデータを削除できませんでした':'アカウントを削除しました',failed?'通信状況を確認して、もう一度お試しください。':'ご利用ありがとうございました。','最初から登録する');
   };
   const talkToggle=$('#talkAboutToggle'),talkAbout=$('#talkAboutText');
-  if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'閉じる':'説明';talkToggle.setAttribute('aria-label',expanded?'GIVE BUDDIESの説明を閉じる':'GIVE BUDDIESの説明を開く');talkAbout.hidden=!expanded};
+  if(talkToggle&&talkAbout)talkToggle.onclick=()=>{const expanded=talkToggle.getAttribute('aria-expanded')!=='true';talkToggle.setAttribute('aria-expanded',String(expanded));talkToggle.textContent=expanded?'閉じる':'GIVEBUDDYSとは？';talkToggle.setAttribute('aria-label',expanded?'GIVEBUDDYSとは？の説明を閉じる':'GIVEBUDDYSとは？の説明を開く');talkAbout.hidden=!expanded};
   let youtubeRecommendations=null,youtubeLoading=false;
   async function openYoutube(){
     if(youtubeLoading)return;
@@ -1940,7 +1940,7 @@
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,avatar:mkAvatar,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
     return directMessages;
   }
   async function startDirectMessage(memberUid){
