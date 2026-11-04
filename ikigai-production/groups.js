@@ -79,7 +79,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   }catch(error){if(uid!==account()||version!==roomEpoch)return;if([403,404,410].includes(error.status)){leave();rooms=rooms.filter(r=>r.id!==id);renderInvites();$('#groupInviteStatus').textContent=error.message}else status(error.message||'会話を読み込めませんでした。')}
  }
  async function open(room){
-  beforeOpen();$('#dmPanel').hidden=true;$('#dmToggle').setAttribute('aria-expanded','false');remember();++roomEpoch;active=room;messages=[];older=null;$('#groupCommon').hidden=true;$('#groupRoom').hidden=false;$('#groupRoomTitle').textContent=room.name;$('#groupDelete').hidden=!isAdmin;$('#groupMessages').replaceChildren();$('#groupText').value=drafts.get(room.id)?.text||'';replyTo=drafts.get(room.id)?.reply||null;renderReply();status('読み込んでいます…');renderParticipants();await Promise.allSettled([loadMessages(),refreshParticipantCounts()]);
+  beforeOpen();window.dispatchEvent(new Event('ikigai-group-open'));$('#dmPanel').hidden=true;$('#dmToggle').setAttribute('aria-expanded','false');remember();++roomEpoch;active=room;messages=[];older=null;$('#groupCommon').hidden=true;$('#groupRoom').hidden=false;$('#groupRoomTitle').textContent=room.name;$('#groupDelete').hidden=!isAdmin;$('#groupMessages').replaceChildren();$('#groupText').value=drafts.get(room.id)?.text||'';replyTo=drafts.get(room.id)?.reply||null;renderReply();status('読み込んでいます…');renderParticipants();await Promise.allSettled([loadMessages(),refreshParticipantCounts()]);
  }
  async function join(room){
   if(busy)return;busy=true;const uid=account(),version=epoch;$('#groupInviteStatus').textContent='グループを開いています…';

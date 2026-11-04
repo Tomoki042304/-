@@ -6,7 +6,7 @@ export function mountTalkLayout(){
   const viewport=window.visualViewport,offset=viewport?.offsetTop||0,height=viewport?.height||innerHeight;
   const editing=view.contains(document.activeElement)&&document.activeElement.matches('textarea,input'),keyboard=editing&&innerHeight-height>140;
   document.body.classList.toggle('talk-keyboard',keyboard);
-  const top=keyboard?offset:Math.max(offset,header.getBoundingClientRect().bottom)+4;
+  const top=offset+(keyboard?0:4);
   const bottom=offset+height-(keyboard?4:tabs.getBoundingClientRect().height+4);
   const logs=[...view.querySelectorAll('#chatLog,#groupMessages,#dmMessages')],sticks=logs.map(log=>log.scrollHeight-log.scrollTop-log.clientHeight<70);
   view.style.setProperty('--talk-menu-top',Math.ceil(view.firstElementChild.getBoundingClientRect().height)+'px');view.style.setProperty('--talk-top',top+'px');view.style.setProperty('--talk-height',Math.max(120,bottom-top)+'px');

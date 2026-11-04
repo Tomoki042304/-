@@ -593,11 +593,29 @@
 
   // ---------- buddy chat: each person keeps their own messages in chats/<uid> ----------
   let chatReads={},giveReads={},myReadAt='',myGiveReadAt='',readTimer=0,chatMode='chat',chatAll=[],myMsgs=[],chatWriting=false,chatAgain=false,giveMode=false,giveTo='',chatReady=false,chatLoadFailed=false,chatSavePromise=null,chatSubmitting=false,chatComposeMode='template',chatReply=null,chatDraftStates={template:{},free:{}};
-  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false,talkNotesUi=null;
+  let talkIntroduced=false,talkIntroAccount='',talkIntroChecking=false,talkNotesUi=null,talkSection='give';
   function showTalkIntroduction(){
-    const gated=!talkIntroduced;$('#talkNotesOpen').hidden=gated;$('#talkIntroductionForm').hidden=!gated;$('#mtChat').hidden=gated;$('#dmToggle').hidden=gated;
-    if(gated){$('#dmPanel').hidden=true;$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
+    const personal=talkSection==='private',gated=!talkIntroduced,privateGated=gated&&!isOwnerView;
+    $('#talkNotesOpen').hidden=gated||personal;$('#talkIntroductionForm').hidden=!gated||(personal&&isOwnerView);
+    $('#mtChat').hidden=gated||personal||!$('#dmConversation').hidden;$('#dmToggle').hidden=gated||personal;
+    $('#privateChatList').hidden=!personal||privateGated||!$('#dmConversation').hidden;
+    if(gated&&!personal){$('#dmPanel').hidden=true;$('#dmConversation').hidden=true;$('#groupRoom').hidden=true}
+    if(personal&&privateGated){$('#dmConversation').hidden=true;$('#dmPanel').hidden=true}
   }
+  function setTalkSection(section,preserve=false){
+    talkSection=section==='private'?'private':'give';
+    if(!preserve){directMessages?.leave();groupUi?.leave();$('#dmConversation').hidden=true;}
+    $('#talkGiveTab').setAttribute('aria-selected',String(talkSection==='give'));$('#talkPrivateTab').setAttribute('aria-selected',String(talkSection==='private'));
+    $('#giveTalkTools').hidden=talkSection!=='give';$('#talkGiveNote').hidden=talkSection!=='give';$('#dmPanel').hidden=true;
+    if(talkSection==='private')$('#talkAboutText').hidden=true;
+    showTalkIntroduction();
+    if(talkSection==='private')ensureDirectMessages().then(ui=>{ui?.start();return ui?.refresh()}).catch(()=>{$('#dmInboxStatus').textContent='個人チャットを読み込めませんでした。「更新」でお試しください。'});
+    window.dispatchEvent(new Event('resize'));
+  }
+  $('#talkGiveTab').onclick=()=>setTalkSection('give');$('#talkPrivateTab').onclick=()=>setTalkSection('private');
+  window.addEventListener('ikigai-direct-open',()=>setTalkSection('private',true));
+  window.addEventListener('ikigai-direct-back',()=>setTalkSection('private',true));
+  window.addEventListener('ikigai-group-open',()=>setTalkSection('give',true));
   async function ensureTalkNotes(){
     if(!talkNotesUi){const module=await import('./talk-notes.js');if(!talkNotesUi)talkNotesUi=module.mountTalkNotes({account:()=>backend==='cloud'&&uid&&!pending()&&talkIntroduced?uid:null,nameOf,request:()=>window.appAuth.talkNotes()})}
     return talkNotesUi;
@@ -1711,7 +1729,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
+    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#giveTalkTools').hidden=false;$('#talkGiveNote').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -1885,7 +1903,7 @@
     const notice=pendingPushNotice;if(notice.postKey&&!feedReady)return;pendingPushNotice=null;if($('#notificationsDialog').open)$('#notificationsDialog').close();
     if(typeof notice.threadId==='string'&&notice.threadId.length===73){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureDirectMessages();await ui?.open(notice.threadId)}catch{toast('個別トークを開けませんでした。')}}
     else if(typeof notice.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(notice.groupId)){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureGroups();await ui?.openById(notice.groupId)}catch{toast('グループを開けませんでした。参加状況を確認してください。')}}
-    else if(notice.kind==='talk'||notice.kind==='reaction'){go('mates')}
+    else if(notice.kind==='talk'||notice.kind==='reaction'){go('mates');setTalkSection('give')}
     else if(notice.kind==='morning'){go('home');$('#zoomCard').scrollIntoView({block:'center'})}
     else if(notice.kind==='announcement'){openReactionNotices()}
     else if(notice.kind==='member'){go('home')}
