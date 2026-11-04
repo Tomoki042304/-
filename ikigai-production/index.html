@@ -1167,7 +1167,6 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
       <button type="button" class="card home-offer" id="premiumJoinCard" hidden style="width:100%;text-align:left;font:inherit;font-weight:700">
         <span>プレミアムメンバーに参加はこちら</span><span aria-hidden="true">›</span>
       </button>
-      <p id="premiumJoinStatus" class="muted" role="status" hidden></p>
       <a class="card home-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
         <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
       </a>
@@ -1517,12 +1516,6 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         <summary class="channel-summary"><span><b style="font-size:16px">入会申込の一覧 <span id="applicationsAdminDot" class="inquiry-notice-dot" aria-label="新しい入会申込があります" hidden></span></b><span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span> <span class="mono" id="appCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary>
         <div class="box-list" id="appList" style="margin-top:14px"><p class="muted">読み込んでいます…</p></div>
       </details>
-        <details class="card admin-panel" id="planRequestsAdmin">
-          <summary class="channel-summary"><b>プラン変更 <span id="planRequestsAdminDot" class="inquiry-notice-dot" aria-label="新しいプラン変更申請があります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
-          <div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="planRequestsRefresh">更新</button>
-          <p class="muted admin-note">プレミアムへの参加申請です。内容を確認し、「メンバー情報」のメニューからプランを変更してください。申請だけでプランや料金は変更されません。</p>
-          <p id="planRequestsStatus" class="muted admin-note" role="status"></p><div id="planRequestsList" class="admin-roster"></div><button type="button" class="small-btn" id="planRequestsMore" hidden>もっと見る</button></div>
-        </details>
         <details class="card admin-panel" id="inquiryAdmin">
           <summary class="channel-summary"><b>問い合わせ連絡 <span id="inquiryAdminDot" class="inquiry-notice-dot" aria-label="新しい問い合わせがあります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
           <div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button>
@@ -1649,6 +1642,13 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
   import(legacy ? "./main.js" : "./main-supabase.js");
 </script>
 <dialog id="talkNotesDialog" class="card"><div class="card-head"><b>自己紹介ノート</b><button type="button" class="small-btn" id="talkNotesClose">閉じる</button></div><p class="muted">メンバーの自己紹介を、あとから見返せます。名前を押すと内容が開きます。</p><div class="talk-notes-tools"><input type="search" id="talkNotesSearch" placeholder="名前・職業・一言から探す" aria-label="自己紹介ノートを検索"><button type="button" class="small-btn" id="talkNotesRefresh">更新</button></div><p id="talkNotesStatus" role="status" class="muted"></p><div id="talkNotesList"></div></dialog>
+<dialog id="premiumGuideDialog" class="card" aria-labelledby="premiumGuideTitle" style="width:min(540px,calc(100% - 32px));max-height:85dvh;overflow:auto">
+  <div class="card-head"><b id="premiumGuideTitle">プレミアムへのご案内</b><button type="button" class="small-btn" id="premiumGuideClose">閉じる</button></div>
+  <h3 style="font-size:18px;margin:24px 0 14px">プレミアムに入る3つのメリット</h3>
+  <ol id="premiumBenefits" style="padding-left:24px;line-height:2"><li>ご案内を準備中です</li><li>ご案内を準備中です</li><li>ご案内を準備中です</li></ol>
+  <div style="margin-top:24px"><a class="primary" id="premiumPaymentLink" href="https://buy.stripe.com/aFa28t4y2ed34SB3WPdwc03" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none">プレミアムに入会する（決済へ）</a></div>
+  <p id="premiumWelcome" style="margin:24px 0;line-height:1.9;font-weight:700">毎週月曜オンライン朝会でお会いできること、とても楽しみにしてます🔥🫱🏻‍🫲🏼</p>
+</dialog>
 <dialog id="memberDirectoryDialog" class="card" style="width:min(540px,calc(100% - 32px));max-height:80dvh;overflow:auto"><div class="card-head"><b>参加メンバー一覧</b><button type="button" class="small-btn" id="memberDirectoryClose">閉じる</button></div><button type="button" class="small-btn" id="memberDirectoryRefresh">更新</button><p id="memberDirectoryStatus" class="muted" role="status"></p><div id="memberDirectoryList" class="admin-roster"></div></dialog>
 <dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p></section><div id="notificationList" class="admin-roster" style="margin-top:14px" aria-label="新しい順のお知らせ"></div></dialog>
 </body>
