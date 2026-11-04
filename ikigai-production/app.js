@@ -607,7 +607,7 @@
     talkSection=['private','groups'].includes(section)?section:'give';
     if(!preserve){directMessages?.leave();groupUi?.leave();$('#dmConversation').hidden=true;}
     for(const [id,mode] of [['talkGiveTab','give'],['talkPrivateTab','private'],['talkGroupTab','groups']])$('#'+id).setAttribute('aria-selected',String(talkSection===mode));
-    $('#giveTalkTools').hidden=talkSection!=='give';$('#talkGiveNote').hidden=talkSection!=='give';
+    $('#giveTalkTools').hidden=talkSection!=='give';
     if(talkSection!=='give')$('#talkAboutText').hidden=true;
     showTalkIntroduction();
     if(talkSection==='private')ensureDirectMessages().then(ui=>{ui?.start();return ui?.refresh()}).catch(()=>{$('#dmInboxStatus').textContent='個人チャットを読み込めませんでした。「更新」でお試しください。'});
@@ -1732,7 +1732,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#talkGroupTab').setAttribute('aria-selected','false');$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=false;$('#talkGiveNote').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
+    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#talkGroupTab').setAttribute('aria-selected','false');$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();

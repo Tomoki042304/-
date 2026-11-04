@@ -974,7 +974,7 @@ body.talk-open{overflow:hidden}body.talk-open header.top{display:none}
 
 #groupMessages .message-reaction-picker button{font-size:24px;padding:2px;width:40px;height:40px}#groupMessages .message-reaction-counts button{font-size:13px;padding:3px 9px;min-height:30px}body.talk-keyboard #groupRoom>.template-note{display:none}body.talk-keyboard #groupParticipantsStatus{display:none}body.talk-keyboard #groupParticipants .avatar{width:28px;height:28px;font-size:11px}body.talk-keyboard #groupReplyContext{max-height:44px}
 
-#composer .give-composer-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}#talkGiveNote{margin:6px 0 0;color:#c8bfc3;font-size:11px;line-height:1.6;overflow-wrap:anywhere}body.talk-keyboard #talkGiveNote{display:none}#v-mates #dmPanel{position:static;inset:auto;flex:1;min-height:0;border-radius:16px}#dmPanel #groupInvites{margin:0;padding:0;border:0}.message-reply-action{align-self:flex-start;margin-top:5px;background:#292929;color:#eee;border-color:#555;font-size:11px}
+#composer .give-composer-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}#v-mates #dmPanel{position:static;inset:auto;flex:1;min-height:0;border-radius:16px}#dmPanel #groupInvites{margin:0;padding:0;border:0}.message-reply-action{align-self:flex-start;margin-top:5px;background:#292929;color:#eee;border-color:#555;font-size:11px}
 
 .public-message-row{display:flex;gap:8px;align-items:flex-end;min-width:0;width:100%}.public-message-row #giveFreeText{flex:1;min-width:0;width:0;line-height:1.5}.public-message-row #giveFreeSend{flex:none;min-height:42px;margin:0;padding:8px 14px;border-radius:22px;background:#7a1f33;border-color:#7a1f33;color:#fff;white-space:nowrap}#giveReplyContext .small-btn{background:#f5f1f3;color:#2b2023;border-color:#d6cdd0}
 
@@ -1298,7 +1298,6 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
       <div class="card">
         <div class="talk-sections" role="tablist" aria-label="トークの種類"><button type="button" id="talkGiveTab" role="tab" aria-selected="true" aria-controls="mtChat">GIVE BUDDIES</button><button type="button" id="talkPrivateTab" role="tab" aria-selected="false" aria-controls="privateChatList">個人チャット<span id="dmUnreadDot" class="notice-dot" hidden></span></button><button type="button" id="talkGroupTab" role="tab" aria-selected="false" aria-controls="dmPanel">グループ</button></div>
         <h2 class="view-title" id="talkTitle">GIVE BUDDIES</h2><div class="talk-about-head" id="giveTalkTools"><button type="button" class="small-btn" id="talkAboutToggle" aria-expanded="false" aria-controls="talkAboutText" aria-label="GIVEBUDDYSとは？の説明を開く">GIVEBUDDYSとは？</button><button type="button" class="small-btn" id="talkNotesOpen" style="margin:0" hidden>自己紹介ノート</button></div>
-        <p id="talkGiveNote">（皆さんに人生に活かせる知識や考え方giveしましょう）</p>
         <div class="talk-desc" id="talkAboutText" hidden>
           <p class="lead"><span>ご縁・情報・チャンスを</span><span>惜しみなくGIVEし合う場所。</span></p>
           <div class="body">
