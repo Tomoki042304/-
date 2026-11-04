@@ -1023,7 +1023,7 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 .premium-guide-head>b{font-size:13px;letter-spacing:.04em;color:#77615c}.premium-guide-head .small-btn{border-color:#dccbbf;color:#654a48;background:transparent}
 .premium-guide-body{padding:26px 24px 28px}.premium-eyebrow{margin:0 0 10px;font-family:var(--logo);font-size:13px;font-weight:600;letter-spacing:.2em;color:#947035}
 .premium-headline{font-family:var(--display);font-size:clamp(22px,6vw,28px);font-weight:400;line-height:1.6;letter-spacing:.05em;margin:0;color:#5e1d2d}.premium-lead{font-size:13px;color:#8a7369;margin:10px 0 26px;line-height:1.8}
-.premium-benefits{list-style:none;padding:0;margin:0;display:grid;gap:16px}.premium-benefits li{display:flex;align-items:flex-start;gap:12px;padding:18px 16px;background:#fff9;border:1px solid #e7dac9;border-radius:16px;min-width:0}.premium-benefits li>div{min-width:0}
+.premium-benefits{list-style:none;padding:0;margin:24px 0 0;display:grid;gap:16px}.premium-benefits li{display:flex;align-items:flex-start;gap:12px;padding:18px 16px;background:#fff9;border:1px solid #e7dac9;border-radius:16px;min-width:0}.premium-benefits li>div{min-width:0}
 .premium-benefit-number{flex:none;font-family:var(--logo);font-size:22px;line-height:1.5;color:#a57e43}.premium-benefits h3{font-family:var(--display);font-weight:400;font-size:17px;line-height:1.75;letter-spacing:.03em;margin:0 0 9px;color:#552533;overflow-wrap:anywhere}.premium-benefits p{font-size:14px;line-height:1.95;color:#6b5551;margin:0;overflow-wrap:anywhere}
 #premiumGuideDialog .premium-payment{display:block;text-align:center;text-decoration:none;margin-top:26px;padding:16px 14px;border-radius:14px;font-size:15px;letter-spacing:.06em;background:#7a1f33;color:#fff}
 </style><style>
@@ -1709,12 +1709,12 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 <dialog id="premiumGuideDialog" class="premium-guide" aria-labelledby="premiumGuideTitle">
   <div class="premium-guide-head"><b id="premiumGuideTitle">プレミアムへのご案内</b><button type="button" class="small-btn" id="premiumGuideClose">閉じる</button></div>
   <div class="premium-guide-body">
-    <p class="premium-eyebrow">IKIGAI PREMIUM</p><h2 class="premium-headline">粋な朝を、仲間と。</h2><p class="premium-lead">プレミアムで広がる、2つの価値。</p>
+    <p class="premium-eyebrow">IKIGAI PREMIUM</p><h2 class="premium-headline">粋な朝を。粋な仲間と。</h2>
     <ol id="premiumBenefits" class="premium-benefits" role="list">
-      <li><span class="premium-benefit-number" aria-hidden="true">01</span><div><h3>豪華なメンバーと、直接つながる。</h3><p>年収1,000万円以上の営業マンやプロアスリートの、生の声に触れる。直接の交流から、新しい視点とご縁が広がります。</p></div></li>
-      <li><span class="premium-benefit-number" aria-hidden="true">02</span><div><h3>人を惹きつける「モテ習慣」を。</h3><p>朝からイケてる仲間と関わり、一日の質を高める。人間性を磨く積み重ねが、自然と人を惹きつける自分へとつながります。</p></div></li>
+      <li><span class="premium-benefit-number" aria-hidden="true">①</span><div><h3>豪華メンバーと直接繋がる🪢</h3><p>年収1,000万円以上の営業マンやプロアスリートの、生の声に触れる。直接の交流から、新しい視点とご縁が広がります。</p></div></li>
+      <li><span class="premium-benefit-number" aria-hidden="true">②</span><div><h3>朝のインプット、交流で<br>「モテ習慣」の獲得💪🏼</h3><p>朝からイケてる仲間と関わり、一日の質を高める。人間性を磨く積み重ねが、自然と人を惹きつける自分へとつながります。</p></div></li>
     </ol>
-    <a class="primary premium-payment" id="premiumPaymentLink" href="https://buy.stripe.com/5kQ3cxaWqed35WF8d5dwc06" target="_blank" rel="noopener noreferrer">さぁ、粋な朝を始めよう</a>
+    <a class="primary premium-payment" id="premiumPaymentLink" href="https://buy.stripe.com/5kQ3cxaWqed35WF8d5dwc06" target="_blank" rel="noopener noreferrer">さあ、プレミアムな朝を始めよう！</a>
   </div>
 </dialog>
 <dialog id="memberDirectoryDialog" class="card" style="width:min(540px,calc(100% - 32px));max-height:80dvh;overflow:auto;padding:0"><div class="card-head" style="position:sticky;top:0;z-index:2;background:#fff;margin:0;padding:20px"><b>参加メンバー一覧</b><button type="button" class="small-btn" id="memberDirectoryClose">閉じる</button></div><div style="padding:0 20px 20px"><button type="button" class="small-btn" id="memberDirectoryRefresh">更新</button><p id="memberDirectoryStatus" class="muted" role="status"></p><div id="memberDirectoryList" class="admin-roster"></div></div></dialog>
