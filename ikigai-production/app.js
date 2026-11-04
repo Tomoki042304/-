@@ -1919,7 +1919,7 @@
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
     return directMessages;
   }
   async function startDirectMessage(memberUid){
@@ -1929,7 +1929,7 @@
   let oneOnOneUi=null,oneOnOneLoading=null;
   async function ensureOneOnOne(){
     if(!uid||backend!=='cloud'||$('#app').hidden)return null;
-    try{if(!oneOnOneUi){if(!oneOnOneLoading)oneOnOneLoading=import('./one-on-one.js');const module=await oneOnOneLoading;if(!uid||$('#app').hidden)return null;if(!oneOnOneUi)oneOnOneUi=module.mountOneOnOne({request:body=>window.appAuth.oneOnOne(body),account:()=>uid&&!$('#app').hidden?uid:null,isAdmin:()=>isOwnerView,isBasic:()=>!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false,viewing:()=>adminAccountVisible()&&!$('#accOneOnOne').hidden,onRows:(rows,options)=>noticeSection('oneonone',rows.map(row=>({id:row.uid,version:row.at+':'+(row.requestId||'')})),options),openChat:async threadId=>{if(!isOwnerView)return;if(!talkIntroduced)throw Error('自己紹介を完了してから個人チャットを開いてください。');const ui=await ensureDirectMessages();if(!ui)throw Error('個人チャットを開けませんでした。');go('mates');await ui.open(threadId)}})}oneOnOneUi.start();return oneOnOneUi}catch{oneOnOneLoading=null;return null}
+    try{if(!oneOnOneUi){if(!oneOnOneLoading)oneOnOneLoading=import('./one-on-one.js');const module=await oneOnOneLoading;if(!uid||$('#app').hidden)return null;if(!oneOnOneUi)oneOnOneUi=module.mountOneOnOne({request:body=>window.appAuth.oneOnOne(body),account:()=>uid&&!$('#app').hidden?uid:null,isAdmin:()=>isOwnerView,isBasic:()=>!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false,viewing:()=>adminAccountVisible()&&!$('#accOneOnOne').hidden,onRows:(rows,options)=>noticeSection('oneonone',rows.map(row=>({id:row.uid,version:row.at+':'+(row.requestId||'')})),options),openChat:async threadId=>{if(!isOwnerView)return;const ui=await ensureDirectMessages();if(!ui)throw Error('個人チャットを開けませんでした。');go('mates');await ui.open(threadId)}})}oneOnOneUi.start();return oneOnOneUi}catch{oneOnOneLoading=null;return null}
   }
   $('#premiumJoinCard').onclick=()=>{
     if(isOwnerView||pending()||zoomMembership?.plan!=='basic'||zoomMembership?.can_zoom!==false)return;

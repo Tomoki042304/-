@@ -17,7 +17,7 @@ export async function onRequest({request,env}){
    const cursor=typeof body.cursor==='string'&&body.cursor.length<=4096?body.cursor:undefined;
    const page=await kv.list({prefix:PREFIX,limit:20,...(cursor?{cursor}:{})});const values=await Promise.all(page.keys.map(k=>kv.get(k.name,'json')));
    if(values.some(r=>!valid(r)))throw Error('invalid request');
-   const rows=values.filter(r=>r.sent===true).map(r=>({uid:r.uid,name:r.name,at:r.at,requestId:r.id,threadId:r.threadId,canChat:user.uid===SHIN})).sort((a,b)=>b.at.localeCompare(a.at));
+   const rows=values.filter(r=>r.sent===true).map(r=>({uid:r.uid,name:r.name,at:r.at,requestId:r.id,threadId:r.threadId,canChat:true,readOnly:user.uid!==SHIN})).sort((a,b)=>b.at.localeCompare(a.at));
    return reply(200,{rows,cursor:page.list_complete?null:page.cursor});
   }
   const membership=await database(request,'rpc/ikigai_my_membership_v1',{method:'POST',body:{}});

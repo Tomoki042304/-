@@ -15,10 +15,11 @@ export async function onRequest(context){
   const {request,env}=context;
   if(request.method!=='POST')return reply(405,{message:'POSTで利用してください。'});
   const user=await requireMemberRole(request);if(!user.ok)return reply(user.status,{message:user.message});
-  try{if(!await hasTalkIntroduction(request))return reply(403,{code:'TALK_INTRODUCTION_REQUIRED',message:'先に全体トークへ自己紹介を送信してください。'});user.chatSince=await readChatAccessSince(request)}catch{return reply(503,{message:'トークの利用情報を確認できませんでした。時間をおいてもう一度お試しください。'})}
+  let introduced=false;try{introduced=await hasTalkIntroduction(request);if(!introduced&&!user.isHost)return reply(403,{code:'TALK_INTRODUCTION_REQUIRED',message:'先に全体トークへ自己紹介を送信してください。'});user.chatSince=await readChatAccessSince(request)}catch{return reply(503,{message:'トークの利用情報を確認できませんでした。時間をおいてもう一度お試しください。'})}
   if(!UID.test(user.uid))return reply(503,{message:'アカウントを確認できませんでした。'});
   const storage=env.RUNTIME_STORAGE==='supabase'||env.YT_CACHE;const kv=storage&&privateKv({...env,IKIGAI_ACTOR_UID:user.uid});if(!kv?.get||!kv?.put||!kv?.list)return reply(503,{message:'個別トークは接続準備中です。'});
   let body;try{if(!request.headers.get('Content-Type')?.startsWith('application/json'))throw Error('type');const raw=await request.text();if(raw.length>8000)throw Error('length');body=JSON.parse(raw);if(!body||typeof body!=='object'||Array.isArray(body))throw Error('body')}catch{return reply(400,{message:'入力内容を確認してください。'})}
+  if(!introduced&&body.action!=='messages')return reply(403,{code:'TALK_INTRODUCTION_REQUIRED',message:'先に全体トークへ自己紹介を送信してください。'});
   if(body.cursor&&(typeof body.cursor!=='string'||body.cursor.length>2048))return reply(400,{message:'一覧を更新してください。'});
   let stage='STORE';
   try{
@@ -42,7 +43,12 @@ export async function onRequest(context){
       return reply(200,{threads,cursor:page.list_complete?null:page.cursor,isHost:user.isHost});
     }
     if(typeof body.threadId!=='string'||body.threadId.length!==73)return reply(400,{message:'個別トークを選んでください。'});
-    stage='THREAD';const thread=await kv.get(tkey(body.threadId),'json');if(!canRead(user,thread))return reply(403,{message:'この個別トークは参加者だけが利用できます。'});
+    stage='THREAD';const thread=await kv.get(tkey(body.threadId),'json');let sessionPreview=false;
+    if((!canRead(user,thread)||!introduced)&&user.isHost&&body.action==='messages'&&validThread(thread)&&thread.hostUid==='c5516add-0853-4dd8-b101-b4f6483404eb'){
+      const application=await kv.get('dm:oneonone:v1:'+thread.memberUid,'json');
+      sessionPreview=application?.sent===true&&application.uid===thread.memberUid&&application.hostUid===thread.hostUid&&application.threadId===thread.id;
+    }
+    if((!canRead(user,thread)||!introduced)&&!sessionPreview)return reply(403,{message:'この個別トークは参加者だけが利用できます。'});
     if(body.action==='messages'){
       stage='MESSAGES';
       const page=await kv.list({prefix:'dm:messages:v1:'+thread.id+':',limit:20,...(body.cursor?{cursor:body.cursor}:{})});const rows=await Promise.all(page.keys.map(k=>kv.get(k.name,'json')));
@@ -54,7 +60,7 @@ export async function onRequest(context){
         const unsent=!!cancelled||canonical?.unsent===true||m.unsent===true;
         return {id:m.id,threadId:thread.id,senderUid:m.senderUid,at:m.at,text:unsent?'':m.text,unsent,read:m.senderUid===user.uid&&(!!receipt||peerSeen?.ids?.includes(m.id)===true)};
       }));
-      return reply(200,{thread,since:new Date(user.chatSince).toISOString(),messages:hydrated,cursor:page.list_complete||eligible.length<rows.length?null:page.cursor});
+      return reply(200,{thread,readOnly:sessionPreview,since:new Date(user.chatSince).toISOString(),messages:hydrated,cursor:page.list_complete||eligible.length<rows.length?null:page.cursor});
     }
     if(body.action==='read'){
       stage='READ';
