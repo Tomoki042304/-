@@ -30,7 +30,7 @@ export async function openDocument(env,path,value){
 // Keep the existing key names and authorization decisions. No plaintext fallback on writes.
 export function privateKv(env){
   const raw=operationalStore(env);
-  const protectedKey=key=>key.startsWith('inquiry:v1:')||key.startsWith('inquiry-history:v1:')||key.startsWith('dm:thread:v1:');
+  const protectedKey=key=>key.startsWith('inquiry:v1:')||key.startsWith('inquiry-history:v1:')||key.startsWith('dm:thread:v1:')||key.startsWith('dm:oneonone:v1:');
   return {
     get:async(key,type)=>{if(!protectedKey(key))return raw.get(key,type);const value=await raw.get(key,'json');if(value==null)return null;const data=value.format==='ikigai-pii'?await decryptPii(env,key,value):value;return type==='json'?data:JSON.stringify(data)},
     put:async(key,value,options)=>raw.put(key,protectedKey(key)?JSON.stringify(await encryptPii(env,key,JSON.parse(value))):value,options),
@@ -43,4 +43,4 @@ export function privateKv(env){
     },delete:key=>raw.delete(key)
   };
 }
-export const KV_PRIVATE_PREFIXES=['inquiry:v1:','inquiry-history:v1:','dm:thread:v1:'];
+export const KV_PRIVATE_PREFIXES=['inquiry:v1:','inquiry-history:v1:','dm:thread:v1:','dm:oneonone:v1:'];

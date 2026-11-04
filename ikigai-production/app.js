@@ -1005,7 +1005,7 @@
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
     const showPremiumOffer=!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false;
-    $('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#premiumGuideDialog').close();
+    $('#oneOnOneApply').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#premiumGuideDialog').close();
     if(!zoomMembership?.can_zoom||pending()){
       $('#zoomView').hidden=true;$('#zoomJoin').removeAttribute('href');$('#zoomUrl').textContent='';$('#zoomWhen').textContent='';$('#zoomMemo').textContent='';
       $('#zoomJoin').hidden=true;$('#zoomCopy').hidden=true;$('#zoomEditBtn').hidden=true;$('#zoomForm').hidden=true;
@@ -1710,7 +1710,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
+    if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -1925,6 +1925,11 @@
     if(!isOwnerView)return;
     try{const ui=await ensureDirectMessages();if(!ui)return;go('mates');await ui.create(memberUid)}catch(e){toast(e.message||'個別トークを開けませんでした。')}
   }
+  let oneOnOneUi=null,oneOnOneLoading=null;
+  async function ensureOneOnOne(){
+    if(!uid||backend!=='cloud'||$('#app').hidden)return null;
+    try{if(!oneOnOneUi){if(!oneOnOneLoading)oneOnOneLoading=import('./one-on-one.js');const module=await oneOnOneLoading;if(!uid||$('#app').hidden)return null;if(!oneOnOneUi)oneOnOneUi=module.mountOneOnOne({request:body=>window.appAuth.oneOnOne(body),account:()=>uid&&!$('#app').hidden?uid:null,isAdmin:()=>isOwnerView,isBasic:()=>!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false,viewing:()=>adminSectionOpen('#oneOnOneAdmin'),onRows:(rows,options)=>noticeSection('oneonone',rows.map(row=>({id:row.uid,version:row.at})),options),openChat:async threadId=>{if(!isOwnerView)return;if(!talkIntroduced)throw Error('自己紹介を完了してから個人チャットを開いてください。');const ui=await ensureDirectMessages();if(!ui)throw Error('個人チャットを開けませんでした。');go('mates');await ui.open(threadId)}})}oneOnOneUi.start();return oneOnOneUi}catch{oneOnOneLoading=null;return null}
+  }
   $('#premiumJoinCard').onclick=()=>{
     if(isOwnerView||pending()||zoomMembership?.plan!=='basic'||zoomMembership?.can_zoom!==false)return;
     $('#premiumGuideDialog').showModal();
@@ -1967,7 +1972,7 @@
     if(which==='settings')openPushSettings();
     if(which==='announcements')ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementPublishStatus').textContent='配信画面を読み込めませんでした。'})
     if(which==='inquiry'||(which==='admin'&&$('#inquiryAdmin').open))openInquiry(which);
-    if(which==='admin'){ensureAdminNotices().then(ui=>ui?.refresh()).catch(()=>{});ensureSecurity().catch(()=>{});ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
+    if(which==='admin'){ensureOneOnOne().then(ui=>ui?.refresh()).catch(()=>{});ensureAdminNotices().then(ui=>ui?.refresh()).catch(()=>{});ensureSecurity().catch(()=>{});ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});if($('#adminMembersDetails').open)loadAdminMembers();renderApplicants()}
     window.scrollTo(0,0);
     pushNav({v:'account',a:which});
   }

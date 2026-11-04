@@ -455,6 +455,16 @@ function start() {
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
       try{const response=await fetch('/api/groups',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('グループに接続できませんでした。')}if(!response.ok){const error=Error(result.message||'グループを保存できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
     },
+    oneOnOne: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
+      try{const response=await fetch('/api/one-on-one',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('1on1申込みに接続できませんでした。')}if(!response.ok){const error=Error(result.message||'1on1申込みを保存できませんでした。');error.status=response.status;throw error}return result;}finally{clearTimeout(timer)}
+    },
+    messageReactions: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+      try{const response=await fetch('/api/reactions',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('リアクションを読み込めませんでした。')}if(!response.ok)throw Error(result.message||'リアクションを更新できませんでした。');return result;}finally{clearTimeout(timer)}
+    },
     directMessages: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);

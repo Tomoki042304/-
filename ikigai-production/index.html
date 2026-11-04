@@ -1164,6 +1164,8 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         </form>
       </div>
 
+      <button type="button" class="card home-offer" id="oneOnOneApply" hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><span>一度限りのSHIN 1 on 1 セッションを申し込む🔥</span><span aria-hidden="true">›</span></button>
+      <p id="oneOnOneStatus" class="muted" role="status" hidden></p>
       <button type="button" class="card home-offer" id="premiumJoinCard" hidden style="width:100%;text-align:left;font:inherit;font-weight:700">
         <span>プレミアムメンバーに参加はこちら</span><span aria-hidden="true">›</span>
       </button>
@@ -1516,6 +1518,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
         <summary class="channel-summary"><span><b style="font-size:16px">入会申込の一覧 <span id="applicationsAdminDot" class="inquiry-notice-dot" aria-label="新しい入会申込があります" hidden></span></b><span class="pill blue" style="margin-left:8px;font-size:10px">管理者のみ</span> <span class="mono" id="appCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary>
         <div class="box-list" id="appList" style="margin-top:14px"><p class="muted">読み込んでいます…</p></div>
       </details>
+        <details class="card admin-panel" id="oneOnOneAdmin"><summary class="channel-summary"><b>1on1申し込み依頼 <span id="oneOnOneAdminDot" class="inquiry-notice-dot" aria-label="新しい1on1申込みがあります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary><div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="oneOnOneRefresh">更新</button><p id="oneOnOneAdminStatus" class="muted" role="status"></p><div id="oneOnOneList" class="admin-roster"></div><button type="button" class="small-btn" id="oneOnOneMore" hidden>もっと見る</button></div></details>
         <details class="card admin-panel" id="inquiryAdmin">
           <summary class="channel-summary"><b>問い合わせ連絡 <span id="inquiryAdminDot" class="inquiry-notice-dot" aria-label="新しい問い合わせがあります" hidden></span></b><span class="channel-expand" aria-hidden="true"></span></summary>
           <div class="admin-panel" style="margin-top:14px"><button type="button" class="small-btn" id="inquiryAdminRefresh">更新</button>
@@ -1649,7 +1652,7 @@ body.talk-keyboard #giveFreePane #giveFreeText{max-height:72px}body.talk-keyboar
   <div style="margin-top:24px"><a class="primary" id="premiumPaymentLink" href="https://buy.stripe.com/5kQ3cxaWqed35WF8d5dwc06" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none">プレミアムに入会する（決済へ）</a></div>
   <p id="premiumWelcome" style="margin:24px 0;line-height:1.9;font-weight:700">毎週月曜オンライン朝会でお会いできること、とても楽しみにしてます🔥🫱🏻‍🫲🏼</p>
 </dialog>
-<dialog id="memberDirectoryDialog" class="card" style="width:min(540px,calc(100% - 32px));max-height:80dvh;overflow:auto"><div class="card-head"><b>参加メンバー一覧</b><button type="button" class="small-btn" id="memberDirectoryClose">閉じる</button></div><button type="button" class="small-btn" id="memberDirectoryRefresh">更新</button><p id="memberDirectoryStatus" class="muted" role="status"></p><div id="memberDirectoryList" class="admin-roster"></div></dialog>
+<dialog id="memberDirectoryDialog" class="card" style="width:min(540px,calc(100% - 32px));max-height:80dvh;overflow:auto;padding:0"><div class="card-head" style="position:sticky;top:0;z-index:2;background:#fff;margin:0;padding:20px"><b>参加メンバー一覧</b><button type="button" class="small-btn" id="memberDirectoryClose">閉じる</button></div><div style="padding:0 20px 20px"><button type="button" class="small-btn" id="memberDirectoryRefresh">更新</button><p id="memberDirectoryStatus" class="muted" role="status"></p><div id="memberDirectoryList" class="admin-roster"></div></div></dialog>
 <dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p></section><div id="notificationList" class="admin-roster" style="margin-top:14px" aria-label="新しい順のお知らせ"></div></dialog>
 </body>
 </html>
