@@ -1684,10 +1684,12 @@ body.talk-open{overflow-x:hidden;overscroll-behavior-x:none}
 <dialog id="talkNotesDialog" class="card"><div class="card-head"><b>自己紹介ノート</b><button type="button" class="small-btn" id="talkNotesClose">閉じる</button></div><p class="muted">メンバーの自己紹介を、あとから見返せます。名前を押すと内容が開きます。</p><div class="talk-notes-tools"><input type="search" id="talkNotesSearch" placeholder="名前・職業・一言から探す" aria-label="自己紹介ノートを検索"><button type="button" class="small-btn" id="talkNotesRefresh">更新</button></div><p id="talkNotesStatus" role="status" class="muted"></p><div id="talkNotesList"></div></dialog>
 <dialog id="premiumGuideDialog" class="card" aria-labelledby="premiumGuideTitle" style="width:min(540px,calc(100% - 32px));max-height:85dvh;overflow:auto">
   <div class="card-head"><b id="premiumGuideTitle">プレミアムへのご案内</b><button type="button" class="small-btn" id="premiumGuideClose">閉じる</button></div>
-  <h3 style="font-size:18px;margin:24px 0 14px">プレミアムに入る3つのメリット</h3>
-  <ol id="premiumBenefits" style="padding-left:24px;line-height:2"><li>ご案内を準備中です</li><li>ご案内を準備中です</li><li>ご案内を準備中です</li></ol>
-  <div style="margin-top:24px"><a class="primary" id="premiumPaymentLink" href="https://buy.stripe.com/5kQ3cxaWqed35WF8d5dwc06" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none">プレミアムに入会する（決済へ）</a></div>
-  <p id="premiumWelcome" style="margin:24px 0;line-height:1.9;font-weight:700">毎週月曜オンライン朝会でお会いできること、とても楽しみにしてます🔥🫱🏻‍🫲🏼</p>
+  <h3 style="font-size:18px;margin:24px 0 14px">プレミアムに入る2つのメリット</h3>
+  <ol id="premiumBenefits" style="padding-left:24px;line-height:1.8">
+    <li style="margin-bottom:20px"><b>豪華メンバーとの直接的なつながり</b><p style="margin:6px 0 0">年収1,000万円以上の営業マンやプロアスリートからの生の声が聞ける。</p></li>
+    <li><b>モテ習慣の獲得</b><p style="margin:6px 0 0">朝からイケてる仲間と関わることで一日の質が上がる。人間性の成長にも繋がり、その結果、人モテする人材へと成長を遂げる。</p></li>
+  </ol>
+  <div style="margin-top:24px"><a class="primary" id="premiumPaymentLink" href="https://buy.stripe.com/5kQ3cxaWqed35WF8d5dwc06" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;text-decoration:none">さぁ、粋な朝を始めよう</a></div>
 </dialog>
 <dialog id="memberDirectoryDialog" class="card" style="width:min(540px,calc(100% - 32px));max-height:80dvh;overflow:auto;padding:0"><div class="card-head" style="position:sticky;top:0;z-index:2;background:#fff;margin:0;padding:20px"><b>参加メンバー一覧</b><button type="button" class="small-btn" id="memberDirectoryClose">閉じる</button></div><div style="padding:0 20px 20px"><button type="button" class="small-btn" id="memberDirectoryRefresh">更新</button><p id="memberDirectoryStatus" class="muted" role="status"></p><div id="memberDirectoryList" class="admin-roster"></div></div></dialog>
 <dialog id="notificationsDialog" class="card"><div class="card-head"><b>お知らせ</b><button type="button" class="small-btn" id="notificationsClose">閉じる</button></div><section class="announcement-section"><div class="card-head"><b>運営からのお知らせ</b><button type="button" class="small-btn" id="announcementRefresh">更新</button></div><p id="announcementStatus" class="muted admin-note" role="status"></p></section><div id="notificationList" class="admin-roster" style="margin-top:14px" aria-label="新しい順のお知らせ"></div></dialog>
