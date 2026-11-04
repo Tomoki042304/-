@@ -22,7 +22,7 @@ export async function onRequest({request,env}){
    const access=await requireYoutubeMember(request);if(!access.ok)return reply(access.status,{message:access.message});
    const collect=async coll=>{const rows=[];for(let offset=0;offset<10000;offset+=100){const batch=await database(request,'documents?'+new URLSearchParams({select:'path,data',coll:'eq.'+coll,order:'path',limit:'100',offset:String(offset)}));if(!Array.isArray(batch))throw Error();rows.push(...batch);if(batch.length<100)return rows}throw Error('directory limit')};
    const members=await collect('members');
-   const rows=await Promise.all(members.map(async row=>{const person=await openDocument(env,row.path,row.data);const goal=person.goal;return {name:typeof person.nick==='string'?person.nick.slice(0,80):'',occupation:typeof person.aff==='string'?person.aff.slice(0,100):'',finalGoal:typeof goal==='string'?goal.slice(0,200):''}}));
+   const rows=await Promise.all(members.map(async row=>{const person=await openDocument(env,row.path,row.data);const goal=person.goal;return {avatar:typeof person.avatar==='string'&&person.avatar.length<=300000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(person.avatar)?person.avatar:'',name:typeof person.nick==='string'?person.nick.slice(0,80):'',occupation:typeof person.aff==='string'?person.aff.slice(0,100):'',finalGoal:typeof goal==='string'?goal.slice(0,200):''}}));
    rows.sort((a,b)=>a.name.localeCompare(b.name,'ja'));return reply(200,{rows});
   }
   if(body?.action==='roster'){
