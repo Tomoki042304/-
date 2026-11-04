@@ -1004,6 +1004,8 @@
   let meeting={url:'',when:'',memo:'',startsAt:null,reminderEnabled:false},isOwnerView=false,zoomMembership=null,zoomReadFailed=false;
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
+    const showPremiumOffer=!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false;
+    $('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#premiumJoinStatus').hidden=true;
     if(!zoomMembership?.can_zoom||pending()){
       $('#zoomView').hidden=true;$('#zoomJoin').removeAttribute('href');$('#zoomUrl').textContent='';$('#zoomWhen').textContent='';$('#zoomMemo').textContent='';
       $('#zoomJoin').hidden=true;$('#zoomCopy').hidden=true;$('#zoomEditBtn').hidden=true;$('#zoomForm').hidden=true;
@@ -1696,7 +1698,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    $('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();premiumRequestId='';$('#premiumJoinStatus').hidden=true;$('#premiumJoinStatus').textContent='';
+    zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();premiumRequestId='';$('#premiumJoinStatus').hidden=true;$('#premiumJoinStatus').textContent='';
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -1914,7 +1916,7 @@
   $('#planRequestsAdmin').addEventListener('toggle',()=>{if($('#planRequestsAdmin').open)openInquiry('admin')});
   let premiumRequestBusy=false,premiumRequestId='';
   $('#premiumJoinCard').onclick=async()=>{
-    if(premiumRequestBusy)return;
+    if(premiumRequestBusy||isOwnerView||pending()||zoomMembership?.plan!=='basic'||zoomMembership?.can_zoom!==false)return;
     const who=uid,button=$('#premiumJoinCard'),status=$('#premiumJoinStatus');
     if(!who||!window.appAuth?.inquiry){toast('ログインしてからお試しください。');return}
     premiumRequestBusy=true;button.disabled=true;status.hidden=false;status.textContent='申請状況を確認しています…';
