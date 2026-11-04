@@ -1026,7 +1026,7 @@
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
     const showPremiumOffer=!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false;
-    $('#oneOnOneApply').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#premiumGuideDialog').close();
+    $('#oneOnOneApply').hidden=!showPremiumOffer;if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)closePremiumGuide();
     if(!zoomMembership?.can_zoom||pending()){
       $('#zoomView').hidden=true;$('#zoomJoin').removeAttribute('href');$('#zoomUrl').textContent='';$('#zoomWhen').textContent='';$('#zoomMemo').textContent='';
       $('#zoomJoin').hidden=true;$('#zoomCopy').hidden=true;$('#zoomEditBtn').hidden=true;$('#zoomForm').hidden=true;
@@ -1732,7 +1732,7 @@
     if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
-    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#talkGroupTab').setAttribute('aria-selected','false');$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;$('#premiumGuideDialog').close();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
+    talkSection='give';$('#talkGiveTab').setAttribute('aria-selected','true');$('#talkPrivateTab').setAttribute('aria-selected','false');$('#talkGroupTab').setAttribute('aria-selected','false');$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=false;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;closePremiumGuide();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();
     if(knowledgeUi)knowledgeUi.reset();
     adminNoticeUi?.stop();
     if(directMessages)directMessages.stop();groupUi?.stop();
@@ -1952,11 +1952,21 @@
     if(!uid||backend!=='cloud'||$('#app').hidden)return null;
     try{if(!oneOnOneUi){if(!oneOnOneLoading)oneOnOneLoading=import('./one-on-one.js');const module=await oneOnOneLoading;if(!uid||$('#app').hidden)return null;if(!oneOnOneUi)oneOnOneUi=module.mountOneOnOne({request:body=>window.appAuth.oneOnOne(body),account:()=>uid&&!$('#app').hidden?uid:null,isAdmin:()=>isOwnerView,isBasic:()=>!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false,viewing:()=>adminAccountVisible()&&!$('#accOneOnOne').hidden,onRows:(rows,options)=>noticeSection('oneonone',rows.map(row=>({id:row.uid,version:row.at+':'+(row.requestId||'')})),options),openChat:async threadId=>{if(!isOwnerView)return;const ui=await ensureDirectMessages();if(!ui)throw Error('個人チャットを開けませんでした。');go('mates');await ui.open(threadId)}})}oneOnOneUi.start();return oneOnOneUi}catch{oneOnOneLoading=null;return null}
   }
+  let premiumPagePosition=null;
+  function unlockPremiumPage(){
+    if(!premiumPagePosition)return;const position=premiumPagePosition;premiumPagePosition=null;
+    document.documentElement.classList.remove('premium-modal-open');document.documentElement.style.removeProperty('--premium-page-top');window.scrollTo(position.x,position.y);
+  }
+  function closePremiumGuide(){
+    if($('#premiumGuideDialog').open)$('#premiumGuideDialog').close();unlockPremiumPage();
+  }
   $('#premiumJoinCard').onclick=()=>{
     if(isOwnerView||pending()||zoomMembership?.plan!=='basic'||zoomMembership?.can_zoom!==false)return;
-    $('#premiumGuideDialog').showModal();
+    if(!premiumPagePosition){premiumPagePosition={x:window.scrollX,y:window.scrollY};document.documentElement.style.setProperty('--premium-page-top',-premiumPagePosition.y+'px');document.documentElement.classList.add('premium-modal-open');}
+    try{$('#premiumGuideDialog').showModal();$('#premiumGuideDialog').scrollTop=0}catch{unlockPremiumPage()}
   };
-  $('#premiumGuideClose').onclick=()=>$('#premiumGuideDialog').close();
+  $('#premiumGuideClose').onclick=closePremiumGuide;
+  $('#premiumGuideDialog').addEventListener('close',()=>{if(!$('#premiumGuideDialog').open)unlockPremiumPage()});
   let memberDirectoryVersion=0;
   async function loadMemberDirectory(){
     const token=++memberDirectoryVersion,actor=uid,list=$('#memberDirectoryList'),status=$('#memberDirectoryStatus');list.replaceChildren();status.textContent='読み込んでいます…';
