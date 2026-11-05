@@ -1039,10 +1039,13 @@
 
   // ---------- morning meeting: server checks the account plan before returning private Zoom settings ----------
   let meeting={url:'',when:'',memo:'',startsAt:null,reminderEnabled:false},isOwnerView=false,zoomMembership=null,zoomReadFailed=false;
+  function syncPremiumFrame(){const height=$('#zoomCard').getBoundingClientRect().height;if(height>0&&!$('#premiumJoinCard').hidden)$('#premiumJoinCard').style.height=height+'px'}
+  if(typeof ResizeObserver==='function')new ResizeObserver(syncPremiumFrame).observe($('#zoomCard'));else window.addEventListener('resize',syncPremiumFrame);
+
   const safeUrl=u=>/^https:\/\/[^\s<>"]+$/i.test(u||'')?u:'';
   function renderZoom(){
     const showPremiumOffer=!isOwnerView&&!pending()&&zoomMembership?.plan==='basic'&&zoomMembership?.can_zoom===false;
-    $('#oneOnOneApply').hidden=!showPremiumOffer||$('#oneOnOneApply').dataset.checked!=='true'||$('#oneOnOneApply').dataset.handled==='true';if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;if(!showPremiumOffer)closePremiumGuide();
+    $('#oneOnOneApply').hidden=!showPremiumOffer||$('#oneOnOneApply').dataset.checked!=='true'||$('#oneOnOneApply').dataset.handled==='true';if(!showPremiumOffer)$('#oneOnOneStatus').hidden=true;void ensureOneOnOne();$('#premiumJoinCard').hidden=!showPremiumOffer;requestAnimationFrame(syncPremiumFrame);if(!showPremiumOffer)closePremiumGuide();
     if(!zoomMembership?.can_zoom||pending()){
       $('#zoomView').hidden=true;$('#zoomJoin').removeAttribute('href');$('#zoomUrl').textContent='';$('#zoomWhen').textContent='';$('#zoomMemo').textContent='';
       $('#zoomJoin').hidden=true;$('#zoomCopy').hidden=true;$('#zoomEditBtn').hidden=true;$('#zoomForm').hidden=true;
