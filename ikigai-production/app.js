@@ -427,6 +427,7 @@
 
   function renderFeed(){
     markGrowthLogsSeen();renderHomeLog();renderReactionNotice();
+    if($('#v-timeline').hidden)return;
     const box=$('#feed'),expandedResponders=new Set([...$('#feed').querySelectorAll('.post-responders[open]')].map(el=>el.dataset.postKey));
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
     if(backend!=='cloud'){box.innerHTML=`<div class="card empty"><b style="color:var(--ink)">成長ログはまだ使えません</b>ログインすると、仲間の投稿が見られます。</div>`;return}
@@ -730,6 +731,7 @@
   }
   function renderChat(){
     const log=$('#chatLog');const latest=chatAll.filter(m=>!m.unsent).sort((a,b)=>b.at.localeCompare(a.at))[0];if(latest){$('#talkGiveTab small').textContent=latest.text||'全体トーク';$('#talkGiveTab').dataset.at=latest.at;$('#talkGiveTab').lastElementChild.textContent=hhmm(latest.at);}renderTalkOverview();
+    if($('#v-mates').hidden)return;
 
     if(backend!=='cloud'){log.innerHTML=`<div class="empty"><b style="color:var(--ink)">チャットはまだ使えません</b>ログインすると、仲間とチャットできます。</div>`;return}
     if(pending()){log.innerHTML=PENDING_BOX('トーク');return}
@@ -906,7 +908,7 @@
         else for(const r of reflections)await rCol().doc(r.id).set(clone(r));
       }
       // the Firebase adapter has no approval step, so everyone there counts as approved
-      approved=member;const growthState=await window.appAuth?.growthAccess?.().catch(()=>({allowed:false}));growthApproved=member||growthState?.allowed===true;
+      approved=member;const growthState=member?null:await window.appAuth?.growthAccess?.().catch(()=>({allowed:false}));growthApproved=member||growthState?.allowed===true;
       if(p.exists)void migrateActionCheckCycle();
       // Paint the account's own home before loading shared panels and background notices.
       requestAnimationFrame(()=>{
@@ -2099,28 +2101,50 @@
   document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-goto]');if(t){go(t.dataset.tab||t.dataset.goto);if(t.classList.contains('header-check'))void completeDay()}});
 
   // ---------- hero ambience ----------
-  const cv=$('#heroCanvas'),cx=cv.getContext('2d');
-  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let W,H,dots=[],heroInView=true,lastHeroFrame=-Infinity;
-  function size(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);
-    dots=Array.from({length:20},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}));if(reduce)draw()}
-  function draw(){if(!W||!H)return;   // canvas not measured yet (app still hidden)
+  const cv=$('#heroCanvas'),cx=cv.getContext('2d'),heroMotion=matchMedia('(prefers-reduced-motion: reduce)');
+  let reduce=heroMotion.matches,W=0,H=0,heroDpr=0,dots=[],heroInView=true,lastHeroFrame=-Infinity,heroFrame=0,heroPageActive=true;
+  function size(){
+    if(!cx)return false;
+    const r=cv.getBoundingClientRect();if(r.width<=0||r.height<=0)return false;
+    const d=Math.min(devicePixelRatio||1,2);
+    if(W===r.width&&H===r.height&&heroDpr===d)return true;
+    const oldW=W,oldH=H;W=r.width;H=r.height;heroDpr=d;
+    cv.width=Math.round(W*d);cv.height=Math.round(H*d);cx.setTransform(d,0,0,d,0,0);
+    dots=dots.length&&oldW&&oldH?dots.map(p=>({...p,x:p.x/oldW*W,y:p.y/oldH*H})):Array.from({length:20},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.4,v:Math.random()*.25+.05}));
+    draw(false);return true;
+  }
+  function draw(advance=true){
+    if(!cx||!W||!H)return;
     cx.clearRect(0,0,W,H);
     const g=cx.createRadialGradient(W*.85,H*.2,0,W*.85,H*.2,W*.6);g.addColorStop(0,'rgba(255,205,212,.35)');g.addColorStop(1,'rgba(255,205,212,0)');cx.fillStyle=g;cx.fillRect(0,0,W,H);
-    cx.fillStyle='rgba(255,255,255,.7)';dots.forEach(d=>{d.y-=d.v;if(d.y<0)d.y=H;cx.beginPath();cx.arc(d.x,d.y,d.r,0,7);cx.fill()});
+    cx.fillStyle='rgba(255,255,255,.7)';dots.forEach(p=>{if(advance){p.y-=p.v;if(p.y<0)p.y=H}cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()});
   }
-  if('IntersectionObserver' in window)new IntersectionObserver(entries=>{heroInView=entries[0].isIntersecting},{threshold:0}).observe(cv.parentElement);
+  function heroActive(){return cx&&heroPageActive&&document.visibilityState==='visible'&&!$('#app').hidden&&!$('#v-home').hidden&&$('#splash').hidden&&heroInView}
+  function stopHero(){if(heroFrame)cancelAnimationFrame(heroFrame);heroFrame=0;lastHeroFrame=-Infinity}
   function loop(ts){
-    if(document.visibilityState==='visible'&&!$('#app').hidden&&!$('#v-home').hidden&&$('#splash').hidden&&heroInView&&ts-lastHeroFrame>=1000/30){lastHeroFrame=ts;draw()}
-    if(!reduce)requestAnimationFrame(loop);
+    heroFrame=0;if(!heroActive()||reduce)return;
+    if(ts-lastHeroFrame>=1000/30){lastHeroFrame=ts;draw()}
+    heroFrame=requestAnimationFrame(loop);
   }
+  function syncHero(){
+    if(!heroActive()){stopHero();return}
+    if(!size()){stopHero();return}
+    if(reduce){stopHero();draw(false)}else if(!heroFrame)heroFrame=requestAnimationFrame(loop);
+  }
+  if('IntersectionObserver' in window)new IntersectionObserver(entries=>{heroInView=entries[0].isIntersecting;syncHero()},{threshold:0}).observe(cv.parentElement);
+  if('ResizeObserver' in window)new ResizeObserver(syncHero).observe(cv.parentElement);
+  for(const node of [$('#app'),$('#v-home'),$('#splash')])new MutationObserver(syncHero).observe(node,{attributes:true,attributeFilter:['hidden']});
+  document.addEventListener('visibilitychange',syncHero);
+  addEventListener('pagehide',()=>{heroPageActive=false;stopHero()});addEventListener('pageshow',()=>{heroPageActive=true;syncHero()});
+  const heroMotionChanged=event=>{reduce=event.matches;syncHero()};
+  if(heroMotion.addEventListener)heroMotion.addEventListener('change',heroMotionChanged);else heroMotion.addListener(heroMotionChanged);
 
   function renderAll(){renderHome();renderCheck();if(!$('#v-reflect').hidden)renderReflect();else renderBox()}
 
   if(!STRICT)loadLocal();   // the Supabase build shows nothing from this browser before the account has loaded
   renderAll();renderMembers();fillForm();
   const h=location.hash.slice(1);if(views.includes(h))go(h);
-  addEventListener('resize',size);requestAnimationFrame(loop);
+  addEventListener('resize',syncHero);syncHero();
   scheduleDayClock();
   initCloud().then(boot,boot);
 })();
