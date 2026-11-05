@@ -1040,6 +1040,12 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 #premiumJoinCard.photo-offer>span:first-child{max-width:76%;font-size:17px}#shidorokuPurchaseLink.photo-offer>span:first-child{font-size:18px}
 .photo-offer>span:last-child{font-size:24px;flex:none;line-height:1.25}.photo-offer:focus-visible{outline:3px solid #d4b46c;outline-offset:3px}
 @media(min-width:700px){#premiumJoinCard.photo-offer,#shidorokuPurchaseLink.photo-offer{min-height:200px}}
+
+#premiumJoinCard.artwork-offer,#oneOnOneApply.artwork-offer{display:block;position:relative;padding:0;min-height:0;width:100%;overflow:hidden;background:#191919;border:1px solid #ffffff26;line-height:0;text-shadow:none}
+.artwork-offer>img{display:block;width:100%;height:auto;max-width:none;object-fit:contain}
+#oneOnOneApply.artwork-offer:disabled{opacity:1;cursor:default}
+#oneOnOneSent{position:absolute;top:12px;right:12px;padding:7px 12px;border-radius:20px;background:#171717e6;border:1px solid #ffffff66;color:#fff;font-size:13px;font-weight:700;line-height:1.4;white-space:nowrap}
+#oneOnOneArrow{display:none!important}.artwork-offer:focus-visible{outline:3px solid #d4b46c;outline-offset:3px}
 </style></head>
 <body>
 <section class="onboard" id="authScreen" hidden>
@@ -1226,11 +1232,9 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
         </form>
       </div>
 
-      <button type="button" class="card home-offer" id="oneOnOneApply" disabled hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><span style="line-height:1.7"><span style="display:block">一度きり！</span><span style="display:block">SHIN 1on1セッションを</span><span style="display:block">申し込む🔥</span></span><span id="oneOnOneSent" role="status" style="flex:none;font-size:13px;white-space:nowrap" hidden>送信済み</span><span id="oneOnOneArrow" aria-hidden="true">›</span></button>
+      <button type="button" class="card home-offer artwork-offer" id="oneOnOneApply" aria-label="一度きり！SHIN 1on1面談を申し込む" disabled hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><img src="./images/shin-session-artwork.jpg" alt="" width="900" height="466"><span id="oneOnOneSent" role="status" hidden>送信済み</span><span id="oneOnOneArrow" aria-hidden="true" hidden></span></button>
       <p id="oneOnOneStatus" class="muted" role="status" hidden></p>
-      <button type="button" class="card home-offer photo-offer" id="premiumJoinCard" hidden style="width:100%;text-align:left;font:inherit;font-weight:700">
-        <span>プレミアムメンバーに<br>参加はこちら✨</span><span aria-hidden="true">›</span>
-      </button>
+      <button type="button" class="card home-offer artwork-offer" id="premiumJoinCard" aria-label="プレミアムメンバーに参加はこちら" hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><img src="./images/premium-entry-artwork.jpg" alt="" width="900" height="506"></button>
       <a class="card home-offer photo-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
         <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
       </a>
