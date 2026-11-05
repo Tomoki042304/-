@@ -1041,7 +1041,7 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 .photo-offer>span:last-child{font-size:24px;flex:none;line-height:1.25}.photo-offer:focus-visible{outline:3px solid #d4b46c;outline-offset:3px}
 @media(min-width:700px){#premiumJoinCard.photo-offer,#shidorokuPurchaseLink.photo-offer{min-height:200px}}
 
-#premiumJoinCard.artwork-offer,#oneOnOneApply.artwork-offer{display:block;position:relative;padding:0;min-height:0;width:100%;overflow:hidden;background:#191919;border:1px solid #ffffff26;line-height:0;text-shadow:none}
+#premiumJoinCard.artwork-offer,#oneOnOneApply.artwork-offer,#shidorokuPurchaseLink.artwork-offer{display:block;position:relative;padding:0;min-height:0;width:100%;overflow:hidden;background:#191919;border:1px solid #ffffff26;line-height:0;text-shadow:none}
 .artwork-offer>img{display:block;width:100%;height:auto;max-width:none;object-fit:contain}
 #oneOnOneApply.artwork-offer:disabled{opacity:1;cursor:default}
 #oneOnOneSent{position:absolute;bottom:12px;right:12px;padding:7px 12px;border-radius:20px;background:#171717e6;border:1px solid #ffffff66;color:#fff;font-size:13px;font-weight:700;line-height:1.4;white-space:nowrap}
@@ -1235,9 +1235,7 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
       <button type="button" class="card home-offer artwork-offer" id="oneOnOneApply" aria-label="一度きり！SHIN 1on1面談を申し込む" disabled hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><img src="./images/shin-session-artwork.jpg" alt="" width="900" height="466"><span id="oneOnOneSent" role="status" hidden>送信済み</span><span id="oneOnOneArrow" aria-hidden="true" hidden></span></button>
       <p id="oneOnOneStatus" class="muted" role="status" hidden></p>
       <button type="button" class="card home-offer artwork-offer" id="premiumJoinCard" aria-label="プレミアムメンバーに参加はこちら" hidden style="width:100%;text-align:left;font:inherit;font-weight:700"><img src="./images/premium-entry-artwork.jpg" alt="" width="900" height="506"></button>
-      <a class="card home-offer photo-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer">
-        <span>志動録購入はこちら</span><span aria-hidden="true">↗</span>
-      </a>
+      <a class="card home-offer artwork-offer" id="shidorokuPurchaseLink" href="https://claude.ai/artifact/XjbDqoWhagWwefrwSGEk3m" target="_blank" rel="noopener noreferrer" aria-label="志動録購入はこちら"><img src="./images/journal-purchase-artwork.jpg" alt="" width="900" height="466"></a>
 
 
       <figure class="card quote" id="quoteCard" hidden>
