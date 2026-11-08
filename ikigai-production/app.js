@@ -924,7 +924,9 @@
     if(growthDirectoryLoading||growthPending()||!window.appAuth?.growthDirectory)return;
     const actor=uid;growthDirectoryLoading=true;try{const people=await window.appAuth.growthDirectory();if(uid!==actor||growthPending()||$('#app').hidden)return;growthPeople=Array.isArray(people)?people:[];growthDirectoryAt=Date.now();renderFeed()}catch{}finally{growthDirectoryLoading=false}
   }
-  function openGrowth(){if(growthPending())return;void loadNotificationSince();if(!growthFeedOpen){growthFeedOpen=true;subscribeFeed()}void loadGrowthPeople()}
+  let growthViewsUi=null,growthViewsLoading=null;
+  function ensureGrowthViews(){if(!growthViewsLoading)growthViewsLoading=import('./growth-views.js').then(module=>{growthViewsUi=module.mountGrowthViews({account:()=>uid,canUse:()=>backend==='cloud'&&!!uid&&!growthPending(),isAdmin:()=>isOwnerView,request:payload=>window.appAuth.growthViews(payload)});return growthViewsUi}).catch(()=>{growthViewsLoading=null});return growthViewsLoading}
+  function openGrowth(){if(growthPending())return;void ensureGrowthViews();void loadNotificationSince();if(!growthFeedOpen){growthFeedOpen=true;subscribeFeed()}void loadGrowthPeople()}
   let sharedOpen=false;
   function openShared(){
     if(sharedOpen)return;sharedOpen=true;void loadNotificationSince();
@@ -1582,7 +1584,7 @@
       $('#adminSummary').textContent='';$('#adminCheckDay').textContent='';$('#adminUpdated').textContent='';
       if(!$('#accAdmin').hidden||!$('#accAnnouncements').hidden||!$('#accOneOnOne').hidden)showAcc('menu');
     }
-    renderZoom();renderMembers();
+    renderZoom();renderMembers();growthViewsUi?.refresh();
   }
   function renderAdminRoster(){
     if(!isOwnerView||$('#accAdmin').hidden||!adminLoaded)return;
@@ -1750,7 +1752,7 @@
   // logout: the identity comes from the signed-in account, so this ends the session in this app on this device
   const LOGOUT_KEY='ikigai.loggedOut';
   function showEnd(title,text,btn){
-    if(shinAi)shinAi.reset();
+    growthViewsUi?.stop();if(shinAi)shinAi.reset();
     document.body.classList.remove('shin-chat-open','shin-chat-keyboard');
     if(youtubeRecommendations)youtubeRecommendations.stop();
     talkSection='home';$('#talkLanding').hidden=false;$('#talkLandingHeading').hidden=false;$('#talkPageHeader').hidden=true;$('#dmPanel').hidden=true;$('#giveTalkTools').hidden=true;$('#privateChatList').hidden=true;if(oneOnOneUi)oneOnOneUi.stop();$('#oneOnOneApply').hidden=true;zoomMembership=null;$('#premiumJoinCard').hidden=true;closePremiumGuide();$('#memberDirectoryDialog').close();memberDirectoryVersion++;$('#memberDirectoryList').replaceChildren();if(inquiryUi)inquiryUi.stop();

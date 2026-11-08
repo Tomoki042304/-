@@ -465,6 +465,11 @@ function start() {
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
       try{const response=await fetch('/api/reactions',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});let result;try{result=await response.json()}catch{throw Error('リアクションを読み込めませんでした。')}if(!response.ok)throw Error(result.message||'リアクションを更新できませんでした。');return result;}finally{clearTimeout(timer)}
     },
+    growthViews: async payload => {
+      const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+      try{const response=await fetch('/api/growth-views',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal,cache:'no-store',redirect:'error'});const result=await response.json();if(!response.ok){const error=Error(result.message||'閲覧情報を取得できませんでした。');error.status=response.status;throw error}return result}finally{clearTimeout(timer)}
+    },
     directMessages: async payload => {
       const {data,error}=await auth.getSession();if(error||!data.session?.access_token)throw Error('ログインし直してください。');
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
