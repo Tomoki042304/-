@@ -55,6 +55,7 @@ if (!stopped && SUPABASE_ENV === "test") {
 
 // ---------- login screen ----------
 let mode = "login";
+let emailLoginEnabled = false;
 const AUTH_ERRORS = {
   invalid_credentials: "メールアドレスかパスワードが違います",
   email_not_confirmed: "メールの確認がまだです。届いたメールのリンクを押してください",
@@ -81,7 +82,9 @@ const appUrl = () => location.origin + location.pathname;
 function showAuth(which) {
   const sp = $("#splash");
   setTimeout(() => { if (sp) sp.hidden = true; $("#authScreen").hidden = false; }, 300);
-  $("#authForm").hidden = which !== "login";
+  $("#authForm").hidden = which !== "login" || emailLoginEnabled;
+  $("#emailAuth").hidden = which !== "login" || !emailLoginEnabled;
+  if (which !== "mfa") $("#loginMfa").hidden = true;
   $("#pwForm").hidden = which !== "password";
 }
 // Google login is not set up in Supabase yet
@@ -107,7 +110,7 @@ if (stopped) {
   start();
 }
 
-function start() {
+async function start() {
   const auth = supabase.auth;
   // GitHub uses the existing button styling; keep the Google provider hidden.
   const githubButton = $("#authGitHub");
@@ -161,8 +164,53 @@ function start() {
       if (!leaving) restoreGitHub();
     }
   };
+  // Roll out only after mail/CAPTCHA settings and the database MFA guard are ready.
+  // The existing provider stays available for existing identities; no application-level account merge.
+  let emailUi = null, mfaUi = null, launchCheck = 0;
+  try {
+    const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 7000);
+    let config;
+    try { const response = await fetch('/api/login-config', {cache:'no-store',redirect:'error',signal:controller.signal}); if(response.ok)config=await response.json(); }
+    finally { clearTimeout(timeout); }
+    if(config?.enabled===true && typeof config.siteKey==='string') {
+      const {mountEmailLogin}=await import('./email-login.js');
+      emailLoginEnabled=true;
+      emailUi=mountEmailLogin({auth,root:$('#emailAuth'),siteKey:config.siteKey,onVerified:user=>void guardLaunch(user)});
+      $('#existingGitHub').onclick=()=>githubButton.click();
+    }
+  } catch { /* Keep the known working existing-user login when rollout readiness is unavailable. */ }
+  async function guardLaunch(user) {
+    const check=++launchCheck;
+    try {
+      const {data,error}=await supabase.rpc('ikigai_login_security_v1');
+      if(check!==launchCheck)return;
+      if(error) {
+        // Only a genuinely absent migration can use the legacy login. All other errors fail closed.
+        if(!emailLoginEnabled && ['PGRST202','42883'].includes(error.code)){launch(user);return;}
+        throw error;
+      }
+      if(data?.uid!==user.id || typeof data.admin!=='boolean' || typeof data.mfaRequired!=='boolean')throw Error('ROLE_CHECK_FAILED');
+      if(data.admin && data.mfaRequired) {
+        if(started){location.reload();return;}
+        showAuth('mfa');$('#loginMfa').hidden=false;
+        if(!mfaUi){
+          const {mountLoginMfa}=await import('./login-mfa.js');
+          if(check!==launchCheck)return;
+          mfaUi=mountLoginMfa({auth,root:$('#loginMfa'),onVerified:()=>{mfaUi?.clear();mfaUi=null;void guardLaunch(user)},onCancel:()=>void auth.signOut({scope:'local'})});
+        }
+        return;
+      }
+      mfaUi?.clear();mfaUi=null;$('#loginMfa').hidden=true;
+      emailUi?.clear();emailUi=null;launch(user);
+    } catch {
+      if(check!==launchCheck)return;
+      if(started){securitySuspended=true;['#app','#onboard','#migrate'].forEach(id=>{const el=$(id);if(el)el.hidden=true});document.querySelectorAll('dialog[open]').forEach(el=>el.close());}
+      showAuth('login');say('ログインの安全確認ができませんでした。時間をおいて再読み込みしてください。');
+      if(emailLoginEnabled)$('#emailAuthStatus').textContent='ログインの安全確認ができませんでした。時間をおいて再読み込みしてください。';
+    }
+  }
   // opened from the password-reset mail (index.html notes this before the link is consumed)
-  let started = false, recovering = window.__recoveryLink === true;
+  let started = false, launchedUid = null, securitySuspended = false, recovering = window.__recoveryLink === true;
 
   $("#authForm").addEventListener("submit", async e => {
     e.preventDefault();
@@ -222,7 +270,7 @@ function start() {
     $("#pwNew").value = $("#pwNew2").value = "";
     $("#pwForm").hidden = true;
     const { data } = await auth.getSession();
-    if (data.session) launch(data.session.user);
+    if (data.session) void guardLaunch(data.session.user);
   });
 
   // ---------- adapter: public.documents behind the prototype's db / user interface ----------
@@ -522,10 +570,11 @@ function start() {
   };
 
   function launch(user) {
+    if(started && (securitySuspended || launchedUid!==user.id)){location.reload();return;}
     currentUser = user;
     $("#authScreen").hidden = true;
     if (started) return;
-    started = true;
+    started = true;launchedUid=user.id;
     window.claude = { use: async name => (name === "db" ? dbApi : name === "user" ? userApi : null) };
     const s = document.createElement("script");
     s.src = "app.js";
@@ -559,7 +608,7 @@ function start() {
     if (ok) return;
     const code = link.errorCode || error?.code || "";
     say((LINK_ERRORS[code] || "確認リンクを処理できませんでした。") + `（理由：${code || error?.message || "不明"}）`);
-    note("メールの確認が済んでいれば、メールアドレスとパスワードで「ログイン」できます。入れないときは、メールアドレスを入れて「確認メールをもう一度送る」を押してください。");
+    note(emailLoginEnabled ? "メールアドレスを入力し、新しい確認コードを受け取ってください。" : "登録時と同じログイン方法で、もう一度お試しください。");
     $("#authResend").hidden = false;
     // drop the error marks from the address so a reload does not show this again
     history.replaceState(history.state, "", location.pathname);
@@ -568,6 +617,7 @@ function start() {
   auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") { recovering = true; showAuth("password"); return; }
     if (!session) {
+      launchCheck++;mfaUi?.clear();mfaUi=null;emailUi?.reset();
       if (started) { location.reload(); return; }   // signed out while the app was running
       showAuth("login");
       return;
@@ -575,6 +625,6 @@ function start() {
     currentUser = session.user;
     if (recovering) { showAuth("password"); return; }   // choose the new password first
     // run outside the auth callback (supabase-js asks not to await other calls inside it)
-    setTimeout(() => launch(session.user), 0);
+    setTimeout(() => void guardLaunch(session.user), 0);
   });
 }
