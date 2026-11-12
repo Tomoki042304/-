@@ -1223,7 +1223,6 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
             <a class="z-join" id="zoomJoin" href="#" target="_blank" rel="noopener noreferrer"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/></svg>Zoomで参加する</a>
             <button type="button" class="small-btn" id="zoomCopy">リンクをコピー</button>
           </div>
-          <p class="z-url" id="zoomUrl"></p>
         </div>
         <p class="muted" id="zoomEmpty" hidden>朝会のZoomリンクはまだ登録されていません。</p>
         <form id="zoomForm" class="goal-editor" hidden>
@@ -1378,7 +1377,7 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
         <button type="button" id="talkGroupTab" class="talk-entry" hidden><span class="icon-tile" aria-hidden="true">♧</span><span class="talk-entry-copy"><b>グループ</b><small>参加中のグループ</small></span><span aria-hidden="true">›</span></button>
       </section>
       <section id="privateChatList" class="card admin-panel" hidden><div class="card-head"><b>個人チャット</b><button type="button" class="small-btn" id="dmRefresh">更新</button></div><p class="muted admin-note" id="dmInboxStatus" role="status"></p><div id="dmInbox" class="admin-roster"></div></section>
-      <section id="dmPanel" class="card admin-panel" hidden><details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループ <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details></section>
+      <section id="dmPanel" class="card admin-panel" hidden><details id="groupInvites" class="card" open><summary class="channel-summary"><span>グループ <span id="groupInviteCount"></span></span><span class="channel-expand" aria-hidden="true"></span></summary><p id="groupInviteStatus" class="template-note" role="status">招待を読み込んでいます…</p><div id="groupInviteList"></div><div class="group-actions"><button type="button" id="groupCreateOpen" class="small-btn">グループを作成</button><button type="button" id="groupRefresh" class="small-btn">更新</button><button type="button" id="groupInvitesMore" class="small-btn" hidden>招待をもっと見る</button></div></details></section>
       <section id="dmConversation" hidden>
         <div class="dm-heading"><button type="button" id="dmBack" class="small-btn">‹ トーク一覧へ</button><div class="dm-peer-label"><span id="dmPeerAvatar" aria-hidden="false"></span><b id="dmPeer"></b></div></div>
         <p class="dm-note">個別のやり取りを表示しています。</p>
@@ -1402,32 +1401,17 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
 
         <div class="card chat-log" id="chatLog" aria-live="polite"></div>
         <form class="composer" id="composer">
-          <div class="give-composer-tabs" aria-label="入力方法"><button type="button" class="small-btn" id="giveFreeTab" aria-pressed="true">自由入力</button><button type="button" class="small-btn" id="giveTemplateTab" aria-pressed="false">ご縁を作る</button><button type="button" class="small-btn" id="giveGroupTab" aria-pressed="false" hidden>グループ作成</button></div>
-          <div id="giveTemplatePane"><details id="giveTemplate">
-            <summary>テンプレートでグループを作成する <span aria-hidden="true">＋</span></summary>
-            <p class="template-note">グループ名と4つの項目を入力してください。送信するとグループが作成され、全体トークに参加ボタン付きの招待が表示されます。</p>
-            <div class="template-fields">
-              <label>グループ名 <span>必須</span><input id="giveTemplateGroupName" maxlength="60" required placeholder="例：事業づくりを相談する会"></label>
-              <label>職業 <span>必須</span><input id="giveOccupation" maxlength="40" required placeholder="例：人材育成の仕事" autocomplete="organization-title"></label>
-              <label>名前 <span>必須</span><input id="giveName" maxlength="30" required placeholder="例：岡村伸之佑" autocomplete="name"></label>
-              <label>新たな試み <span>必須</span><textarea id="giveChallenge" rows="2" maxlength="60" required placeholder="例：若手向けの人材育成事業を立ち上げる"></textarea></label>
-              <label>事業内容 <span>必須</span><textarea id="giveContent" rows="2" maxlength="60" required placeholder="例：企業研修やキャリア支援"></textarea></label>
-            </div>
-            <label class="template-preview-label" for="chatInput">送信する文章</label>
-            <textarea id="chatInput" rows="8" readonly aria-label="送信する文章"></textarea>
-            <div class="template-actions"><span id="giveTemplateCount" hidden></span><button type="submit" class="small-btn">グループを作成して招待する</button></div>
-          </details></div>
           <div id="giveFreePane" hidden>
             <div id="giveReplyContext" class="give-reply-context" hidden><span id="giveReplyLabel"></span><button type="button" class="small-btn" id="giveReplyCancel">返信を解除</button></div>
             <label for="giveFreeText">自由入力・返信</label>
             <div class="public-message-row"><textarea id="giveFreeText" rows="1" maxlength="300" placeholder="メッセージを入力してください" disabled></textarea><button type="submit" class="small-btn" id="giveFreeSend" disabled>送信する</button></div>
-            <span id="giveFreeCount" hidden></span>
+            <span id="giveFreeCount" hidden></span><button type="button" id="giveGroupTab" class="small-btn" style="margin-top:6px;font-size:12px">グループを作成</button>
           </div>
           <div id="giveGroupPane" hidden>
             <label for="groupName">グループ名</label><input id="groupName" maxlength="60" placeholder="例：事業づくりを相談する会" disabled>
             <label for="groupDescription">募集内容</label><textarea id="groupDescription" maxlength="500" rows="3" placeholder="どんな仲間と、何について話したいですか？" disabled></textarea>
             <p class="template-note">招待をGIVE BUDDIES全体に公開します。「賛同する」を押した会員と、作成者・管理者だけで会話できます。管理者は全グループに自動参加し、いつでも削除できます。LINE風のアプリ内グループトークです。</p>
-            <p id="groupCreateStatus" role="status" class="template-note"></p><button type="button" class="small-btn" id="groupCreateSubmit" disabled>招待を全体に公開する</button>
+            <p id="groupCreateStatus" role="status" class="template-note"></p><button type="button" id="groupCreateCancel" class="small-btn">戻る</button><button type="button" class="small-btn" id="groupCreateSubmit" disabled>招待を全体に公開する</button>
           </div>
           <div class="give-to" id="giveTo" hidden><span>GIVEする相手</span><div class="chips" id="giveChips"></div></div>
           <button type="button" class="give-btn" id="giveBtn" aria-pressed="false" hidden>GIVE</button>
