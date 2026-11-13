@@ -870,7 +870,16 @@
       if(!d||!u)return none();
       const id=await u.id();if(!id)return none();
       db=d;base='data/users/'+id;uid=id;userNs=u;
-      const [p,ph,rs,member]=await Promise.all([pRef().get(),phRef().get(),rCol().get(),u.isMember?u.isMember().catch(()=>false):Promise.resolve(true)]);
+      let [p,ph,rs,member]=await Promise.all([pRef().get(),phRef().get(),rCol().get(),u.isMember?u.isMember():Promise.resolve(true)]);
+      if(typeof member!=='boolean')throw Error('membership unavailable');
+      const growthState=member?null:await window.appAuth?.growthAccess?.();
+      if(growthState!=null&&typeof growthState.allowed!=='boolean')throw Error('growth access unavailable');
+      const completedOnServer=member||growthState?.allowed===true;
+      // A missing/hidden profile on a known account is not a new registration.
+      // Retry its own read once, then stop without writing default records.
+      if(STRICT&&!p.exists&&(completedOnServer||ph.exists||rs.docs.length)){
+        p=await pRef().get();if(!p.exists)throw Error('existing profile unavailable');
+      }
       backend='cloud';
       if(STRICT){
         // only this account's own records; this browser's leftovers are offered, never copied on their own
@@ -886,7 +895,14 @@
         else for(const r of reflections)await rCol().doc(r.id).set(clone(r));
       }
       // the Firebase adapter has no approval step, so everyone there counts as approved
-      approved=member;const growthState=member?null:await window.appAuth?.growthAccess?.().catch(()=>({allowed:false}));growthApproved=member||growthState?.allowed===true;
+      approved=member;growthApproved=completedOnServer;
+      // Greeting publication/admission can succeed before the final profile save.
+      // Repair only completion flags from this account's authoritative server state.
+      if(p.exists&&(profile.registered===true||completedOnServer)){
+        const changed=profile.registered!==true||Object.hasOwn(profile,'registrationPending')||Object.hasOwn(profile,'greetingDraft');
+        profile.registered=true;delete profile.registrationPending;delete profile.greetingDraft;
+        if(changed)void saveProfile(true);
+      }
       if(p.exists)void migrateActionCheckCycle();
       // Paint the account's own home before loading shared panels and background notices.
       requestAnimationFrame(()=>{

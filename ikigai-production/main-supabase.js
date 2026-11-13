@@ -318,7 +318,11 @@ async function start() {
       if(!result.membership||typeof result.membership.can_zoom!=='boolean')throw Error('プランを確認できませんでした。');
       return {path,data:{...(result.membership.can_zoom?result.meeting||{}:{}),_membership:result.membership}};
     }
-    if(protectedPath(path))return (await protectedRequest({action:"read",path})).row;
+    if(protectedPath(path)){
+      const result=await protectedRequest({action:"read",path});
+      if(!result||!Object.hasOwn(result,'row')||(result.row!==null&&(!result.row||result.row.path!==path||!result.row.data||typeof result.row.data!=='object'||Array.isArray(result.row.data))))throw Error('保護された情報の読み込みを確認できませんでした。');
+      return result.row;
+    }
     if(path.startsWith("chats/"))return (await readChatRows()).find(row=>row.path===path)||null;
     const { data, error } = await supabase.from(T).select("path,data").eq("path", path).maybeSingle();
     fail(error); return data;
@@ -405,7 +409,11 @@ async function start() {
   const dbApi = { doc: docRef, collection: colRef };
 
   let currentUser = null;
-  const rpcBool = async name => { const { data, error } = await supabase.rpc(name); return !error && data === true; };
+  const rpcBool = async name => {
+    const {data,error}=await supabase.rpc(name);fail(error);
+    if(typeof data!=='boolean')throw Error('会員状態を確認できませんでした。');
+    return data;
+  };
   const userApi = {
     // the id always comes from the signed-in session, never from the screen
     id: async () => (currentUser ? currentUser.id : null),
