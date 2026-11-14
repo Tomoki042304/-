@@ -6,9 +6,10 @@ export function notificationPayload(job){
  if(!messages[job.kind])throw Error('UNKNOWN_NOTIFICATION');
  const data={kind:job.kind};for(const key of ['postKey','threadId','groupId','announcementId'])if(typeof context[key]==='string')data[key]=context[key];
  if(context.publicTalk)data.publicTalk=true;
- return {title:job.kind==='morning'?'IKIGAI 朝活リマインド':'IKIGAI',body:messages[job.kind],tag:job.key,data,...(job.kind==='morning'?{ttl:Math.max(0,Math.min(1800,Math.floor((Date.parse(context.startsAt)-Date.now())/1000)))}:{})};
+ return {title:job.kind==='morning'?'IKIGAI 朝活リマインド':'IKIGAI',body:messages[job.kind],tag:job.key,data,urgency:'high',...(job.kind==='morning'?{ttl:Math.max(0,Math.min(1800,Math.floor((Date.parse(context.startsAt)-Date.now())/1000)))}:{})};
 }
-export function createPushDispatcher({rpc,deliver=deliverPreparedPush}={}){return async({request,env})=>{
+export function createPushDispatcher({rpc,deliver=deliverPreparedPush,continueFetch=fetch}={}){return async(context)=>{
+ const {request,env}=context;
  const reply=(status,value)=>Response.json(value,{status,headers:{'Cache-Control':'no-store'}});
  const url=new URL(request.url),token=request.headers.get('X-IKIGAI-Scheduler');
  if(request.method!=='POST'||url.origin!=='https://ikigai-shidoroku.pages.dev'||!/^\w{64}$/.test(token||''))return reply(403,{ok:false});
@@ -27,6 +28,14 @@ export function createPushDispatcher({rpc,deliver=deliverPreparedPush}={}){retur
    }catch{}
    if(!ok)retry++;
    await call('ikigai_push_finish_v2',{p_key:job.key,p_lease:job.lease,p_ok:ok,p_receipts:receipts,p_expired:expired});
-  }));return reply(200,{ok:true,processed:jobs.length,sent,retry});
+  }));
+  // One request used to process only ten recipients until the next minute.
+  // Continue in a fresh Worker request to retain the bounded subrequest budget.
+  // SQL leases + receipts still own deduplication; never resend failed leases here.
+  const hop=Number(request.headers.get('X-IKIGAI-Push-Hop')||0);
+  if(jobs.length===10&&Number.isInteger(hop)&&hop>=0&&hop<6&&typeof context.waitUntil==='function'){
+   context.waitUntil(Promise.allSettled([0,1].map(async()=>{const response=await continueFetch(url.href,{method:'POST',headers:{'Content-Type':'application/json','X-IKIGAI-Scheduler':token,'X-IKIGAI-Push-Hop':String(hop+1)},body:'{}',redirect:'manual',signal:AbortSignal.timeout(15000)});await response.arrayBuffer()})));
+  }
+  return reply(200,{ok:true,processed:jobs.length,sent,retry});
  }catch{return reply(503,{ok:false})}
 }}

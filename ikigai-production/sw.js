@@ -1,5 +1,5 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v146-registration-return";
+const CACHE = "ikigai-v147-notification-latency";
 const SHELL = ["./", "index.html", "main-supabase.js", "email-login.js", "login-mfa.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'images/premium-entry-artwork.jpg', 'images/shin-session-artwork.jpg', 'images/journal-purchase-artwork.jpg', 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
@@ -57,7 +57,11 @@ self.addEventListener("push", event => {
   const body=typeof payload.body==='string'?payload.body.slice(0,160):'新しいお知らせがあります。';
   const data={};if(['member','log','talk','like','comment','reaction','announcement','morning'].includes(payload.data?.kind))data.kind=payload.data.kind;if(typeof payload.data?.postKey==='string'&&payload.data.postKey.length<151)data.postKey=payload.data.postKey;if(typeof payload.data?.threadId==='string'&&payload.data.threadId.length===73)data.threadId=payload.data.threadId;
   if(typeof payload.data?.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(payload.data.groupId))data.groupId=payload.data.groupId;if(typeof payload.data?.announcementId==='string'&&/^[0-9a-f-]{36}$/i.test(payload.data.announcementId))data.announcementId=payload.data.announcementId;
-  event.waitUntil(self.registration.showNotification(title,{body,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:typeof payload.tag==='string'?payload.tag.slice(0,200):undefined,data}));
+  if(payload.data?.publicTalk===true)data.publicTalk=true;
+  event.waitUntil(Promise.allSettled([
+    self.registration.showNotification(title,{body,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:typeof payload.tag==='string'?payload.tag.slice(0,200):undefined,data}),
+    self.clients.matchAll({type:'window',includeUncontrolled:true}).then(clients=>{for(const client of clients)client.postMessage({type:'ikigai-notification-received',...data})})
+  ]));
 });
 self.addEventListener("notificationclick", event => {
   event.notification.close();const data=event.notification.data||{};

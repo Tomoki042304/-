@@ -1929,7 +1929,10 @@
     else if(notice.kind==='member'){go('home')}
     else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,notice.kind!=='log')}
   }
-  if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}});
+  if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{
+    if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}
+    if(event.data?.type==='ikigai-notification-received')window.dispatchEvent(new CustomEvent('ikigai-notification-received',{detail:event.data}));
+  });
   let messageReactions=null,messageReactionsLoading=null;
   async function ensureMessageReactions(){
     if(backend!=='cloud'||!uid||pending())return null;

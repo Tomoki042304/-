@@ -51,7 +51,7 @@ export async function deliverPreparedPush(env,job,payload){
  await Promise.all(entries.slice(0,2).map(async entry=>{
   try{
    if(entry.vapid?.uid!==job.uid)throw Error('vapid owner');
-   const encrypted=await encryptedPush(entry.subscription,entry.vapid,payload);if(Number.isFinite(payload.ttl))encrypted.headers.TTL=String(Math.max(0,Math.min(86400,Math.floor(payload.ttl))));
+   const encrypted=await encryptedPush(entry.subscription,entry.vapid,payload);if(payload.urgency==='high')encrypted.headers.Urgency='high';if(Number.isFinite(payload.ttl))encrypted.headers.TTL=String(Math.max(0,Math.min(86400,Math.floor(payload.ttl))));
    const response=await fetch(entry.subscription.endpoint,{method:'POST',headers:encrypted.headers,body:encrypted.body,redirect:'manual',signal:AbortSignal.timeout(8000)});
    if([404,410].includes(response.status))result.expired.push(entry.key);
    else if(response.ok)result.receipts.push(entry.receipt);

@@ -302,6 +302,14 @@ async function start() {
       const result=await response.json();if(!response.ok)throw Error(result.message||'保護された情報に接続できませんでした。');return result;
     }finally{clearTimeout(timer)}
   }
+  async function notificationWrite(payload){
+    const {data,error}=await auth.getSession();fail(error);if(!data.session?.access_token)throw Error('ログインし直してください。');
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),45000);
+    try{
+      const response=await fetch('/api/notification-write',{method:'POST',headers:{Authorization:'Bearer '+data.session.access_token,'Content-Type':'application/json'},body:JSON.stringify(payload),cache:'no-store',redirect:'error',signal:controller.signal});
+      const result=await response.json();if(!response.ok)throw Error(result.message||'保存を確認できませんでした。');return result;
+    }finally{clearTimeout(timer)}
+  }
   async function planRequest(payload) {
     const {data,error}=await supabase.auth.getSession();fail(error);
     if(!data.session)throw Error('ログインし直してください。');
@@ -331,9 +339,13 @@ async function start() {
     fault("write");
     if(path==='config/meeting'){await planRequest({action:'meeting-write',meeting:data});return;}
     if(protectedPath(path)){await protectedRequest({action:"write",path,data});return;}
+    if(path.startsWith('posts/')){
+      if(!currentUser||path!=='posts/'+currentUser.id)throw Error('自分の投稿だけ保存できます。');
+      await notificationWrite({action:'posts',data});return;
+    }
     if(path.startsWith('chats/')){
       if(!currentUser||path!=='chats/'+currentUser.id)throw Error('自分のメッセージだけ保存できます。');
-      const {error}=await supabase.rpc('ikigai_chat_write_v1',{p_messages:Array.isArray(data.msgs)?data.msgs:[],p_read_at:data.readAt||null,p_give_read_at:data.giveReadAt||null});fail(error);return;
+      await notificationWrite({action:'chat',msgs:Array.isArray(data.msgs)?data.msgs:[],readAt:data.readAt||null,giveReadAt:data.giveReadAt||null});return;
     }
     const { error } = await supabase.from(T).upsert({ path, data, updated_at: new Date().toISOString() }, { onConflict: "path" });
     fail(error);
@@ -369,8 +381,9 @@ async function start() {
       const timer=setInterval(()=>{if(!document.querySelector('#v-mates')?.hidden)resume()},15000);
       const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(run())};
       window.addEventListener('ikigai-refresh-data',refresh);document.addEventListener('visibilitychange',resume);
+      const pushWake=event=>{if(event.detail?.publicTalk)resume()};window.addEventListener('ikigai-notification-received',pushWake);
       for(const name of ['focus','online','ikigai-talk-open'])window.addEventListener(name,resume);resume();
-      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh);for(const name of ['focus','online','ikigai-talk-open'])window.removeEventListener(name,resume);supabase.removeChannel(signal)};
+      return()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',resume);window.removeEventListener('ikigai-refresh-data',refresh);window.removeEventListener('ikigai-notification-received',pushWake);for(const name of ['focus','online','ikigai-talk-open'])window.removeEventListener(name,resume);supabase.removeChannel(signal)};
     }
     let timer = 0, alive = true;
     const run = () => { clearTimeout(timer); timer = setTimeout(() => alive && reload().catch(e => error && error(e)), 250); };
@@ -379,10 +392,11 @@ async function start() {
       .subscribe();
     const onVis = () => { if (document.visibilityState === "visible") run(); };
     const refresh=event=>{if(alive&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(Promise.resolve().then(reload).catch(e=>{if(error)error(e);throw e}))};
-    window.addEventListener('ikigai-refresh-data',refresh);
+    const pushWake=event=>{const kind=event.detail?.kind;if(document.visibilityState==='visible'&&((['log','like','comment'].includes(kind)&&/^(coll=eq.posts|path=eq.posts\/)/.test(filter))||(kind==='member'&&filter==='coll=eq.members')))run()};
+    window.addEventListener('ikigai-notification-received',pushWake);window.addEventListener('ikigai-refresh-data',refresh);
     document.addEventListener("visibilitychange", onVis);
     reload().catch(e => error && error(e));
-    return () => { alive = false; clearTimeout(timer); document.removeEventListener("visibilitychange", onVis); window.removeEventListener("ikigai-refresh-data",refresh); supabase.removeChannel(ch); };
+    return () => { alive = false; clearTimeout(timer); document.removeEventListener("visibilitychange", onVis); window.removeEventListener("ikigai-refresh-data",refresh);window.removeEventListener("ikigai-notification-received",pushWake); supabase.removeChannel(ch); };
   }
   function docRef(path) {
     return {
@@ -461,7 +475,7 @@ async function start() {
   // hooks app.js calls for logout and account deletion
   window.appAuth = {
     communityNotificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);return data},
-    registrationGreeting:async fields=>{const {data,error}=await supabase.rpc('ikigai_register_greeting_v1',{p_fields:fields});fail(error);return data},
+    registrationGreeting:fields=>notificationWrite({action:'greeting',fields}),
     growthAccess:async()=>{const {data,error}=await supabase.rpc('ikigai_growth_access_v1');if(error?.code==='PGRST202')return {allowed:false};fail(error);return data},
     memberDirectory:async()=>{const data=await protectedRequest({action:'member-directory'});return data.rows||[]},
     growthDirectory:async()=>{const data=await protectedRequest({action:'growth-directory'});return data.rows||[]},
