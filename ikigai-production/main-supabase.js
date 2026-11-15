@@ -1,7 +1,7 @@
 // Entry point (Supabase version): login with Supabase Auth, then a small adapter that gives app.js the
 // same `window.claude.use('db' | 'user')` interface it used in the prototype (see main.js for the Firebase one).
 // Data lives in public.documents as path + JSON; who may read or write what is decided by RLS (supabase/setup.sql).
-import {mountLineLogin, oauthTarget} from "./line-login.js";
+import {mountLineLogin, oauthTarget, lineReturnMessage} from "./line-login.js";
 import {setBadgeAccount} from "./app-badge.js";
 import { supabase, SUPABASE_ENV, SUPABASE_STOP_REASON, SUPABASE_PROJECT_LABEL, SUPABASE_ON_STAGING } from "./supabase-config.js";
 
@@ -58,6 +58,7 @@ if (!stopped && SUPABASE_ENV === "test") {
 // ---------- login screen ----------
 let mode = "login";
 let emailLoginEnabled = false;
+const lineOnly = SUPABASE_ENV === "production";
 let lineLoginReady = false, authWhich = "none";
 const AUTH_ERRORS = {
   invalid_credentials: "メールアドレスかパスワードが違います",
@@ -78,7 +79,7 @@ const errText = e => {
   if (e.name === "AuthRetryableFetchError" || e.status === 0) return "通信できませんでした。電波の状況を確認してください";
   return "うまくいきませんでした。もう一度お試しください";
 };
-const say = (msg, ok) => { const el = $("#authErr"); el.textContent = msg; el.classList.toggle("ok", !!ok); const lineStatus=$("#lineLoginStatus");if(lineStatus)lineStatus.textContent=msg; };
+const say = (msg, ok) => { const el = $("#authErr"); el.textContent = msg; el.classList.toggle("ok", !!ok); const lineStatus=$("#lineLoginStatus");if(lineStatus){lineStatus.textContent=msg;lineStatus.hidden=!msg;} };
 const note = msg => { const el = $("#authNote"); el.textContent = msg || ""; el.hidden = !msg; };
 const appUrl = () => location.origin + location.pathname;
 
@@ -95,8 +96,8 @@ function showAuth(which) {
   const sp = $("#splash");
   clearTimeout(authRevealTimer);const view=++authViewVersion;
   authRevealTimer=setTimeout(() => { if(view!==authViewVersion)return;if(sp)sp.hidden=true;$("#authScreen").hidden=false; },300);
-  $("#authForm").hidden = which !== "login" || emailLoginEnabled;
-  $("#emailAuth").hidden = which !== "login" || !emailLoginEnabled;
+  $("#authForm").hidden = lineOnly || which !== "login" || emailLoginEnabled;
+  $("#emailAuth").hidden = lineOnly || which !== "login" || !emailLoginEnabled;
   if (which !== "mfa") $("#loginMfa").hidden = true;
   $("#loginCheck").hidden=which!=="check";
   $("#pwForm").hidden = which !== "password";
@@ -136,12 +137,13 @@ async function start() {
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const homeScreen = navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
   const homeGuide = $("#homeLoginGuide"), homeNote = $("#homeLoginNote");
-  if (homeGuide) homeGuide.hidden = !appleMobile || homeScreen;
-  if (homeNote) homeNote.hidden = !appleMobile || !homeScreen;
+  if (homeGuide) homeGuide.hidden = lineOnly || !appleMobile || homeScreen;
+  if (homeNote) homeNote.hidden = lineOnly || !appleMobile || !homeScreen;
+  if(lineOnly){const subtitle=$('#authScreen .ob-head .sub');if(subtitle)subtitle.hidden=true;}
   if (appleMobile && !homeScreen) {
     githubButton.lastChild.textContent = "GitHubでログイン（ブラウザで利用）";
   }
-  githubButton.hidden = false;
+  githubButton.hidden = lineOnly;
   document.querySelectorAll("#authScreen .auth-alt").forEach(x => { x.hidden = false; });
   if (SUPABASE_ENV === "production") {
     document.querySelectorAll("#authForm .auth-tabs, #authForm .field, #authSubmit, #authReset, #authResend, #authForm .auth-alt").forEach(element => { element.hidden = true; });
@@ -181,7 +183,7 @@ async function start() {
   // Roll out only after mail/CAPTCHA settings and the database MFA guard are ready.
   // The existing provider stays available for existing identities; no application-level account merge.
   let emailUi = null, mfaUi = null, launchCheck = 0;
-  try {
+  if(!lineOnly) try {
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 7000);
     let config;
     try { const response = await fetch('/api/login-config', {cache:'no-store',redirect:'error',signal:controller.signal}); if(response.ok)config=await response.json(); }
@@ -652,6 +654,12 @@ async function start() {
   const linkChecked = link.fromMail ? auth.initialize().then(async ({ error }) => {
     const { data } = await auth.getSession();
     const ok = !!data.session && !error && !link.errorCode;
+    if(lineOnly){
+      say(lineReturnMessage({hasSession:!!data.session,error,errorCode:link.errorCode}));
+      note('');$('#authResend').hidden=true;
+      history.replaceState(history.state,'',location.pathname);
+      return;
+    }
     if (githubReturn) {
       if (ok) return;
       say(errText(error));

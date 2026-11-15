@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {oauthTarget,LINE_PROVIDER,mountLineLogin,LIFF_URL} from '../ikigai-production/line-login.js';
+import {oauthTarget,LINE_PROVIDER,mountLineLogin,lineReturnMessage} from '../ikigai-production/line-login.js';
 import {onRequest} from '../functions/api/line-login-config.js';
 const origin='https://example.supabase.co';
 test('OAuth redirects only to this Supabase project and the selected provider',()=>{
@@ -21,7 +21,17 @@ test('LINE button is offered only after a successful readiness check',async()=>{
  const document=fakeDocument();let selected;
  const ui=mountLineLogin({document,onLogin:provider=>selected=provider,onReady:root=>root.hidden=false,fetchConfig:async()=>Response.json({enabled:true})});
  await ui.ready;assert.equal(ui.root.hidden,false);ui.button.onclick();assert.equal(selected,LINE_PROVIDER);
- assert.equal(document.nodes.find(node=>node.href)?.href,LIFF_URL);
+ assert.deepEqual(ui.root.children.map(node=>node.textContent).filter(Boolean),['LINEでログイン']);
+ assert.equal(document.nodes.some(node=>node.href),false);
+ assert.equal(ui.root.children[1].hidden,true);
+});
+test('LINE callbacks keep normal entry quiet and report real failures without internal details',()=>{
+ assert.equal(lineReturnMessage({hasSession:true}), '');
+ assert.equal(lineReturnMessage({hasSession:false}), '');
+ assert.equal(lineReturnMessage({hasSession:false,error:{message:'No session defined in URL'}}), '');
+ for(const state of [{errorCode:'access_denied'},{error:{message:'sensitive SDK detail'}},{hasSession:true,errorCode:'bad_code_verifier'}]){
+  assert.equal(lineReturnMessage(state),'ログインできませんでした。もう一度お試しください。');
+ }
 });
 test('configuration failure leaves the LINE option hidden',async()=>{
  const document=fakeDocument();let shown=false;

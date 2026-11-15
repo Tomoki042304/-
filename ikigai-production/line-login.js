@@ -3,6 +3,13 @@
 export const LINE_PROVIDER='custom:line';
 export const LIFF_URL='https://liff.line.me/2012617316-f4FBapHK';
 
+export function lineReturnMessage({hasSession,error,errorCode}) {
+ if(hasSession && !error && !errorCode)return '';
+ // Opening a reused/incomplete callback URL is not a new failed sign-in.
+ if(!errorCode && (!error || error.message==='No session defined in URL'))return '';
+ return 'ログインできませんでした。もう一度お試しください。';
+}
+
 export function oauthTarget(value,supabaseUrl,provider) {
  const target=new URL(value),expected=new URL(supabaseUrl);
  if(target.origin!==expected.origin || target.pathname!=='/auth/v1/authorize' || target.searchParams.get('provider')!==provider || target.username || target.password)throw Error('Unexpected OAuth target');
@@ -10,14 +17,14 @@ export function oauthTarget(value,supabaseUrl,provider) {
 }
 
 export function mountLineLogin({document,onLogin,onReady,fetchConfig=fetch}) {
- const root=document.createElement('section');root.id='lineLogin';root.className='card auth-box';root.hidden=true;
+ const root=document.createElement('section');root.id='lineLogin';root.className='auth-box';root.hidden=true;
+ root.style.cssText='width:100%;max-width:440px;margin:24px auto 0;padding:0;background:transparent;border:0;box-shadow:none';
  const button=document.createElement('button');button.type='button';button.id='authLine';button.textContent='LINEでログイン';
- button.style.cssText='background:#06c755;color:#fff;border:0;border-radius:12px;padding:14px;font-weight:700;width:100%;cursor:pointer';
+ button.style.cssText='background:#06c755;color:#fff;border:0;border-radius:12px;padding:18px 24px;font:inherit;font-weight:700;width:100%;cursor:pointer';
  button.onclick=()=>onLogin(LINE_PROVIDER);
- const hint=document.createElement('p');hint.className='muted';hint.textContent='GitHubで登録済みの方は、これまでと同じ方法でログインしてください。';
- const link=document.createElement('a');link.href=LIFF_URL;link.textContent='LINEアプリ内で開く';
  const status=document.createElement('p');status.id='lineLoginStatus';status.className='auth-err';status.setAttribute('role','alert');
- root.append(button,status,link,hint);document.querySelector('#authForm').before(root);
+ status.hidden=true;
+ root.append(button,status);document.querySelector('#authForm').before(root);
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),5000);
  const ready=(async()=>{
   try{
