@@ -1,6 +1,6 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v156-sync-confirmed-app-badge";
-const SHELL = ["./", "index.html", "main-supabase.js", "line-login.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "notification-state.js", "supabase-config.js",
+const CACHE = "ikigai-v157-open-external-browser";
+const SHELL = ["./", "index.html", "main-supabase.js", "line-login.js", "browser-entry.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "notification-state.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'images/premium-entry-artwork.jpg', 'images/shin-session-artwork.jpg', 'images/journal-purchase-artwork.jpg', 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
   'growth-views.js', 'one-on-one.js', 'talk-message-layout.js', 'talk-notes.js', 'member-actions.js', 'maintenance.js', 'talk-layout.js', 'groups.js', 'message-reactions.js', 'growth-photos.js', 'admin-notices.js', 'security-settings.js', 'announcements.js', 'inquiry.js', 'push-notifications.js',

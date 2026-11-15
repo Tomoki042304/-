@@ -2,6 +2,7 @@
 // same `window.claude.use('db' | 'user')` interface it used in the prototype (see main.js for the Firebase one).
 // Data lives in public.documents as path + JSON; who may read or write what is decided by RLS (supabase/setup.sql).
 import {mountLineLogin, oauthTarget, lineReturnMessage} from "./line-login.js";
+import {mountBrowserEntry,isLineBrowser,openLineLoginInBrowser,consumeBrowserLogin} from "./browser-entry.js";
 import {setBadgeAccount} from "./app-badge.js";
 import { supabase, SUPABASE_ENV, SUPABASE_STOP_REASON, SUPABASE_PROJECT_LABEL, SUPABASE_ON_STAGING } from "./supabase-config.js";
 
@@ -127,6 +128,7 @@ if (stopped) {
 
 async function start() {
   const auth = supabase.auth;
+  let browserLoginRequested=consumeBrowserLogin(location,history);
   // GitHub uses the existing button styling; keep the Google provider hidden.
   const githubButton = $("#authGitHub");
   const githubIntent = "ikigai.oauth.github";
@@ -158,8 +160,19 @@ async function start() {
     restoreGitHub();
     try { sessionStorage.removeItem(githubIntent); } catch {}
   });
-  mountLineLogin({document,onLogin:provider=>void startOAuth(provider),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login";}});
+  mountLineLogin({document,onLogin:()=>void beginLineLogin(),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login";}});
   githubButton.onclick = () => void startOAuth("github");
+  async function beginLineLogin(){
+    if(!isLineBrowser(navigator))return startOAuth('custom:line');
+    if(githubBusy)return;
+    githubBusy=true;
+    githubControls=[...document.querySelectorAll('#lineLogin button')].map(element=>[element,element.disabled]);
+    githubControls.forEach(([element])=>{element.disabled=true});
+    say('ブラウザを開いています…',true);
+    try{await openLineLoginInBrowser({document,window});say('開いたブラウザでLINEログインを続けてください。',true)}
+    catch{say('ブラウザを開けませんでした。通信状態を確認して、もう一度お試しください。')}
+    finally{restoreGitHub()}
+  }
   async function startOAuth(provider) {
     if (githubBusy) return;
     githubBusy = true;
@@ -632,6 +645,7 @@ async function start() {
     $("#authScreen").hidden = true;
     if (started) return;
     started = true;launchedUid=user.id;
+    mountBrowserEntry({document,window,navigator});
     window.claude = { use: async name => (name === "db" ? dbApi : name === "user" ? userApi : null) };
     const s = document.createElement("script");
     s.src = "app.js";
@@ -683,8 +697,10 @@ async function start() {
       launchCheck++;mfaUi?.clear();mfaUi=null;emailUi?.reset();setBadgeAccount(null);
       if (started) { location.reload(); return; }   // signed out while the app was running
       showAuth("login");
+      if(browserLoginRequested){browserLoginRequested=false;setTimeout(()=>void beginLineLogin(),0)}
       return;
     }
+    browserLoginRequested=false;
     clearTimeout(authRevealTimer);authViewVersion++;
     currentUser = session.user;
     if (recovering) { showAuth("password"); return; }   // choose the new password first
