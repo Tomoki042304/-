@@ -32,16 +32,27 @@ export function mountGrowthPhotos({request,account,allowed,notify}){
  $('#postPhotoRemove').onclick=()=>clear();
  function work(){while(running<2&&queue.length){const item=queue.shift();running++;Promise.resolve().then(item.task).then(item.resolve,item.reject).finally(()=>{running--;work()})}}
  function queued(task){return new Promise((resolve,reject)=>{queue.push({task,resolve,reject});work()})}
- function prune(){for(const el of targets)if(!el.isConnected){observer?.unobserve(el);targets.delete(el)}for(const [key,value] of cache){if(cache.size<=12)break;if(viewer.src!==value.url&&![...targets].some(el=>el.dataset.photoKey===key&&el._photoVisible)){cache.delete(key);URL.revokeObjectURL(value.url);for(const el of targets)if(el.dataset.photoKey===key){el._photoUrl='';el.querySelector('img').removeAttribute('src');el.querySelector('img').hidden=true;el.querySelector('span').hidden=false}}}}
+ function prune(keepKey){for(const el of targets)if(!el.isConnected){observer?.unobserve(el);targets.delete(el)}for(const [key,value] of cache){if(cache.size<=12)break;if(key!==keepKey&&!(value.warmUntil>Date.now())&&viewer.src!==value.url&&![...targets].some(el=>el.dataset.photoKey===key&&el._photoVisible)){cache.delete(key);URL.revokeObjectURL(value.url);for(const el of targets)if(el.dataset.photoKey===key){el._photoUrl='';el.querySelector('img').removeAttribute('src');el.querySelector('img').hidden=true;el.querySelector('span').hidden=false}}}}
+ async function decodedImage(url){
+  const image=new Image();image.decoding='async';
+  await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('写真を読み込めませんでした'));image.src=url});
+  if(typeof image.decode==='function')await image.decode();
+  return image;
+ }
  function read(author,id){
   const key=author+'/'+id;if(cache.has(key)){const value=cache.get(key);cache.delete(key);cache.set(key,value);return Promise.resolve(value.url)}
   if(pending.has(key))return pending.get(key);const token=epoch,who=account();
-  const job=queued(async()=>{if(token!==epoch||who!==account()||!identity())throw Error('停止しました');const blob=await request({action:'read',author,id});if(token!==epoch||who!==account()||blob.type!=='image/jpeg')throw Error('写真を読み込めませんでした');const url=URL.createObjectURL(blob);cache.set(key,{url});prune();return url}).finally(()=>{if(token===epoch)pending.delete(key)});pending.set(key,job);return job;
+  const job=queued(async()=>{if(token!==epoch||who!==account()||!identity())throw Error('停止しました');const blob=await request({action:'read',author,id});if(token!==epoch||who!==account()||blob.type!=='image/jpeg')throw Error('写真を読み込めませんでした');const url=URL.createObjectURL(blob);try{const image=await decodedImage(url);if(token!==epoch||who!==account()||!identity())throw Error('停止しました');cache.set(key,{url,image,warmUntil:0});prune(key);return url}catch(error){URL.revokeObjectURL(url);throw error}}).finally(()=>{if(token===epoch)pending.delete(key)});pending.set(key,job);return job;
+ }
+ async function preload(author,id){
+  if(!UUID.test(author||'')||!UUID.test(id||'')||!identity())throw Error('停止しました');
+  const url=await read(author,id),entry=cache.get(author+'/'+id);if(entry)entry.warmUntil=Date.now()+15000;return url;
  }
  async function load(el){
-  if(!identity()||!el.isConnected)return;const token=epoch;
-  try{const url=await read(el.dataset.author,el.dataset.id);if(token!==epoch||!el.isConnected)return;el.querySelector('img').src=url;el.querySelector('img').hidden=false;el.querySelector('span').hidden=true;el._photoUrl=url}
+  if(!identity()||!el.isConnected||el._photoLoading||el._photoUrl)return;const token=epoch;el._photoLoading=true;
+  try{const url=await read(el.dataset.author,el.dataset.id);if(token!==epoch||!el.isConnected)return;const image=el.querySelector('img');image.src=url;if(typeof image.decode==='function')await image.decode();if(token!==epoch||!el.isConnected||!identity())return;image.hidden=false;el.querySelector('span').hidden=true;el._photoUrl=url}
   catch{if(token===epoch&&el.isConnected){el.querySelector('span').textContent='写真を再読み込み';el.querySelector('span').hidden=false}}
+  finally{el._photoLoading=false}
  }
  const observer=typeof IntersectionObserver==='function'?new IntersectionObserver(entries=>{for(const entry of entries){entry.target._photoVisible=entry.isIntersecting;if(entry.isIntersecting)void load(entry.target)}},{rootMargin:'160px'}):null;
  function attach(container,{author,id,preview:small=false}){
@@ -49,8 +60,9 @@ export function mountGrowthPhotos({request,account,allowed,notify}){
   prune();const frame=document.createElement(small?'div':'button');if(!small)frame.type='button';frame.className='growth-photo'+(small?' small':'');frame.dataset.author=author;frame.dataset.id=id;frame.dataset.photoKey=author+'/'+id;
   const image=document.createElement('img');image.alt='成長ログの写真';image.decoding='async';image.hidden=true;const label=document.createElement('span');label.textContent='写真を読み込み中…';frame.append(image,label);container.append(frame);targets.add(frame);
   if(!small){frame.setAttribute('aria-label','成長ログの写真を大きく表示');frame.onclick=event=>{event.preventDefault();event.stopPropagation();if(frame._photoUrl){viewer.src=frame._photoUrl;dialog.showModal()}else void load(frame)}}
+  if(cache.has(author+'/'+id))void load(frame);
   if(observer)observer.observe(frame);else void load(frame);
  }
  if($('#postPhotoFile').files?.length)void $('#postPhotoFile').onchange({target:$('#postPhotoFile')});
- return {attach,getDraft:()=>draft,isPreparing:()=>preparing,uploaded:id=>{if(draft)draft.uploadedIds.add(id)},clear,stop(){clear(false);resetImages()}};
+ return {attach,preload,ready:(author,id)=>cache.has(author+'/'+id),getDraft:()=>draft,isPreparing:()=>preparing,uploaded:id=>{if(draft)draft.uploadedIds.add(id)},clear,stop(){clear(false);resetImages()}};
 }

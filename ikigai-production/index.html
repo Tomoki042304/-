@@ -822,7 +822,7 @@ nav.tabs button[aria-current="page"]::before{background:#b54462}
 #postPhotoPreview img{display:block;max-height:200px;border-radius:12px;margin:8px 0;object-fit:contain}
 .growth-photo{display:block;position:relative;width:100%;min-height:80px;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface);color:var(--muted);margin:12px 0;text-align:center}
 .growth-photo img{display:block;width:100%;max-height:480px;object-fit:contain}.growth-photo span{display:block;padding:22px 12px;font-size:12px}
-.home-log-preview.with-photo{position:relative;padding-right:112px}.home-log-preview.with-photo .home-log-photo{position:absolute;right:0;top:52px;width:100px}.home-log-preview.with-photo .growth-photo.small img{height:98px}
+.home-log-preview.with-photo{position:relative;padding-right:112px}.home-log-preview.with-photo .home-log-photo{position:absolute;right:0;top:52px;width:100px}.home-log-preview.with-photo .growth-photo.small{height:100px;min-height:100px;margin:8px 0 0}.home-log-preview.with-photo .growth-photo.small img{height:98px}.home-log-preview.with-photo .growth-photo.small span{padding:16px 6px;font-size:11px;line-height:1.6}
 .growth-photo.small{margin:8px 0 0;min-height:48px}.growth-photo.small img{max-height:130px;object-fit:cover}
 #growthPhotoDialog{width:min(94vw,900px);max-height:92dvh}#growthPhotoFull{display:block;max-height:78dvh;width:100%;object-fit:contain}
 .post-responders{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}.post-responders summary{font-size:13px}.post-responders-list{display:grid;gap:10px;margin-top:12px}.post-responder{display:flex;gap:10px;align-items:center}.post-responder .avatar{width:32px;height:32px;flex:0 0 32px}.post-responder b{font-size:13px}.post-responder small{display:block;color:var(--muted);font-size:11px}
@@ -1120,6 +1120,12 @@ html.premium-modal-open body{position:fixed;top:var(--premium-page-top,0px);left
     <button type="button" class="g-btn" id="authGoogle"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.5 30.2 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.8 6C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.9-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6C6.6 42.6 14.6 48 24 48z"/></svg>Googleでログイン</button>
     <button type="button" class="g-btn" id="authGitHub" hidden><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.3c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.8.1-.8.1-.8 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.4-5.5-6a4.7 4.7 0 0 1 1.2-3.2 4.4 4.4 0 0 1 .1-3.2s1-.3 3.3 1.2a11.4 11.4 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 3 .1 3.2a4.7 4.7 0 0 1 1.2 3.2c0 4.6-2.8 5.7-5.5 6 .4.4.8 1.1.8 2.2v3.4c0 .3.2.7.8.6A12 12 0 0 0 12 .3Z"/></svg>GitHubでログイン</button>
   </form>
+  <div class="card auth-box" id="loginCheck" hidden>
+    <b style="font-size:18px">ログイン情報を確認しています</b>
+    <p class="muted" id="loginCheckStatus" role="status">通信状態を確認しています。登録情報は保持されています。</p>
+    <button class="primary" type="button" id="loginCheckRetry" disabled>もう一度確認する</button>
+    <button class="link-btn" type="button" id="loginCheckLogout">ログアウトして戻る</button>
+  </div>
   <form class="card auth-box" id="pwForm" novalidate hidden>
     <b style="font-size:16px">新しいパスワードを決めてください</b>
     <div class="field"><label for="pwNew">新しいパスワード</label><input type="password" id="pwNew" class="auth-input" autocomplete="new-password" placeholder="8文字以上"></div>

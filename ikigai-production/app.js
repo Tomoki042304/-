@@ -253,7 +253,8 @@
   }
   let postPhotoRender=0;
   function renderPostPhoto(container,x,small=false){
-    container.replaceChildren();const key=x.uid+':'+x.id,render=String(++postPhotoRender);container.dataset.photoKey=key;container.dataset.photoRender=render;
+    const key=x.uid+':'+x.id;if(hasPostPhoto(x)&&container.dataset.photoKey===key&&container.querySelector('.growth-photo'))return;
+    container.replaceChildren();const render=String(++postPhotoRender);container.dataset.photoKey=key;container.dataset.photoRender=render;
     if(!hasPostPhoto(x))return;
     const who=uid;ensureGrowthPhotos().then(ui=>{if(uid===who&&container.isConnected&&container.dataset.photoKey===key&&container.dataset.photoRender===render)ui.attach(container,{author:x.uid,id:x.photoId,preview:small})}).catch(()=>{});
   }
@@ -328,7 +329,7 @@
   const homeLogCard=$('#homeLogCard'),homeLogMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const HOME_LOG_INTERVAL=2500;
   let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogTouching=false,homeLogInView=!('IntersectionObserver' in window);
-  let homeLogPainted=null,homeLogTransition=null;
+  let homeLogPainted=null,homeLogTransition=null,homeLogPhotoPending=false,homeLogPhotoKey='',homeLogPhotoSequence=0;
   function finishHomeLogTransition(){
     const transition=homeLogTransition;homeLogTransition=null;if(!transition)return;
     for(const animation of transition.animations){animation.onfinish=null;animation.oncancel=null;animation.cancel()}
@@ -338,7 +339,7 @@
   function homeLogCanRun(){
     return !!homeLogCard&&!homeLogCard.hidden&&!$('#app').hidden&&!$('#v-home').hidden
       &&document.visibilityState==='visible'&&backend==='cloud'&&!growthPending()&&!homeLogError
-      &&homeLogItems.length>1&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&!homeLogTouching&&homeLogInView;
+      &&homeLogItems.length>1&&!homeLogPhotoPending&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&!homeLogTouching&&homeLogInView;
   }
   function stopHomeLogTimer(){clearTimeout(homeLogTimer);homeLogTimer=0}
   function syncHomeLogTimer(reset=false){
@@ -346,14 +347,33 @@
     if(!homeLogCanRun()||homeLogTimer)return;
     homeLogTimer=setTimeout(()=>{homeLogTimer=0;if(homeLogCanRun()){homeLogIndex=(homeLogIndex+1)%homeLogItems.length;paintHomeLog(true);syncHomeLogTimer()}},HOME_LOG_INTERVAL);
   }
-  function paintHomeLog(animate=false,direction=1){
+  function warmHomeLogPhotos(){
+    if(!homeLogInView||$('#app').hidden||$('#v-home').hidden||document.visibilityState!=='visible')return;
+    const next=[1,2].map(offset=>homeLogItems[(homeLogIndex+offset)%homeLogItems.length]).filter(hasPostPhoto);
+    if(next.length)void ensureGrowthPhotos().then(ui=>Promise.allSettled(next.map(x=>ui.preload?.(x.uid,x.photoId)))).catch(()=>{});
+  }
+  function paintHomeLog(animate=false,direction=1,photoSettled=false){
     if(!homeLogCard)return;
     const x=homeLogItems[homeLogIndex];if(!x)return;
     const preview=$('#homeLogPreview'),viewport=$('#homeLogViewport');
     const name=nameOf(x.uid),avatar=avatarOf(x.uid),categories=postCategoriesOf(x);
     const next={key:homeLogKey(x),name,avatar,text:x.text,time:postTimeText(x.at),photo:hasPostPhoto(x)?x.photoId:'',tags:categories.join('|')};
     // Reactions and shared-feed refreshes must not restart a transition or reload the same image.
-    if(homeLogPainted&&Object.keys(next).every(key=>next[key]===homeLogPainted[key]))return;
+    if(homeLogPainted&&Object.keys(next).every(key=>next[key]===homeLogPainted[key])){
+      if(homeLogPhotoPending){homeLogPhotoSequence++;homeLogPhotoPending=false;homeLogPhotoKey=''}return;
+    }
+    if(animate&&!photoSettled&&preview.dataset.postKey&&hasPostPhoto(x)&&!growthPhotosUi?.ready?.(x.uid,x.photoId)){
+      if(homeLogPhotoPending&&homeLogPhotoKey===next.key)return;
+      const sequence=++homeLogPhotoSequence,who=uid,key=next.key;let timeout;
+      homeLogPhotoPending=true;homeLogPhotoKey=key;stopHomeLogTimer();
+      // Keep the current card while the next image is fetched and decoded.
+      // Slow/offline connections still get a bounded fallback, and swipes can skip it.
+      void Promise.race([ensureGrowthPhotos().then(ui=>ui.preload?.(x.uid,x.photoId)),new Promise(resolve=>{timeout=setTimeout(resolve,2000)})]).catch(()=>{}).then(()=>{
+        clearTimeout(timeout);if(uid!==who||sequence!==homeLogPhotoSequence||homeLogKey(homeLogItems[homeLogIndex])!==key)return;
+        homeLogPhotoPending=false;homeLogPhotoKey='';paintHomeLog(animate&&!$('#v-home').hidden&&document.visibilityState==='visible',direction,true);syncHomeLogTimer(true);
+      });return;
+    }
+    homeLogPhotoSequence++;homeLogPhotoPending=false;homeLogPhotoKey='';
     finishHomeLogTransition();
     if(viewport)viewport.querySelectorAll('.home-log-ghost').forEach(el=>el.remove());
     const old=animate&&!homeLogMotion.matches&&viewport&&preview.dataset.postKey?preview.cloneNode(true):null;
@@ -371,6 +391,7 @@
       homeLogTransition={old,animations:[outgoing,incoming]};
       incoming.onfinish=finishHomeLogTransition;incoming.oncancel=finishHomeLogTransition;
     }
+    warmHomeLogPhotos();
   }
   function updateNewLogBadge(){
     const badge=$('#homeLogNew'),dot=$('#growthLogTabDot');if(!badge)return;
@@ -394,7 +415,7 @@
     const allowed=backend==='cloud'&&!!uid&&!growthPending();homeLogCard.hidden=!allowed;
     const previous=homeLogItems[homeLogIndex];
     if(!allowed||!feedReady||homeLogError||!feedAll.length){
-      homeLogItems=[];homeLogIndex=0;homeLogPainted=null;finishHomeLogTransition();stopHomeLogTimer();$('#homeLogPreview').hidden=true;
+      homeLogItems=[];homeLogIndex=0;homeLogPainted=null;homeLogPhotoSequence++;homeLogPhotoPending=false;homeLogPhotoKey='';finishHomeLogTransition();stopHomeLogTimer();$('#homeLogPreview').hidden=true;
       $('#homeLogText').textContent='';$('#homeLogPhoto').replaceChildren();delete $('#homeLogPhoto').dataset.photoKey;$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
       $('#homeLogEmpty').hidden=!allowed;$('#homeLogEmpty').textContent=!feedReady?'読み込んでいます…':homeLogError?'投稿を取得できませんでした。通信状況を確認してください。':'まだ成長ログの投稿はありません。';return;
     }
@@ -416,8 +437,8 @@
     if($('#homeLogControls'))$('#homeLogControls').hidden=true;if($('#homeLogOpen'))$('#homeLogOpen').hidden=true;
     if(preview.tagName!=='A'){preview.tabIndex=0;preview.setAttribute('role','link')}
     $('#homeLogAll').onclick=()=>openHomeLog();
-    preview.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(Date.now()<suppressClickUntil)return;openHomeLog(homeLogKey(homeLogItems[homeLogIndex]))});
-    preview.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&!e.repeat){e.preventDefault();openHomeLog(homeLogKey(homeLogItems[homeLogIndex]))}});
+    preview.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();if(Date.now()<suppressClickUntil)return;openHomeLog(preview.dataset.postKey)});
+    preview.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&!e.repeat){e.preventDefault();openHomeLog(preview.dataset.postKey)}});
     const step=n=>{if(homeLogItems.length<2)return;homeLogIndex=(homeLogIndex+n+homeLogItems.length)%homeLogItems.length;paintHomeLog(true,n);syncHomeLogTimer(true)};
     preview.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button!==0)return;swipe={id:e.pointerId,x:e.clientX,y:e.clientY};homeLogTouching=true;syncHomeLogTimer();try{preview.setPointerCapture(e.pointerId)}catch(_){}});
     const release=(e,cancelled=false)=>{
@@ -431,7 +452,7 @@
     homeLogCard.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){homeLogHover=true;syncHomeLogTimer()}});
     homeLogCard.addEventListener('pointerleave',()=>{homeLogHover=false;syncHomeLogTimer(true)});
     homeLogCard.addEventListener('focusin',()=>{homeLogFocusPaused=true;syncHomeLogTimer()});homeLogCard.addEventListener('focusout',()=>setTimeout(()=>{if(!homeLogCard.contains(document.activeElement))homeLogFocusPaused=false;syncHomeLogTimer(true)},0));
-    if('IntersectionObserver' in window)new IntersectionObserver(entries=>{homeLogInView=entries[0].isIntersecting&&entries[0].intersectionRatio>=.1;syncHomeLogTimer(true)},{threshold:.1}).observe(homeLogCard);
+    if('IntersectionObserver' in window)new IntersectionObserver(entries=>{homeLogInView=entries[0].isIntersecting&&entries[0].intersectionRatio>=.1;if(homeLogInView)warmHomeLogPhotos();syncHomeLogTimer(true)},{threshold:.1}).observe(homeLogCard);
     const motionChanged=e=>{homeLogPaused=e.matches;finishHomeLogTransition();paintHomeLog();syncHomeLogTimer(true)};
     if(homeLogMotion.addEventListener)homeLogMotion.addEventListener('change',motionChanged);else if(homeLogMotion.addListener)homeLogMotion.addListener(motionChanged);
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'){swipe=null;homeLogTouching=false;finishHomeLogTransition()}syncHomeLogTimer(true)});addEventListener('pagehide',()=>{swipe=null;homeLogTouching=false;finishHomeLogTransition();stopHomeLogTimer()});addEventListener('pageshow',()=>syncHomeLogTimer(true));

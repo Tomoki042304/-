@@ -80,12 +80,21 @@ const say = (msg, ok) => { const el = $("#authErr"); el.textContent = msg; el.cl
 const note = msg => { const el = $("#authNote"); el.textContent = msg || ""; el.hidden = !msg; };
 const appUrl = () => location.origin + location.pathname;
 
+// An already-open tab can briefly have the preceding HTML shell after an update.
+if(!$('#loginCheck')){
+ const panel=document.createElement('div');panel.id='loginCheck';panel.className='card auth-box';panel.hidden=true;
+ panel.innerHTML='<b style="font-size:18px">ログイン情報を確認しています</b><p class="muted" id="loginCheckStatus" role="status"></p><button class="primary" type="button" id="loginCheckRetry" disabled>もう一度確認する</button><button class="link-btn" type="button" id="loginCheckLogout">ログアウトして戻る</button>';
+ $('#authScreen').append(panel);
+}
+let authRevealTimer=0,authViewVersion=0;
 function showAuth(which) {
   const sp = $("#splash");
-  setTimeout(() => { if (sp) sp.hidden = true; $("#authScreen").hidden = false; }, 300);
+  clearTimeout(authRevealTimer);const view=++authViewVersion;
+  authRevealTimer=setTimeout(() => { if(view!==authViewVersion)return;if(sp)sp.hidden=true;$("#authScreen").hidden=false; },300);
   $("#authForm").hidden = which !== "login" || emailLoginEnabled;
   $("#emailAuth").hidden = which !== "login" || !emailLoginEnabled;
   if (which !== "mfa") $("#loginMfa").hidden = true;
+  $("#loginCheck").hidden=which!=="check";
   $("#pwForm").hidden = which !== "password";
 }
 // Google login is not set up in Supabase yet
@@ -180,11 +189,30 @@ async function start() {
       $('#existingGitHub').onclick=()=>githubButton.click();
     }
   } catch { /* Keep the known working existing-user login when rollout readiness is unavailable. */ }
+  async function readLoginSecurity(check){
+    for(let attempt=0;attempt<3;attempt++){
+      const controller=new AbortController();let timer,result;
+      try{
+        let query=supabase.rpc('ikigai_login_security_v1');
+        if(typeof query.abortSignal==='function')query=query.abortSignal(controller.signal);
+        result=await Promise.race([query,new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve({error:{code:'AUTH_CHECK_TIMEOUT'},status:0})},8000)})]);
+      }catch(error){result={error,status:0}}finally{clearTimeout(timer)}
+      if(check!==launchCheck)return null;
+      const transient=result?.error&&(result.status===0||result.status>=500||['AUTH_CHECK_TIMEOUT','NETWORK'].includes(result.error.code));
+      if(!transient||attempt===2)return result;
+      if(!started){showAuth('check');$('#loginCheckStatus').textContent='ログイン情報を再確認しています…';$('#loginCheckRetry').disabled=true;}
+      await new Promise(resolve=>setTimeout(resolve,attempt===0?350:900));
+      if(check!==launchCheck)return null;
+    }
+  }
+  $('#loginCheckRetry').onclick=()=>{if(!currentUser)return;$('#loginCheckRetry').disabled=true;$('#loginCheckStatus').textContent='ログイン情報を再確認しています…';void guardLaunch(currentUser)};
+  $('#loginCheckLogout').onclick=()=>void auth.signOut({scope:'local'});
+  window.addEventListener('online',()=>{if(currentUser&&!$('#loginCheck').hidden&&!$('#loginCheckRetry').disabled)$('#loginCheckRetry').click()});
   async function guardLaunch(user) {
     const check=++launchCheck;
     try {
-      const {data,error}=await supabase.rpc('ikigai_login_security_v1');
-      if(check!==launchCheck)return;
+      const result=await readLoginSecurity(check);if(!result||check!==launchCheck)return;
+      const {data,error}=result;
       if(error) {
         // Only a genuinely absent migration can use the legacy login. All other errors fail closed.
         if(!emailLoginEnabled && ['PGRST202','42883'].includes(error.code)){launch(user);return;}
@@ -206,8 +234,7 @@ async function start() {
     } catch {
       if(check!==launchCheck)return;
       if(started){securitySuspended=true;['#app','#onboard','#migrate'].forEach(id=>{const el=$(id);if(el)el.hidden=true});document.querySelectorAll('dialog[open]').forEach(el=>el.close());}
-      showAuth('login');say('ログインの安全確認ができませんでした。時間をおいて再読み込みしてください。');
-      if(emailLoginEnabled)$('#emailAuthStatus').textContent='ログインの安全確認ができませんでした。時間をおいて再読み込みしてください。';
+      showAuth('check');$('#loginCheckStatus').textContent='ログイン情報を確認できませんでした。通信状態を確認して、もう一度お試しください。';$('#loginCheckRetry').disabled=false;
     }
   }
   // opened from the password-reset mail (index.html notes this before the link is consumed)
@@ -594,6 +621,7 @@ async function start() {
 
   function launch(user) {
     if(started && (securitySuspended || launchedUid!==user.id)){location.reload();return;}
+    clearTimeout(authRevealTimer);authViewVersion++;
     currentUser = user;setBadgeAccount(user.id);
     $("#authScreen").hidden = true;
     if (started) return;
@@ -645,6 +673,7 @@ async function start() {
       showAuth("login");
       return;
     }
+    clearTimeout(authRevealTimer);authViewVersion++;
     currentUser = session.user;
     if (recovering) { showAuth("password"); return; }   // choose the new password first
     // run outside the auth callback (supabase-js asks not to await other calls inside it)
