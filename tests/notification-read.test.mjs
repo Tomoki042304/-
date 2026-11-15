@@ -79,7 +79,7 @@ test('opening the bell list does not mark reactions or other pages as read',asyn
  const events=[],profile={seenReactionNotifications:[]},box={querySelectorAll:()=>[],append(){}},dialog={open:false,showModal(){this.open=true}};
  let saves=0;
  const context=vm.createContext({Date,uid,notificationSinceAccount:uid,notificationSince:0,backend:'cloud',growthPending:()=>false,profile,
-  reactionEvents:()=>[{id:'r1',kind:'like',key:'post',text:'reaction',at:at(-1000)}],
+  renderUiNoticeRows(){},paintNotificationDots(){},uiNotices:{acknowledge(){}},reactionEvents:()=>[{id:'r1',kind:'like',key:'post',text:'reaction',at:at(-1000)}],
   document:{createElement:()=>({dataset:{},append(){}})},$:selector=>selector==='#notificationsDialog'?dialog:box,
   window:{dispatchEvent:event=>events.push(event)},CustomEvent:class{constructor(type,options){this.detail=options.detail}},
   postTimeText:()=>'',sortNotificationRows(){},ensureAnnouncements:async()=>({open(){}}),saveProfile(){saves++},renderReactionNotice(){},toast(){},loadNotificationSince(){},openHomeLog(){},openCmts:new Set()});
@@ -91,8 +91,8 @@ test('only rendered, on-screen posts acknowledge their reactions; background/err
  const events=[],profile={seenReactionNotifications:[]},state={visible:true,error:false,timeline:true};let saves=0,logReads=0;
  const posts=[{dataset:{postKey:'visible'},shown:true},{dataset:{postKey:'below'},shown:false}].map(post=>({...post,getClientRects:()=>[{}],getBoundingClientRect:()=>({top:post.shown?10:1000,bottom:post.shown?200:1200,left:0,right:300})}));
  const document={get visibilityState(){return state.visible?'visible':'hidden'},querySelectorAll:()=>posts,addEventListener(){}};
- const context=vm.createContext({Set,Date,Math,innerHeight:800,innerWidth:400,document,backend:'cloud',uid,growthPending:()=>false,feedReady:true,profile,feedAll:[{key:'visible',at:at(-2000)},{key:'below',at:at(-2000)}],homeLogKey:row=>row.key,
-  $:selector=>({hidden:selector==='#v-home'||(selector==='#v-timeline'&&!state.timeline)}),
+ const context=vm.createContext({uiNotices:{readTarget(){}},chatReady:false,chatLoadFailed:false,talkIntroduced:false,Set,Date,Math,innerHeight:800,innerWidth:400,document,backend:'cloud',uid,growthPending:()=>false,feedReady:true,profile,feedAll:[{key:'visible',at:at(-2000)},{key:'below',at:at(-2000)}],homeLogKey:row=>row.key,
+  $:selector=>({hidden:selector.startsWith('#v-')&&(selector!=='#v-timeline'||!state.timeline)}),
   reactionEvents:()=>[{id:'visible-reaction',key:'visible',at:at(-1000)},{id:'unseen-reaction',key:'below',at:at(-1000)}],
   markGrowthLogsSeen(){logReads++},saveProfile(){saves++},renderReactionNotice(){},addEventListener(){},clearTimeout(){},setTimeout(){},
   window:{dispatchEvent:event=>events.push(event)},CustomEvent:class{constructor(type,options){this.detail=options.detail}}});

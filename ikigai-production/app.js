@@ -1,5 +1,6 @@
 // IKIGAI app — screens and features. Data access goes through window.claude (see main.js).
-(function(){
+(async function(){
+  const {createNotificationState,threadNoticeVersion}=await import('./notification-state.js');
   const pad=n=>String(n).padStart(2,'0');
   const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   const parseIso=k=>{const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d||1)};
@@ -73,6 +74,31 @@
   let backend='local',db=null,base='',uid=null,userNs=null;
   // Growth-log permission is separate from administrator-controlled community admission.
   let approved=false,growthApproved=false,growthPeople=[];
+  let uiNoticePaintTimer=0;
+  const uiNotices=createNotificationState({getSeen:()=>profile.notificationUiRead||{},onSeen:seen=>{if(!uid||backend!=='cloud')return;profile.notificationUiRead=seen;void saveProfile(true)},onChange:()=>{clearTimeout(uiNoticePaintTimer);uiNoticePaintTimer=setTimeout(refreshNotificationUi,0)}});
+  function publishUiNotices(source,rows){uiNotices.publish(source,rows);scheduleNotificationReads()}
+  const noticeUnread=(source,row,version=row.at)=>uiNotices.isUnread(source,row.id,version);
+  function publishDirectNotices(threads){publishUiNotices('direct',threads.map(thread=>({id:thread.id,version:threadNoticeVersion(thread),at:thread.updatedAt,target:'mates',kind:'talk',threadId:thread.id,title:(thread.peerName||'メンバー')+'さんからの個人チャット',open:()=>{pendingPushNotice={threadId:thread.id,kind:'talk'};void processPushNotice()}})))}
+  function publishGroupNotices(rooms){publishUiNotices('groups',rooms.map(room=>({id:room.id,version:room.updatedAt,at:room.updatedAt,target:'mates',kind:'talk',groupId:room.id,title:(room.name||'グループ')+'に新しいメッセージがあります',open:()=>{pendingPushNotice={groupId:room.id,kind:'talk'};void processPushNotice()}})))}
+  function publishAnnouncementNotices(rows){const seen=new Set(profile.seenAnnouncementIds||[]);publishUiNotices('announcements',rows.filter(row=>!seen.has(row.id)).map(row=>({id:row.id,version:row.at,at:row.at,target:'home',kind:'announcement',announcementId:row.id,title:row.title})))}
+  function paintNotificationDots(){
+    const entries=backend==='cloud'&&uid&&!$('#app').hidden?uiNotices.unread():[];
+    const total=entries.reduce((n,row)=>n+row.count,0),bell=$('#reactionDot');if(bell)bell.hidden=!total;
+    $('#bellBtn').setAttribute('aria-label',total?'お知らせ：未確認 '+total+'件':'お知らせ');
+    const ids={home:'homeTabDot',timeline:'growthLogTabDot',mates:'dmTabDot',account:'accountTabDot'};
+    for(const [target,id] of Object.entries(ids)){const button=document.querySelector('nav.tabs button[data-tab="'+target+'"]');if(!button)continue;let dot=$('#'+id);if(!dot){dot=document.createElement('span');dot.id=id;dot.className='notice-dot';dot.setAttribute('aria-label','未確認のお知らせがあります');button.prepend(dot)}dot.hidden=!entries.some(row=>row.target===target)}
+    const growth=entries.filter(row=>row.source==='growth').reduce((n,row)=>n+row.count,0),badge=$('#homeLogNew');if(badge){badge.textContent=growth?'新着 '+growth+'件':'';badge.hidden=!growth}
+  }
+  function renderUiNoticeRows(){
+    const list=$('#notificationList');if(!list)return;list.querySelectorAll('.page-notice').forEach(row=>row.remove());
+    for(const notice of uiNotices.all().filter(row=>!['reactions','announcements'].includes(row.source))){const button=document.createElement('button');button.type='button';button.className='reaction-notice page-notice';button.dataset.noticeAt=notice.at||'';button.textContent=notice.title;button.onclick=()=>{$('#notificationsDialog').close();notice.open?.()};list.append(button)}
+    sortNotificationRows();
+  }
+  function refreshNotificationUi(){
+    paintNotificationDots();directMessages?.refreshNotificationDots?.();groupUi?.refreshNotificationDots?.();announcementsUi?.refreshNotificationDots?.();adminNoticeUi?.render();
+    if($('#notificationsDialog').open&&document.visibilityState==='visible'){renderUiNoticeRows();uiNotices.acknowledge()}
+  }
+  window.addEventListener('ikigai-notification-read',event=>{if(document.visibilityState==='visible'&&uid)uiNotices.read(event.detail||{})});
   const growthPending=()=>backend==='cloud'&&!approved&&!growthApproved;
   const pending=()=>backend==='cloud'&&!approved;
   const PENDING_BOX=what=>`<div class="card empty"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><b style="color:var(--ink)">ホストの承認をお待ちください</b>承認されると、${what}が使えるようになります。</div>`;
@@ -294,7 +320,7 @@
   const isNewMemberEvent=at=>Number.isFinite(Date.parse(at))&&Date.parse(at)>=notificationSince;
   async function loadNotificationSince(){
     const actor=uid;if(!actor||growthPending())return;
-    try{const value=await window.appAuth.notificationSince();if(uid!==actor)return;notificationSince=Date.parse(value);communityNotificationSince=approved?Date.parse(await window.appAuth.communityNotificationSince?.()||value):Infinity;if(uid!==actor)return;notificationSinceAccount=actor;renderReactionNotice();renderHomeLog();announcementsUi?.renderHome();if($('#notificationsDialog').open)openReactionNotices()}
+    try{const value=await window.appAuth.notificationSince();if(uid!==actor)return;notificationSince=Date.parse(value);communityNotificationSince=approved?Date.parse(await window.appAuth.communityNotificationSince?.()||value):Infinity;if(uid!==actor)return;notificationSinceAccount=actor;renderReactionNotice();renderHomeLog();renderChat();announcementsUi?.renderHome();if($('#notificationsDialog').open)openReactionNotices()}
     catch{if(uid===actor){notificationSince=Infinity;notificationSinceAccount=actor;renderReactionNotice();updateNewLogBadge()}}
   }
   function reactionEvents(){
@@ -310,13 +336,14 @@
     const ordered=[...list.children].sort((a,b)=>stamp(b)-stamp(a));
     for(const row of ordered)list.append(row);
   }
-  function renderReactionNotice(){sortNotificationRows();const events=reactionEvents(),seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]),count=events.filter(e=>!seen.has(e.id)).length+(announcementsUi?.unread()||0);const dot=$('#reactionDot');if(dot)dot.hidden=!count;$('#bellBtn').setAttribute('aria-label',count?'お知らせ：未読 '+count+'件':'お知らせ')}
+  function renderReactionNotice(){sortNotificationRows();const seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]);publishUiNotices('reactions',reactionEvents().filter(event=>!seen.has(event.id)).map(event=>({id:event.id,version:event.at,at:event.at,target:'timeline',kind:event.kind,postKey:event.key,title:event.text})));paintNotificationDots()}
   function openReactionNotices(){
     if(notificationSinceAccount!==uid||!Number.isFinite(notificationSince))void loadNotificationSince();
     if(backend!=='cloud'||growthPending()){toast('承認後にお知らせを確認できます。');return}
     const events=reactionEvents(),box=$('#notificationList');box.querySelectorAll('.reaction-notice').forEach(row=>row.remove());
     for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.dataset.noticeAt=event.at||'';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
     sortNotificationRows();if(!$('#notificationsDialog').open)$('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});
+    renderUiNoticeRows();if(document.visibilityState==='visible')uiNotices.acknowledge();paintNotificationDots();
   }
   $('#notificationsClose').onclick=()=>$('#notificationsDialog').close();
   const agoText=at=>{const d=new Date(at),m=Math.floor((Date.now()-d)/60000);if(isNaN(m))return'';if(m<1)return'たった今';if(m<60)return`${m}分前`;if(m<1440)return`${Math.floor(m/60)}時間前`;return`${d.getMonth()+1}月${d.getDate()}日`};
@@ -397,9 +424,10 @@
     if(backend!=='cloud'||growthPending()||!uid){badge.hidden=true;if(dot)dot.hidden=true;return}
     if(!Number.isFinite(notificationSince)||notificationSinceAccount!==uid){badge.hidden=true;if(dot)dot.hidden=true;return}
     if(!feedReady||homeLogError)return; // Keep the last known unread state on a transient failure.
-    const seen=Math.max(notificationSince,Date.parse(profile.growthLogSeenAt||'')||0);
+    const seen=Math.max(notificationSince,Date.parse(profile.growthLogSeenAt||'')||0,Date.parse(profile.notificationUiRead?.['growth:feed']||'')||0);
     const count=feedAll.filter(x=>x.uid!==uid&&Number.isFinite(Date.parse(x.at))&&Date.parse(x.at)>seen&&Date.parse(x.at)<=Date.now()).length;
-    const label=count?'新着 '+count+'件':'';if(badge.textContent!==label)badge.textContent=label;badge.hidden=!count;if(dot)dot.hidden=!count;
+    const latest=feedAll.filter(x=>x.uid!==uid&&Date.parse(x.at)>seen&&Date.parse(x.at)<=Date.now()).reduce((at,x)=>x.at>at?x.at:at,'');
+    publishUiNotices('growth',count?[{id:'feed',version:latest,at:latest,count,target:'timeline',kind:'log',title:'成長ログに新しい投稿があります（'+count+'件）',open:()=>openHomeLog()}]:[]);paintNotificationDots();
   }
   function markGrowthLogsSeen(){
     if(backend!=='cloud'||growthPending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
@@ -520,6 +548,7 @@
   function readVisibleNotifications(){
     if(document.visibilityState!=='visible'||backend!=='cloud'||!uid||growthPending()||$('#app').hidden)return;
     if(!$('#v-timeline').hidden&&feedReady&&!homeLogError){
+      uiNotices.readTarget('timeline');
       markGrowthLogsSeen();
       const seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]);let changed=false;
       const events=reactionEvents();
@@ -532,9 +561,12 @@
       if(changed){profile.seenReactionNotifications=[...seen];void saveProfile(true);renderReactionNotice()}
     }
     if(!$('#v-home').hidden){
+      uiNotices.readTarget('home');
       window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['member']}}));
       if(onScreen($('#zoomCard')))window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['morning']}}));
     }
+    if(!$('#v-mates').hidden&&chatReady&&!chatLoadFailed&&talkIntroduced)uiNotices.readTarget('mates');
+    if(!$('#v-account').hidden)uiNotices.readTarget('account');
   }
   addEventListener('scroll',scheduleNotificationReads,{passive:true});
   document.addEventListener('visibilitychange',scheduleNotificationReads);
@@ -793,6 +825,10 @@
     if(retry){const button=document.createElement('button');button.type='button';button.className='small-btn';button.textContent='再取得';button.onclick=async()=>{button.disabled=true;try{const module=await import('./pull-refresh.js');await module.refreshCurrentData();if(chatLoadFailed||groupUi?.invitationError?.())throw Error('取得できませんでした。通信状況を確認してもう一度お試しください。');toast('最新の投稿を確認しました')}catch(error){toast(error.message||'取得できませんでした。もう一度お試しください。')}finally{button.disabled=false}};note.append(button)}log.append(note);
   }
   function renderChat(){
+    if(chatReady&&!chatLoadFailed&&backend==='cloud'&&!pending()){
+      const incoming=chatAll.filter(message=>message.uid!==uid&&!message.unsent&&message.at>myReadAt&&message.at>(profile.notificationUiRead?.['publicTalk:room']||'')&&Date.parse(message.at)>=communityNotificationSince),latest=incoming.reduce((at,message)=>message.at>at?message.at:at,'');
+      publishUiNotices('publicTalk',incoming.length?[{id:'room',version:latest,at:latest,count:incoming.length,target:'mates',kind:'talk',publicTalk:true,title:'全体トークに新しいメッセージがあります（'+incoming.length+'件）',open:()=>{go('mates');setTalkSection('give')}}]:[]);
+    }
     const log=$('#chatLog');const latest=chatAll.filter(m=>!m.unsent).sort((a,b)=>b.at.localeCompare(a.at))[0];if(latest){$('#talkGiveTab small').textContent=latest.text||'全体トーク';$('#talkGiveTab').dataset.at=latest.at;$('#talkGiveTab').lastElementChild.textContent=hhmm(latest.at);}renderTalkOverview();
     if($('#v-mates').hidden)return;
 
@@ -1586,6 +1622,7 @@
         account:()=>uid,allowed:()=>isOwnerView&&backend==='cloud'&&!$('#app').hidden,
         active:()=>adminAccountVisible()&&!$('#accAdmin').hidden,
         getSeen:()=>profile.adminSectionSeen||{},saveSeen:seen=>{profile.adminSectionSeen=seen;void saveProfile(true)},
+        isNoticeUnread:row=>noticeUnread('admin',row,row.version),onNotices:rows=>publishUiNotices('admin',rows.map(row=>({...row,target:'account',kind:'admin',title:'管理者向け：'+row.title,open:()=>{go('account');void showAcc('admin')}}))),
         load:()=>Promise.allSettled([renderApplicants({background:true}),pollMemberNotices(),$('#youtubeChannelsDetails').open?Promise.resolve():youtubeChannelSettings(),pollKnowledgeNotices(),pollSecurityNotices()])
       });
     }
@@ -1781,7 +1818,7 @@
   });
   function showApp(){
     $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
-    renderAll();fillForm();size();ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});
+    renderAll();fillForm();size();ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});void checkTalkIntroduction();scheduleNotificationReads();
   }
   // Opening curtain: wait for data readiness, then fade into the app; a tap skips quickly
   const curtain=(()=>{
@@ -1821,6 +1858,7 @@
     growthPhotosUi?.stop();
     if(messageReactions)messageReactions.stop();
     growthApproved=false;growthPeople=[];notificationSince=Infinity;communityNotificationSince=Infinity;notificationSinceAccount='';talkNotesUi?.clear();talkIntroduced=false;talkIntroAccount='';clearTimeout(reactionPushTimer);pendingReactionPushes.clear();if($('#notificationsDialog').open)$('#notificationsDialog').close();
+    uiNotices.clear();
     $('#app').hidden=true;$('#onboard').hidden=true;$('#endScreen').hidden=false;
     $('#endTitle').textContent=title;$('#endText').textContent=text;$('#endBtn').textContent=btn;window.scrollTo(0,0);
   }
@@ -2008,7 +2046,7 @@
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
-      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&Number.isFinite(Date.parse(at))&&Date.parse(at)>=communityNotificationSince,markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{announcementId:id}}));void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({onNotices:publishAnnouncementNotices,isNoticeUnread:row=>noticeUnread('announcements',row),account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&Number.isFinite(Date.parse(at))&&Date.parse(at)>=communityNotificationSince,markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{announcementId:id}}));void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }
@@ -2016,7 +2054,7 @@
   let groupUi=null,groupsLoading=null;
   async function ensureGroups(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,timeLabel:hhmm,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
+    if(!groupUi){if(!groupsLoading)groupsLoading=import('./groups.js');try{const module=await groupsLoading;if(!groupUi)groupUi=module.mountGroups({onNotices:publishGroupNotices,isNoticeUnread:room=>noticeUnread('groups',room,room.updatedAt),account:()=>talkIntroduced&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,nameOf,avatar:mkAvatar,day:dayLabel,timeLabel:hhmm,compose:setChatComposeMode,onChange:renderChat,beforeOpen:()=>directMessages?.leave(),request:payload=>{if(!window.appAuth?.groups)throw Error('グループを使うにはアプリを開き直してください。');return window.appAuth.groups(payload)}})}catch(error){groupsLoading=null;throw error}}
     return groupUi;
   }
   $('#groupCreateOpen').onclick=()=>{setTalkSection('give');setChatComposeMode('group')};$('#groupCreateCancel').onclick=()=>setChatComposeMode('free');
@@ -2024,7 +2062,7 @@
   let directMessages=null,directLoading=null;
   async function ensureDirectMessages(){
     if(backend!=='cloud'||!uid||pending())return null;
-    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,avatar:mkAvatar,day:dayLabel,timeLabel:hhmm,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
+    if(!directMessages){if(!directLoading)directLoading=import('./direct-messages.js');try{const module=await directLoading;if(!directMessages)directMessages=module.mountDirectMessages({onNotices:publishDirectNotices,isNoticeUnread:thread=>noticeUnread('direct',thread,threadNoticeVersion(thread)),account:()=>(talkIntroduced||isOwnerView)&&backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,avatar:mkAvatar,day:dayLabel,timeLabel:hhmm,beforeOpen:()=>groupUi?.leave(),request:payload=>{if(!window.appAuth?.directMessages)throw Error('個別トークを更新するには再読み込みしてください。');return window.appAuth.directMessages(payload)}})}catch(e){directLoading=null;throw e}}
     return directMessages;
   }
   async function startDirectMessage(memberUid){

@@ -1,19 +1,22 @@
 // Only record IDs and revision markers are persisted in the viewer's private profile.
 // Failed reads never replace a successful snapshot or acknowledge unseen content.
-export function mountAdminNotices({account,allowed,active,getSeen,saveSeen,load}){
+export function mountAdminNotices({account,allowed,active,getSeen,saveSeen,load,onNotices=()=>{},isNoticeUnread=()=>true}){
  const sections={applications:'applicationsAdminDot',members:'membersAdminDot',announcements:'announcementsAdminDot',channels:'channelsAdminDot',oneonone:'oneOnOneAdminDot',inquiries:'inquiryAdminDot',knowledge:'knowledgeAdminDot',security:'securityAdminDot'};
  let owner=null,current=new Map(),timer=0,running=null,epoch=0;
  const clean=items=>new Map(items.filter(x=>x&&typeof x.id==='string'&&typeof x.version==='string').map(x=>[x.id,x.version]));
  function reset(){epoch++;owner=account();current=new Map();running=null;render()}
  function ensure(){if(owner!==account())reset();return allowed()&&!!owner}
  function render(){
-  let any=false;const receipts=allowed()?getSeen()||{}:{};
+  let any=false;const summaries=[];const receipts=allowed()?getSeen()||{}:{};
   for(const [key,id] of Object.entries(sections)){
    const seen=receipts[key]||{},rows=current.get(key)||new Map();
-   const unread=allowed()&&[...rows].some(([id,v])=>seen[id]!==v);any||=key!=='oneonone'&&unread;
+   const fresh=allowed()?[...rows].filter(([id,version])=>seen[id]!==version):[],labels={applications:'入会申込',members:'メンバー情報',announcements:'お知らせ配信',channels:'おすすめチャンネル',oneonone:'1on1申込み',inquiries:'問い合わせ',knowledge:'知識情報',security:'保護設定'};
+   const notice={id:key,version:JSON.stringify(fresh.sort(([a],[b])=>a.localeCompare(b))),title:labels[key]};if(fresh.length)summaries.push(notice);
+   const unread=fresh.length>0&&isNoticeUnread(notice);any||=key!=='oneonone'&&unread;
    const dot=document.getElementById(id);if(dot)dot.hidden=!unread;
    if(key==='oneonone'){const entry=document.getElementById('oneOnOneEntryDot');if(entry)entry.hidden=!unread;}
   }
+  onNotices(summaries);
   const entry=document.getElementById('inquiryEntryDot');if(entry)entry.hidden=!any;
  }
  function update(key,items,{complete=true,viewed=false}={}){
@@ -43,3 +46,4 @@ export function mountAdminNotices({account,allowed,active,getSeen,saveSeen,load}
  window.addEventListener('ikigai-refresh-data',refreshEvent);
  return {update,refresh,start,stop,render};
 }
+

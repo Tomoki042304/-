@@ -1,15 +1,15 @@
-export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange,onRows=()=>{},notificationAllowed=()=>false}){
+export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange,onRows=()=>{},notificationAllowed=()=>false,onNotices=()=>{},isNoticeUnread=()=>true}){
  const $=s=>document.querySelector(s);let rows=[],timer=0,started=false,reading=false,refreshAgain=false,publishing=false,epoch=0,draftId=crypto.randomUUID(),attempt=null,wantedId=null;
  const visible=()=>document.visibilityState==='visible';
- const unread=()=>{const seen=new Set(getSeen());return rows.filter(r=>notificationAllowed(r.at)&&!seen.has(r.id)).length};
+ const unread=()=>{const seen=new Set(getSeen());return rows.filter(r=>notificationAllowed(r.at)&&!seen.has(r.id)&&isNoticeUnread(r)).length};
  const date=at=>new Date(at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'});
  function renderHome(){
   const card=$('#homeAnnouncements'),list=$('#homeAnnouncementsList');if(!card||!list)return;
   const seen=new Set(getSeen());
   const opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));
-  const unreadRows=account()?rows.filter(r=>notificationAllowed(r.at)&&(!seen.has(r.id)||opened.has(r.id))):[];
+  const unreadRows=account()?rows.filter(r=>notificationAllowed(r.at)&&((!seen.has(r.id)&&isNoticeUnread(r))||opened.has(r.id))):[];
   list.replaceChildren();card.hidden=!unreadRows.length;
-  const count=$('#homeAnnouncementsCount'),unreadCount=unreadRows.filter(row=>!seen.has(row.id)).length;if(count)count.textContent=unreadCount?'未読 '+unreadCount+'件':'';
+  const count=$('#homeAnnouncementsCount'),unreadCount=unreadRows.filter(row=>!seen.has(row.id)&&isNoticeUnread(row)).length;if(count)count.textContent=unreadCount?'未読 '+unreadCount+'件':'';
   for(const row of unreadRows){
    const box=document.createElement('details');box.className='home-announcement';box.dataset.id=row.id;box.open=opened.has(row.id);
    const head=document.createElement('summary'),label=document.createElement('span'),title=document.createElement('b'),time=document.createElement('time');
@@ -27,8 +27,9 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
   renderHome();onChange();
  }
  function render(){
+  onNotices(rows.filter(row=>notificationAllowed(row.at)));
   const list=$('#notificationList'),seen=new Set(getSeen()),opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));list.querySelectorAll('.announcement-item').forEach(el=>el.remove());
-  for(const row of rows.filter(r=>notificationAllowed(r.at))){const box=document.createElement('details');box.className='announcement-item';box.dataset.noticeAt=row.at;box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.isConnected&&box.open&&$('#notificationsDialog')?.open&&visible()){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
+  for(const row of rows.filter(r=>notificationAllowed(r.at))){const box=document.createElement('details');box.className='announcement-item';box.dataset.noticeAt=row.at;box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)&&isNoticeUnread(row)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.isConnected&&box.open&&$('#notificationsDialog')?.open&&visible()){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
   if(wantedId&&$('#notificationsDialog')?.open){const box=[...list.querySelectorAll('.announcement-item')].find(el=>el.dataset.id===wantedId);if(box){box.open=true;wantedId=null}}
   const history=$('#announcementHistory');history.replaceChildren();for(const row of rows.slice(0,10)){const item=document.createElement('p');item.className='muted admin-note';item.textContent=date(row.at)+' · '+row.title;history.append(item)}onRows(rows.slice(0,10));renderHome();onChange();
  }
@@ -55,6 +56,7 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
  window.addEventListener('ikigai-notification-received',event=>{if(started&&event.detail?.kind==='announcement')void refresh()});
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(visible()&&started)void refresh()});
  window.addEventListener('ikigai-refresh-data',event=>{if(started&&account()&&Array.isArray(event.detail?.tasks))event.detail.tasks.push(Promise.resolve().then(refresh))});
- return {start,stop,unread,renderHome,open(id){if(typeof id==='string')wantedId=id;start();render();void refresh();if(wantedId){const box=[...$('#notificationList').querySelectorAll('.announcement-item')].find(el=>el.dataset.id===wantedId);if(box&&$('#notificationsDialog')?.open){box.open=true;wantedId=null}}}};
+ function refreshNotificationDots(){const seen=new Set(getSeen());for(const box of $('#notificationList').querySelectorAll('.announcement-item')){const row=rows.find(row=>row.id===box.dataset.id);if(!row||seen.has(row.id)||!isNoticeUnread(row))box.querySelector('.inquiry-notice-dot')?.remove()}renderHome()}
+ return {start,stop,unread,renderHome,refreshNotificationDots,open(id){if(typeof id==='string')wantedId=id;start();render();refreshNotificationDots();void refresh();if(wantedId){const box=[...$('#notificationList').querySelectorAll('.announcement-item')].find(el=>el.dataset.id===wantedId);if(box&&$('#notificationsDialog')?.open){box.open=true;wantedId=null}}}};
 }
 
