@@ -129,6 +129,7 @@ test('announcement deep links open the requested body; reading it keeps its text
   const list=node('#notificationList'),details=list.querySelectorAll('.announcement-item');
   assert.equal(details.find(el=>el.dataset.id==='a').open,false);const selected=details.find(el=>el.dataset.id==='b');assert.equal(selected.open,true);assert.equal(seen.size,0);
   selected.events.toggle();assert.deepEqual([...seen],['b']);assert.equal(events.at(-1).detail.announcementId,'b');
+  const acknowledged=events.length;selected.events.toggle();assert.equal(events.length,acknowledged+1);assert.equal(events.at(-1).detail.announcementId,'b');
   const home=node('#homeAnnouncementsList'),homeA=home.querySelectorAll('details').find(el=>el.dataset.id==='a');homeA.open=true;homeA.events.toggle();
   assert.deepEqual([...seen].sort(),['a','b']);const retained=home.querySelectorAll('details').find(el=>el.dataset.id==='a');assert.equal(retained.open,true);assert.equal(retained.children.some(child=>child.textContent==='Body A'),true);
  }finally{ui?.stop();globalThis.document=oldDocument;globalThis.window=oldWindow;globalThis.CustomEvent=oldEvent}
