@@ -1,6 +1,7 @@
 // Entry point (Supabase version): login with Supabase Auth, then a small adapter that gives app.js the
 // same `window.claude.use('db' | 'user')` interface it used in the prototype (see main.js for the Firebase one).
 // Data lives in public.documents as path + JSON; who may read or write what is decided by RLS (supabase/setup.sql).
+import {setBadgeAccount} from "./app-badge.js";
 import { supabase, SUPABASE_ENV, SUPABASE_STOP_REASON, SUPABASE_PROJECT_LABEL, SUPABASE_ON_STAGING } from "./supabase-config.js";
 
 const $ = s => document.querySelector(s);
@@ -586,14 +587,14 @@ async function start() {
       if(typeof result.reply!=="string")throw Error("回答を取得できませんでした。");
       return result.reply;
     },
-    signOut: () => auth.signOut(),
+    signOut: () => {setBadgeAccount(null);return auth.signOut()},
     // removing the login itself needs a server-side step (Netlify Functions) that is not built yet
     deleteAccount: async () => ({ ok: false, code: "needs-server" })
   };
 
   function launch(user) {
     if(started && (securitySuspended || launchedUid!==user.id)){location.reload();return;}
-    currentUser = user;
+    currentUser = user;setBadgeAccount(user.id);
     $("#authScreen").hidden = true;
     if (started) return;
     started = true;launchedUid=user.id;
@@ -639,7 +640,7 @@ async function start() {
   auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") { recovering = true; showAuth("password"); return; }
     if (!session) {
-      launchCheck++;mfaUi?.clear();mfaUi=null;emailUi?.reset();
+      launchCheck++;mfaUi?.clear();mfaUi=null;emailUi?.reset();setBadgeAccount(null);
       if (started) { location.reload(); return; }   // signed out while the app was running
       showAuth("login");
       return;

@@ -60,7 +60,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   if(readPending||!active||!visible()||!$('#dmPanel').hidden||$('#groupRoom').hidden)return;
   const incoming=messages.filter(m=>m.senderUid!==account()&&!m.unsent).slice(-40);if(!incoming.length)return;
   const latest=incoming.reduce((at,m)=>m.at>at?m.at:at,''),id=active.id,uid=account(),version=epoch;if((readMarks.get(id)||'')>=latest)return;readPending=true;
-  try{await request({action:'read',groupId:id,ids:incoming.map(m=>m.id)});if(uid===account()&&version===epoch)readMarks.set(id,latest)}catch{}finally{if(version===epoch)readPending=false}
+  try{await request({action:'read',groupId:id,ids:incoming.map(m=>m.id)});if(uid===account()&&version===epoch){readMarks.set(id,latest);window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{groupId:id}}))}}catch{}finally{if(version===epoch)readPending=false}
  }
  function renderMessages(scroll=false){
   const box=$('#groupMessages'),near=box.scrollHeight-box.scrollTop-box.clientHeight<80,top=box.scrollTop,height=box.scrollHeight;box.replaceChildren();const block=messageBlocks(day);

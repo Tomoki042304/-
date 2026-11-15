@@ -251,10 +251,11 @@
     }
     return growthPhotosUi;
   }
+  let postPhotoRender=0;
   function renderPostPhoto(container,x,small=false){
-    container.replaceChildren();const key=x.uid+':'+x.id;container.dataset.photoKey=key;
+    container.replaceChildren();const key=x.uid+':'+x.id,render=String(++postPhotoRender);container.dataset.photoKey=key;container.dataset.photoRender=render;
     if(!hasPostPhoto(x))return;
-    const who=uid;ensureGrowthPhotos().then(ui=>{if(uid===who&&container.isConnected&&container.dataset.photoKey===key)ui.attach(container,{author:x.uid,id:x.photoId,preview:small})}).catch(()=>{});
+    const who=uid;ensureGrowthPhotos().then(ui=>{if(uid===who&&container.isConnected&&container.dataset.photoKey===key&&container.dataset.photoRender===render)ui.attach(container,{author:x.uid,id:x.photoId,preview:small})}).catch(()=>{});
   }
   let feedAll=[],likesAll=[],cmtsAll=[],myPosts=[],myLikes=[],myLikeTimes={},myCmts=[],postWriting=false,postAgain=false,feedReady=false,homeLogError=false;
   let tlQuery='',tlMine=false;const openCmts=new Set();
@@ -314,6 +315,7 @@
     if(backend!=='cloud'||growthPending()){toast('承認後にお知らせを確認できます。');return}
     const events=reactionEvents(),box=$('#notificationList');box.querySelectorAll('.reaction-notice').forEach(row=>row.remove());
     for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.dataset.noticeAt=event.at||'';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
+    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['member','log','like','comment','reaction','announcement','morning']}}));
     sortNotificationRows();$('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
   }
   $('#notificationsClose').onclick=()=>$('#notificationsDialog').close();
@@ -326,6 +328,12 @@
   const homeLogCard=$('#homeLogCard'),homeLogMotion=matchMedia('(prefers-reduced-motion: reduce)');
   const HOME_LOG_INTERVAL=2500;
   let homeLogItems=[],homeLogIndex=0,homeLogTimer=0,homeLogPaused=homeLogMotion.matches,homeLogHover=false,homeLogFocusPaused=false,homeLogTouching=false,homeLogInView=!('IntersectionObserver' in window);
+  let homeLogPainted=null,homeLogTransition=null;
+  function finishHomeLogTransition(){
+    const transition=homeLogTransition;homeLogTransition=null;if(!transition)return;
+    for(const animation of transition.animations){animation.onfinish=null;animation.oncancel=null;animation.cancel()}
+    transition.old?.remove();
+  }
   const homeLogKey=x=>x?x.uid+':'+x.id:'';
   function homeLogCanRun(){
     return !!homeLogCard&&!homeLogCard.hidden&&!$('#app').hidden&&!$('#v-home').hidden
@@ -342,24 +350,27 @@
     if(!homeLogCard)return;
     const x=homeLogItems[homeLogIndex];if(!x)return;
     const preview=$('#homeLogPreview'),viewport=$('#homeLogViewport');
-    if(preview.getAnimations)preview.getAnimations().forEach(a=>a.cancel());
-    if(viewport)viewport.querySelectorAll('.home-log-ghost').forEach(x=>x.remove());
+    const name=nameOf(x.uid),avatar=avatarOf(x.uid),categories=postCategoriesOf(x);
+    const next={key:homeLogKey(x),name,avatar,text:x.text,time:postTimeText(x.at),photo:hasPostPhoto(x)?x.photoId:'',tags:categories.join('|')};
+    // Reactions and shared-feed refreshes must not restart a transition or reload the same image.
+    if(homeLogPainted&&Object.keys(next).every(key=>next[key]===homeLogPainted[key]))return;
+    finishHomeLogTransition();
+    if(viewport)viewport.querySelectorAll('.home-log-ghost').forEach(el=>el.remove());
     const old=animate&&!homeLogMotion.matches&&viewport&&preview.dataset.postKey?preview.cloneNode(true):null;
-    const name=nameOf(x.uid),av=$('#homeLogAvatar');av.style.backgroundColor=colorOf(x.uid);av.setAttribute('role','img');av.setAttribute('aria-label',name+'のプロフィール');paintAvatar(av,avatarOf(x.uid),name);
-    $('#homeLogName').textContent=name;$('#homeLogTime').textContent=postTimeText(x.at);$('#homeLogTime').dateTime=x.at;
+    const av=$('#homeLogAvatar');av.style.backgroundColor=colorOf(x.uid);av.setAttribute('role','img');av.setAttribute('aria-label',name+'のプロフィール');paintAvatar(av,avatar,name);
+    $('#homeLogName').textContent=name;$('#homeLogTime').textContent=next.time;$('#homeLogTime').dateTime=x.at;
     $('#homeLogText').textContent=x.text;preview.classList.toggle('with-photo',hasPostPhoto(x));renderPostPhoto($('#homeLogPhoto'),x,true);
-    const tags=$('#homeLogTags');tags.replaceChildren();postCategoriesOf(x).forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
-    preview.dataset.postKey=homeLogKey(x);preview.setAttribute('aria-label',name+'の成長ログを開く');
-    if(animate&&!homeLogMotion.matches&&typeof preview.animate==='function'){
-      const options={duration:220,easing:'ease-in-out',fill:'both'};
-      if(old){
-        old.removeAttribute('id');old.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));old.removeAttribute('href');old.tabIndex=-1;old.inert=true;old.setAttribute('aria-hidden','true');old.classList.add('home-log-ghost');viewport.append(old);
-        old.animate([{opacity:1},{opacity:0}],options);
-      }
-      const animation=preview.animate([{opacity:0},{opacity:1}],{...options,delay:old?220:0});
-      const done=()=>{if(old)old.remove()};animation.onfinish=done;animation.oncancel=done;
+    const tags=$('#homeLogTags');tags.replaceChildren();categories.forEach(c=>{const tag=document.createElement('span');tag.className='post-category';tag.textContent=c;tags.append(tag)});tags.hidden=!tags.childElementCount;
+    homeLogPainted=next;preview.dataset.postKey=next.key;preview.setAttribute('aria-label',name+'の成長ログを開く');
+    if(old&&typeof preview.animate==='function'){
+      old.removeAttribute('id');old.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));old.removeAttribute('href');old.tabIndex=-1;old.inert=true;old.setAttribute('aria-hidden','true');old.classList.add('home-log-ghost');viewport.append(old);
+      // Both layers fade together. The previous delayed fade left a blank frame in between.
+      const options={duration:240,easing:'linear',fill:'both'};
+      const outgoing=old.animate([{opacity:1},{opacity:0}],options);
+      const incoming=preview.animate([{opacity:0},{opacity:1}],options);
+      homeLogTransition={old,animations:[outgoing,incoming]};
+      incoming.onfinish=finishHomeLogTransition;incoming.oncancel=finishHomeLogTransition;
     }
-
   }
   function updateNewLogBadge(){
     const badge=$('#homeLogNew'),dot=$('#growthLogTabDot');if(!badge)return;
@@ -374,22 +385,23 @@
     if(backend!=='cloud'||growthPending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
     const now=Date.now(),seen=Date.parse(profile.growthLogSeenAt||'')||0;
     if(!feedAll.some(x=>x.uid!==uid&&Date.parse(x.at)>seen&&Date.parse(x.at)<=now))return;
+    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['log']}}));
     profile.growthLogSeenAt=new Date(now).toISOString();saveProfile(true);updateNewLogBadge();
   }
   function renderHomeLog(){
     updateNewLogBadge();
     if(!homeLogCard)return;
     const allowed=backend==='cloud'&&!!uid&&!growthPending();homeLogCard.hidden=!allowed;
-    const previous=homeLogItems[homeLogIndex],first=homeLogKey(homeLogItems[0]);
+    const previous=homeLogItems[homeLogIndex];
     if(!allowed||!feedReady||homeLogError||!feedAll.length){
-      homeLogItems=[];homeLogIndex=0;stopHomeLogTimer();$('#homeLogPreview').hidden=true;
-      $('#homeLogText').textContent='';$('#homeLogPhoto').replaceChildren();$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
+      homeLogItems=[];homeLogIndex=0;homeLogPainted=null;finishHomeLogTransition();stopHomeLogTimer();$('#homeLogPreview').hidden=true;
+      $('#homeLogText').textContent='';$('#homeLogPhoto').replaceChildren();delete $('#homeLogPhoto').dataset.photoKey;$('#homeLogName').textContent='';$('#homeLogTime').textContent='';$('#homeLogTags').replaceChildren();paintAvatar($('#homeLogAvatar'),'','');delete $('#homeLogPreview').dataset.postKey;
       $('#homeLogEmpty').hidden=!allowed;$('#homeLogEmpty').textContent=!feedReady?'読み込んでいます…':homeLogError?'投稿を取得できませんでした。通信状況を確認してください。':'まだ成長ログの投稿はありません。';return;
     }
     homeLogItems=feedAll.slice(0,10);
     const selected=homeLogItems.findIndex(x=>homeLogKey(x)===homeLogKey(previous));
-    const fresh=first!==homeLogKey(homeLogItems[0])&&!homeLogPaused&&!homeLogHover&&!homeLogFocusPaused&&!homeLogTouching;
-    homeLogIndex=selected<0||fresh?0:selected;
+    // Keep the visible entry during feed updates; newly arrived entries join the next rotation.
+    homeLogIndex=selected<0?0:selected;
     $('#homeLogEmpty').hidden=true;$('#homeLogPreview').hidden=false;
     paintHomeLog();syncHomeLogTimer(homeLogKey(previous)!==homeLogKey(homeLogItems[homeLogIndex])||previous?.text!==homeLogItems[homeLogIndex].text);
   }
@@ -420,9 +432,9 @@
     homeLogCard.addEventListener('pointerleave',()=>{homeLogHover=false;syncHomeLogTimer(true)});
     homeLogCard.addEventListener('focusin',()=>{homeLogFocusPaused=true;syncHomeLogTimer()});homeLogCard.addEventListener('focusout',()=>setTimeout(()=>{if(!homeLogCard.contains(document.activeElement))homeLogFocusPaused=false;syncHomeLogTimer(true)},0));
     if('IntersectionObserver' in window)new IntersectionObserver(entries=>{homeLogInView=entries[0].isIntersecting&&entries[0].intersectionRatio>=.1;syncHomeLogTimer(true)},{threshold:.1}).observe(homeLogCard);
-    const motionChanged=e=>{homeLogPaused=e.matches;paintHomeLog();syncHomeLogTimer(true)};
+    const motionChanged=e=>{homeLogPaused=e.matches;finishHomeLogTransition();paintHomeLog();syncHomeLogTimer(true)};
     if(homeLogMotion.addEventListener)homeLogMotion.addEventListener('change',motionChanged);else if(homeLogMotion.addListener)homeLogMotion.addListener(motionChanged);
-    document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'){swipe=null;homeLogTouching=false}syncHomeLogTimer(true)});addEventListener('pagehide',()=>{swipe=null;homeLogTouching=false;stopHomeLogTimer()});addEventListener('pageshow',()=>syncHomeLogTimer(true));
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible'){swipe=null;homeLogTouching=false;finishHomeLogTransition()}syncHomeLogTimer(true)});addEventListener('pagehide',()=>{swipe=null;homeLogTouching=false;finishHomeLogTransition();stopHomeLogTimer()});addEventListener('pageshow',()=>syncHomeLogTimer(true));
   }
 
   function renderFeed(){
@@ -691,6 +703,7 @@
     const give=chatMode==='give';
     const newest=chatAll.filter(x=>x.uid!==uid).reduce((a,x)=>x.at>a?x.at:a,'');   // one room: every message counts
     if(!newest||newest<=(give?myGiveReadAt:myReadAt))return;
+    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{publicTalk:true}}));
     if(give)myGiveReadAt=newest;else myReadAt=newest;
     clearTimeout(readTimer);readTimer=setTimeout(flushChat,1500);
   }
@@ -1945,7 +1958,7 @@
   async function ensureAnnouncements(){
     if(backend!=='cloud'||!uid||pending())return null;
     if(!announcementsUi){if(!announcementsLoading)announcementsLoading=import('./announcements.js');try{const module=await announcementsLoading;
-      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&Number.isFinite(Date.parse(at))&&Date.parse(at)>=communityNotificationSince,markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
+      if(!announcementsUi)announcementsUi=module.mountAnnouncements({account:()=>backend==='cloud'&&!$('#app').hidden&&!pending()?uid:null,isAdmin:()=>isOwnerView,getSeen:()=>Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[],notificationAllowed:at=>notificationSinceAccount===uid&&Number.isFinite(Date.parse(at))&&Date.parse(at)>=communityNotificationSince,markSeen:id=>{profile.seenAnnouncementIds=[...new Set([...(Array.isArray(profile.seenAnnouncementIds)?profile.seenAnnouncementIds:[]),id])];window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{announcementId:id}}));void saveProfile(true)},onRows:rows=>noticeSection('announcements',rows.map(r=>({id:r.id,version:r.at})),{viewed:adminAccountVisible()&&!$('#accAnnouncements').hidden}),onChange:renderReactionNotice,request:payload=>{if(!window.appAuth?.announcements)throw Error('お知らせを更新するには再読み込みしてください。');return window.appAuth.announcements(payload)}});
     }catch(e){announcementsLoading=null;throw e}}
     return announcementsUi;
   }

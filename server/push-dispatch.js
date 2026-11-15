@@ -4,7 +4,7 @@ export function notificationPayload(job){
  const context=job.context||{};
  const messages={member:'新しいメンバーが参加しました。',log:'新しい成長ログが投稿されました。',talk:context.threadId?'個別メッセージが届きました。':context.groupId?'参加中のグループに新しいメッセージがあります。':'全体トークに新しいメッセージがあります。',like:'あなたの成長ログに応援が届きました。',comment:'あなたの成長ログにコメントが届きました。',reaction:'あなたのトークにリアクションが届きました。',announcement:'運営から新しいお知らせがあります。',morning:'朝活の開始30分前です。アプリから参加情報をご確認ください。'};
  if(!messages[job.kind])throw Error('UNKNOWN_NOTIFICATION');
- const data={kind:job.kind};for(const key of ['postKey','threadId','groupId','announcementId'])if(typeof context[key]==='string')data[key]=context[key];
+ const data={kind:job.kind};if(typeof job.uid==='string')data.account=job.uid;if(typeof job.at==='string'&&Number.isFinite(Date.parse(job.at)))data.eventAt=job.at;for(const key of ['postKey','threadId','groupId','announcementId'])if(typeof context[key]==='string')data[key]=context[key];
  if(context.publicTalk)data.publicTalk=true;
  return {title:job.kind==='morning'?'IKIGAI 朝活リマインド':'IKIGAI',body:messages[job.kind],tag:job.key,data,urgency:'high',...(job.kind==='morning'?{ttl:Math.max(0,Math.min(1800,Math.floor((Date.parse(context.startsAt)-Date.now())/1000)))}:{})};
 }
