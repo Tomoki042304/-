@@ -1,6 +1,7 @@
 // Entry point (Supabase version): login with Supabase Auth, then a small adapter that gives app.js the
 // same `window.claude.use('db' | 'user')` interface it used in the prototype (see main.js for the Firebase one).
 // Data lives in public.documents as path + JSON; who may read or write what is decided by RLS (supabase/setup.sql).
+import {mountLineLogin, oauthTarget} from "./line-login.js";
 import {setBadgeAccount} from "./app-badge.js";
 import { supabase, SUPABASE_ENV, SUPABASE_STOP_REASON, SUPABASE_PROJECT_LABEL, SUPABASE_ON_STAGING } from "./supabase-config.js";
 
@@ -57,6 +58,7 @@ if (!stopped && SUPABASE_ENV === "test") {
 // ---------- login screen ----------
 let mode = "login";
 let emailLoginEnabled = false;
+let lineLoginReady = false, authWhich = "none";
 const AUTH_ERRORS = {
   invalid_credentials: "メールアドレスかパスワードが違います",
   email_not_confirmed: "メールの確認がまだです。届いたメールのリンクを押してください",
@@ -76,7 +78,7 @@ const errText = e => {
   if (e.name === "AuthRetryableFetchError" || e.status === 0) return "通信できませんでした。電波の状況を確認してください";
   return "うまくいきませんでした。もう一度お試しください";
 };
-const say = (msg, ok) => { const el = $("#authErr"); el.textContent = msg; el.classList.toggle("ok", !!ok); };
+const say = (msg, ok) => { const el = $("#authErr"); el.textContent = msg; el.classList.toggle("ok", !!ok); const lineStatus=$("#lineLoginStatus");if(lineStatus)lineStatus.textContent=msg; };
 const note = msg => { const el = $("#authNote"); el.textContent = msg || ""; el.hidden = !msg; };
 const appUrl = () => location.origin + location.pathname;
 
@@ -88,6 +90,8 @@ if(!$('#loginCheck')){
 }
 let authRevealTimer=0,authViewVersion=0;
 function showAuth(which) {
+  authWhich=which;
+  const lineRoot=$("#lineLogin");if(lineRoot)lineRoot.hidden=which!=="login"||!lineLoginReady;
   const sp = $("#splash");
   clearTimeout(authRevealTimer);const view=++authViewVersion;
   authRevealTimer=setTimeout(() => { if(view!==authViewVersion)return;if(sp)sp.hidden=true;$("#authScreen").hidden=false; },300);
@@ -152,20 +156,20 @@ async function start() {
     restoreGitHub();
     try { sessionStorage.removeItem(githubIntent); } catch {}
   });
-  githubButton.onclick = async () => {
+  mountLineLogin({document,onLogin:provider=>void startOAuth(provider),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login";}});
+  githubButton.onclick = () => void startOAuth("github");
+  async function startOAuth(provider) {
     if (githubBusy) return;
     githubBusy = true;
-    githubControls = [...document.querySelectorAll("#authForm button, #authForm input")].map(element => [element, element.disabled]);
+    githubControls = [...document.querySelectorAll("#authForm button, #authForm input, #lineLogin button, #emailAuth button, #emailAuth input")].map(element => [element, element.disabled]);
     githubControls.forEach(([element]) => { element.disabled = true; });
     say(""); note(""); $("#authResend").hidden = true;
     let leaving = false;
     try {
       sessionStorage.setItem(githubIntent, "1");
-      const { data, error } = await auth.signInWithOAuth({ provider: "github", options: { redirectTo: appUrl(), skipBrowserRedirect: true } });
+      const { data, error } = await auth.signInWithOAuth({ provider, options: { redirectTo: appUrl(), skipBrowserRedirect: true } });
       if (error) throw error;
-      const target = new URL(data.url), expected = new URL(supabase.supabaseUrl);
-      if (target.origin !== expected.origin || target.pathname !== "/auth/v1/authorize" || target.searchParams.get("provider") !== "github") throw new Error("Unexpected OAuth target");
-      location.assign(target.href);
+      location.assign(oauthTarget(data.url,supabase.supabaseUrl,provider));
       leaving = true;
     } catch (error) {
       try { sessionStorage.removeItem(githubIntent); } catch {}
@@ -173,7 +177,7 @@ async function start() {
     } finally {
       if (!leaving) restoreGitHub();
     }
-  };
+  }
   // Roll out only after mail/CAPTCHA settings and the database MFA guard are ready.
   // The existing provider stays available for existing identities; no application-level account merge.
   let emailUi = null, mfaUi = null, launchCheck = 0;
@@ -680,3 +684,4 @@ async function start() {
     setTimeout(() => void guardLaunch(session.user), 0);
   });
 }
+

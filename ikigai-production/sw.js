@@ -1,6 +1,6 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v149-photo-and-login-retry";
-const SHELL = ["./", "index.html", "main-supabase.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "supabase-config.js",
+const CACHE = "ikigai-v150-line-login";
+const SHELL = ["./", "index.html", "main-supabase.js", "line-login.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'images/premium-entry-artwork.jpg', 'images/shin-session-artwork.jpg', 'images/journal-purchase-artwork.jpg', 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
   'growth-views.js', 'one-on-one.js', 'talk-message-layout.js', 'talk-notes.js', 'member-actions.js', 'maintenance.js', 'talk-layout.js', 'groups.js', 'message-reactions.js', 'growth-photos.js', 'admin-notices.js', 'security-settings.js', 'announcements.js', 'inquiry.js', 'push-notifications.js',
@@ -133,3 +133,4 @@ self.addEventListener("notificationclick", event => {
   event.notification.close();const data=event.notification.data||{};
   event.waitUntil((async()=>{await badgeChange(state=>{state.items=state.items.filter(item=>item.key!==event.notification.tag);return state});const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){if(new URL(client.url).origin===self.location.origin){await client.focus();client.postMessage({type:'ikigai-open-notification',...data});return}}const url=new URL('./',self.registration.scope);if(data.postKey)url.searchParams.set('openPost',data.postKey);if(data.threadId)url.searchParams.set('openDm',data.threadId);if(data.groupId)url.searchParams.set('openGroup',data.groupId);if(data.kind)url.searchParams.set('openKind',data.kind);if(data.announcementId)url.searchParams.set('openAnnouncement',data.announcementId);await self.clients.openWindow(url.href)})());
 });
+
