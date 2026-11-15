@@ -1,5 +1,6 @@
 export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onChange,onRows=()=>{},notificationAllowed=()=>false,onNotices=()=>{},isNoticeUnread=()=>true}){
  const $=s=>document.querySelector(s);let rows=[],timer=0,started=false,reading=false,refreshAgain=false,publishing=false,epoch=0,draftId=crypto.randomUUID(),attempt=null,wantedId=null;
+ let announcementsReady=false;
  const visible=()=>document.visibilityState==='visible';
  const unread=()=>{const seen=new Set(getSeen());return rows.filter(r=>notificationAllowed(r.at)&&!seen.has(r.id)&&isNoticeUnread(r)).length};
  const date=at=>new Date(at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo'});
@@ -27,7 +28,7 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
   renderHome();onChange();
  }
  function render(){
-  onNotices(rows.filter(row=>notificationAllowed(row.at)));
+  onNotices(rows.filter(row=>notificationAllowed(row.at)),{ready:announcementsReady});
   const list=$('#notificationList'),seen=new Set(getSeen()),opened=new Set([...list.querySelectorAll('details[open]')].map(el=>el.dataset.id));list.querySelectorAll('.announcement-item').forEach(el=>el.remove());
   for(const row of rows.filter(r=>notificationAllowed(r.at))){const box=document.createElement('details');box.className='announcement-item';box.dataset.noticeAt=row.at;box.dataset.id=row.id;box.open=opened.has(row.id);const head=document.createElement('summary'),title=document.createElement('b');title.textContent=row.title;head.append(title);if(!seen.has(row.id)&&isNoticeUnread(row)){const dot=document.createElement('span');dot.className='inquiry-notice-dot';dot.setAttribute('aria-label','未読のお知らせ');head.append(dot)}const time=document.createElement('small');time.textContent='運営から · '+date(row.at);head.append(time);const text=document.createElement('p');text.textContent=row.text;box.append(head,text);box.addEventListener('toggle',()=>{if(box.isConnected&&box.open&&$('#notificationsDialog')?.open&&visible()){acknowledge(row.id);head.querySelector('.inquiry-notice-dot')?.remove()}});list.append(box)}
   if(wantedId&&$('#notificationsDialog')?.open){const box=[...list.querySelectorAll('.announcement-item')].find(el=>el.dataset.id===wantedId);if(box){box.open=true;wantedId=null}}
@@ -38,12 +39,12 @@ export function mountAnnouncements({request,account,isAdmin,getSeen,markSeen,onC
   try{const all=[],seenCursors=new Set();let cursor;
    do{const data=await request({action:'list',...(cursor?{cursor}:{})});if(token!==epoch||account()!==uid)return;if(!Array.isArray(data.announcements))throw Error('お知らせを取得できませんでした。');all.push(...data.announcements);cursor=data.cursor;if(cursor){if(seenCursors.has(cursor))throw Error('お知らせを更新できませんでした。');seenCursors.add(cursor)}}while(cursor);
    // Keep an immediately confirmed local publication until the shared index propagates.
-   const combined=new Map(rows.filter(r=>r.local).map(r=>[r.id,r]));for(const r of all)combined.set(r.id,r);rows=[...combined.values()].sort((a,b)=>b.at.localeCompare(a.at));render();$('#announcementStatus').textContent=rows.length?'':'運営からのお知らせはまだありません。';
+   const combined=new Map(rows.filter(r=>r.local).map(r=>[r.id,r]));for(const r of all)combined.set(r.id,r);rows=[...combined.values()].sort((a,b)=>b.at.localeCompare(a.at));announcementsReady=true;render();$('#announcementStatus').textContent=rows.length?'':'運営からのお知らせはまだありません。';
   }catch(e){if(token===epoch)$('#announcementStatus').textContent=e.message||'お知らせを読み込めませんでした。'}
   finally{if(token===epoch){reading=false;if(started&&account())timer=setTimeout(refresh,refreshAgain?0:30000)}}
  }
  function start(){if(started){if(!timer&&!reading)void refresh();return}started=true;void refresh()}
- function stop(){started=false;epoch++;reading=false;clearTimeout(timer);rows=[];wantedId=null;$('#notificationList').querySelectorAll('.announcement-item').forEach(el=>el.remove());$('#announcementHistory').replaceChildren();$('#announcementStatus').textContent='';$('#announcementTitle').value='';$('#announcementText').value='';$('#announcementPublishStatus').textContent='';draftId=crypto.randomUUID();attempt=null;renderHome();onChange()}
+ function stop(){announcementsReady=false;started=false;epoch++;reading=false;clearTimeout(timer);rows=[];wantedId=null;$('#notificationList').querySelectorAll('.announcement-item').forEach(el=>el.remove());$('#announcementHistory').replaceChildren();$('#announcementStatus').textContent='';$('#announcementTitle').value='';$('#announcementText').value='';$('#announcementPublishStatus').textContent='';draftId=crypto.randomUUID();attempt=null;renderHome();onChange()}
  $('#announcementRefresh').onclick=()=>{start();void refresh()};
  $('#announcementForm').onsubmit=async event=>{
   event.preventDefault();if(publishing||!account()||!isAdmin())return;const title=$('#announcementTitle').value.trim(),text=$('#announcementText').value.trim();if(!title||!text)return;

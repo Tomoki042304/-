@@ -8,20 +8,22 @@ const uid='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-
 const threadA=uid+':'+other,threadB=uid+':33333333-3333-4333-8333-333333333333';
 const now=Date.parse('2026-11-15T10:00:00Z'),at=n=>new Date(now+n).toISOString();
 function worker(){
- let saved,badge=0;const listeners=new Map(),notifications=[],navigations=[];
+ let saved,badge=0,clock=now;const listeners=new Map(),notifications=[],navigations=[];
+ class Clock extends Date{static now(){return clock}}
  const database={createObjectStore(){},transaction(){
   const tx={objectStore(){return {get(){const read={};queueMicrotask(()=>{read.result=structuredClone(saved);read.onsuccess()});return read},put(value){saved=structuredClone(value);queueMicrotask(()=>tx.oncomplete())}}}};return tx;
  }};
  const indexedDB={open(){const open={result:database};queueMicrotask(()=>{open.onupgradeneeded();open.onsuccess()});return open}};
  const self={location:{origin:'https://example.test'},registration:{scope:'https://example.test/',async getNotifications(){return notifications.filter(n=>!n.closed)},async showNotification(title,options){notifications.push({...options,title,closed:false,close(){this.closed=true}})}},clients:{async matchAll(){return [{url:'https://example.test/',async focus(){},postMessage(message){navigations.push(message)}}]},async openWindow(url){navigations.push(url)}},addEventListener(name,callback){if(!listeners.has(name))listeners.set(name,[]);listeners.get(name).push(callback)}};
- const context=vm.createContext({self,indexedDB,URL,Date,navigator:{async setAppBadge(count){badge=count},async clearAppBadge(){badge=0}}});
+ const context=vm.createContext({self,indexedDB,URL,Date:Clock,navigator:{async setAppBadge(count){badge=count},async clearAppBadge(){badge=0}}});
  vm.runInContext(source,context);
  async function dispatch(name,event){const pending=[];event.waitUntil=promise=>pending.push(promise);for(const callback of listeners.get(name)||[])callback(event);await Promise.all(pending)}
- const message=(data,origin='https://example.test')=>dispatch('message',{data,source:{url:origin+'/'}});
- return {notifications,navigations,state:()=>saved,badge:()=>badge,
+ const message=(data,origin='https://example.test',visibilityState='visible')=>dispatch('message',{data,source:{url:origin+'/',visibilityState}});
+ return {notifications,navigations,state:()=>saved,badge:()=>badge,tick:n=>clock=now+n,setNativeBadge:n=>badge=n,
   bind:()=>message({type:'ikigai-badge-account',account:uid}),
   push:(tag,data={})=>dispatch('push',{data:{json:()=>({tag,title:'IKIGAI',data:{account:uid,eventAt:at(-1000),kind:'talk',...data}})}}),
   read:(scope,before=now,account=uid,origin)=>message({type:'ikigai-badge-read',account,scope,before},origin),
+  reconcile:(before=now,account=uid,visibility='visible')=>message({type:'ikigai-badge-reconcile',account,before},'https://example.test',visibility),
   click:notification=>dispatch('notificationclick',{notification})};
 }
 test('tapping a push navigates but leaves the unread badge until its page reports a read',async()=>{
@@ -29,6 +31,17 @@ test('tapping a push navigates but leaves the unread badge until its page report
  assert.equal(w.badge(),2);await w.click(w.notifications[0]);assert.equal(w.badge(),2);
  assert.equal(w.navigations.at(-1).threadId,threadA);
  await w.read({threadId:threadA,kinds:['talk']});assert.equal(w.badge(),1);assert.deepEqual(w.state().items.map(x=>x.key),['b']);assert.equal(w.notifications[1].closed,false);
+});
+test('an authoritative empty inbox clears an orphan native badge even when no stored items remain',async()=>{
+ const w=worker();await w.bind();w.setNativeBadge(1);assert.equal(w.state().items.length,0);await w.reconcile();assert.equal(w.badge(),0);
+});
+test('reconciliation clears legacy stale items and preserves pushes delivered during loading, including backdated events',async()=>{
+ const w=worker();await w.bind();await w.push('stale',{threadId:threadA});delete w.state().items[0].receivedAt;
+ w.tick(200);await w.push('new-during-load',{threadId:threadB,eventAt:at(-5000)});
+ await w.reconcile(now+100);assert.deepEqual(w.state().items.map(x=>x.key),['new-during-load']);assert.equal(w.badge(),1);assert.equal(w.notifications[0].closed,true);assert.equal(w.notifications[1].closed,false);
+});
+test('empty-inbox reconciliation cannot clear another owner or run from a background page',async()=>{
+ const w=worker();await w.bind();await w.push('a',{threadId:threadA});w.tick(200);await w.reconcile(now+100,other);await w.reconcile(now+100,uid,'hidden');assert.equal(w.badge(),1);assert.equal(w.notifications[0].closed,false);
 });
 test('reading one conversation closes only its matching displayed notifications',async()=>{
  const w=worker();await w.bind();await w.push('a',{threadId:threadA});await w.push('b',{threadId:threadB});await w.push('post',{kind:'comment',postKey:'post'});

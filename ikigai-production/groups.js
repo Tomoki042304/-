@@ -3,6 +3,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  const $=s=>document.querySelector(s);let rooms=[],active=null,messages=[],older=null,isAdmin=false,timer=0,started=false,epoch=0,roomEpoch=0,busy=false,loading=false,listCursor=null,listPages=1,listError='',pollBusy=false,pollAgain=false;
  const rosters=new Map();let rosterLoading=false,readPending=false,menuId='',replyTo=null,pressTimer=0,suppressMenuClick=0;const readMarks=new Map();
  const drafts=new Map();let createDraft={id:crypto.randomUUID(),signature:''};
+ let groupListReady=false;
  const canPoll=()=>account()&&document.visibilityState==='visible';
  const visible=()=>account()&&document.visibilityState==='visible'&&!$('#v-mates').hidden&&(!$('#talkLanding').hidden||!$('#mtChat').hidden||!$('#dmPanel').hidden);
  const button=(text,fn)=>{const el=document.createElement('button');el.type='button';el.className='small-btn';el.textContent=text;el.onclick=fn;return el};
@@ -12,7 +13,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  function remember(){if(active){const old=drafts.get(active.id)||{};drafts.set(active.id,{...old,text:$('#groupText').value,reply:replyTo})}}
  function leave(){remember();++roomEpoch;menuId='';replyTo=null;renderReply();active=null;messages=[];older=null;$('#groupMessages').replaceChildren();$('#groupParticipants').replaceChildren();$('#groupRoomCount').textContent='';$('#groupParticipantsStatus').textContent='';$('#groupRoom').hidden=true;$('#groupCommon').hidden=false;$('#groupText').value='';status('')}
  function renderInvites(){
-  const box=$('#groupInviteList'),joinedRooms=rooms.filter(room=>room.joined);onNotices(joinedRooms.filter(room=>room.lastSenderUid&&room.lastSenderUid!==account()&&room.updatedAt>(readMarks.get(room.id)||'')));box.replaceChildren();$('#groupInviteCount').textContent=joinedRooms.length?'（'+joinedRooms.length+'件）':'';
+  const box=$('#groupInviteList'),joinedRooms=rooms.filter(room=>room.joined);onNotices(joinedRooms.filter(room=>room.lastSenderUid&&room.lastSenderUid!==account()&&room.updatedAt>(readMarks.get(room.id)||'')),{ready:groupListReady});box.replaceChildren();$('#groupInviteCount').textContent=joinedRooms.length?'（'+joinedRooms.length+'件）':'';
   for(const room of [...joinedRooms].sort((a,b)=>b.at.localeCompare(a.at))){const entry=button('',()=>join(room));entry.className='group-list-item';entry.dataset.groupId=room.id;entry.dataset.at=room.updatedAt||room.at;const icon=document.createElement('span');icon.className='avatar';icon.textContent='♧';const copy=document.createElement('span');copy.className='talk-preview-copy';const title=document.createElement('b');title.textContent=room.name;const preview=document.createElement('small');preview.textContent=room.lastText||room.description||'グループ';copy.append(title,preview);const meta=document.createElement('span');meta.className='talk-preview-meta';const time=document.createElement('time');time.textContent=timeLabel(room.updatedAt||room.at);meta.append(time);entry.append(icon,copy,meta);const count=document.createElement('span');count.className='group-member-count';const roster=rosters.get(room.id);count.textContent=roster?.ids?'（'+roster.ids.length+'人参加中）':roster?.error?'（人数取得待ち）':'（人数確認中）';copy.append(count);if(room.lastSenderUid&&room.lastSenderUid!==account()&&room.updatedAt>(readMarks.get(room.id)||'')&&isNoticeUnread(room)){const dot=document.createElement('span');dot.className='unread';dot.setAttribute('aria-label','未確認のメッセージ');meta.append(dot)}box.append(entry)}
   $('#groupInviteStatus').textContent=joinedRooms.length?'':'参加中のグループはありません。全体トークの「賛同する」から参加できます。';
   $('#groupInvitesMore').hidden=!listCursor;onChange();void refreshParticipantCounts();
@@ -31,7 +32,7 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
   try{const data=await request({action:'list',...(more&&listCursor?{cursor:listCursor}:{})});if(uid!==account()||version!==epoch)return;
    let all=data.groups,cursor=data.cursor;
    if(!more){for(let page=1;cursor;page++){const next=await request({action:'list',cursor});if(uid!==account()||version!==epoch||!canPoll())return;all.push(...next.groups);cursor=next.cursor}}
-   listError='';isAdmin=data.isAdmin===true;rooms=more?[...new Map([...rooms,...all].map(r=>[r.id,r])).values()]:all;if(more)listPages++;listCursor=cursor;renderInvites();
+   listError='';groupListReady=true;isAdmin=data.isAdmin===true;rooms=more?[...new Map([...rooms,...all].map(r=>[r.id,r])).values()]:all;if(more)listPages++;listCursor=cursor;renderInvites();
   }catch(error){if(uid===account()&&version===epoch){listError=error.message||'招待を更新できませんでした。';$('#groupInviteStatus').textContent=listError;onChange()}}finally{if(version===epoch)loading=false}
  }
  function personAvatar(uid){if(avatar)return avatar(uid);const icon=document.createElement('div');icon.className='avatar';icon.textContent=Array.from(nameOf(uid)||'会員')[0];icon.setAttribute('role','img');icon.setAttribute('aria-label',nameOf(uid)+'のアイコン');return icon}

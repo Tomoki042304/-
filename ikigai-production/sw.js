@@ -1,5 +1,5 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v155-shared-notification-dots";
+const CACHE = "ikigai-v156-sync-confirmed-app-badge";
 const SHELL = ["./", "index.html", "main-supabase.js", "line-login.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "notification-state.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'images/premium-entry-artwork.jpg', 'images/shin-session-artwork.jpg', 'images/journal-purchase-artwork.jpg', 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
@@ -89,7 +89,7 @@ function badgeReceive(payload){
   if(!badgeUid(account)||!payload.data?.kind||typeof key!=='string'||!key||key.length>250||(state.bound&&state.account!==account))return state;
   state.account=account;state.bound=true;
   if(state.seen.includes(key)||state.items.some(item=>item.key===key))return state;
-  const data=payload.data||{},at=Date.parse(data.eventAt),item={key,kind:data.kind,at:Number.isFinite(at)?at:Date.now()};
+  const data=payload.data||{},at=Date.parse(data.eventAt),item={key,kind:data.kind,at:Number.isFinite(at)?at:Date.now(),receivedAt:Date.now()};
   for(const field of ['threadId','groupId','postKey','announcementId'])if(typeof data[field]==='string')item[field]=data[field];
   if(data.publicTalk===true)item.publicTalk=true;
   const markers=['all','kind:'+item.kind];for(const field of ['threadId','groupId','postKey','announcementId'])if(item[field]){markers.push(field+':'+item[field]);markers.push('kind:'+item.kind+'|'+field+':'+item[field])}if((item.kind==='talk'||item.publicTalk)&&!item.threadId&&!item.groupId)markers.push('publicTalk','kind:'+item.kind+'|publicTalk');
@@ -130,13 +130,21 @@ async function badgeRead(account,scope,before=Date.now()){
   if(removed.has(notification.tag)||(data.account===account&&Number.isFinite(at)&&at<=cutoff&&badgeMatches({...data,key:notification.tag},scope)))notification.close();
  }}catch{}
 }
+async function badgeReconcile(account,before){
+ const cutoff=Math.min(before,Date.now()),removed=new Set();
+ await badgeChange(state=>{if(state.account!==account)return state;state.items=state.items.filter(item=>{if((item.receivedAt||item.at)>cutoff)return true;removed.add(item.key);return false});return state});
+ if(!removed.size||typeof self.registration.getNotifications!=='function')return;
+ try{for(const notice of await self.registration.getNotifications())if(removed.has(notice.tag)&&(!notice.data?.account||notice.data.account===account))notice.close()}catch{}
+}
 self.addEventListener('message',event=>{
  const message=event.data;
- if(!['ikigai-badge-account','ikigai-badge-read'].includes(message?.type))return;
+ if(!['ikigai-badge-account','ikigai-badge-read','ikigai-badge-reconcile'].includes(message?.type))return;
  try{if(new URL(event.source.url).origin!==new URL(self.registration.scope).origin)return}catch{return}
  if(message.type==='ikigai-badge-account'){
   if(message.account!==null&&!badgeUid(message.account))return;
   event.waitUntil(badgeChange(state=>state.account===message.account?{...state,bound:true}:{account:message.account,bound:true,items:[],seen:[],overflow:0}));
+ }else if(message.type==='ikigai-badge-reconcile'){
+  if(badgeUid(message.account)&&Number.isFinite(message.before)&&message.before<=Date.now()&&event.source.visibilityState!=='hidden')event.waitUntil(badgeReconcile(message.account,message.before));
  }else if(badgeUid(message.account)&&message.scope&&typeof message.scope==='object')event.waitUntil(badgeRead(message.account,message.scope,message.before));
 });
 

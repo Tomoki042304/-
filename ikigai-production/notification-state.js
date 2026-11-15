@@ -3,6 +3,23 @@
 export const threadNoticeVersion=thread=>Array.isArray(thread.incomingIds)
  ? JSON.stringify([...new Set(thread.incomingIds)].sort()) : String(thread.updatedAt||'');
 
+export function notificationReadScope(row,confirmedAt=Date.now()){
+ if(!['log','talk','like','comment','reaction','announcement','member','morning'].includes(row.kind))return null;
+ const eventAt=Date.parse(row.at);if(!Number.isFinite(eventAt))return null;
+ // Delivery jobs can be timestamped a few milliseconds after the underlying event.
+ const before=Math.max(eventAt,Number.isFinite(confirmedAt)?confirmedAt:eventAt);
+ const scope={kinds:[row.kind],before};
+ for(const field of ['threadId','groupId','postKey','announcementId'])if(typeof row[field]==='string')scope[field]=row[field];
+ if(row.publicTalk===true)scope.publicTalk=true;
+ return scope;
+}
+
+export function canReconcileEmptyBadge({unread,ready,community,talkReady,introduced,isAdmin}){
+ if(unread!==0||!ready.growth||!ready.reactions)return false;
+ if(!community)return true;
+ return !!(ready.announcements&&ready.publicTalk&&talkReady&&(!introduced||ready.groups)&&(!(introduced||isAdmin)||ready.direct));
+}
+
 export function createNotificationState({getSeen=()=>({}),onSeen=()=>{},onChange=()=>{}}={}){
  const sources=new Map();
  const key=(source,id)=>source+':'+id;
@@ -16,9 +33,9 @@ export function createNotificationState({getSeen=()=>({}),onSeen=()=>{},onChange
  }
  const unread=()=>all().filter(row=>isUnread(row.source,row.id,row.version));
  function acknowledge(rows=all()){
-  const seen={...getSeen()},current=new Map(all().map(row=>[row.key,row]));let changed=false;
-  for(const row of rows){if(current.get(row.key)?.version!==row.version||seen[row.key]===row.version)continue;delete seen[row.key];seen[row.key]=row.version;changed=true}
-  if(changed){const entries=Object.entries(seen),past=entries.filter(([id])=>!current.has(id)).slice(-300),live=entries.filter(([id])=>current.has(id));onSeen(Object.fromEntries([...past,...live]));onChange()}
+  const seen={...getSeen()},current=new Map(all().map(row=>[row.key,row])),acknowledged=[];let changed=false;
+  for(const row of rows){if(current.get(row.key)?.version!==row.version||seen[row.key]===row.version)continue;delete seen[row.key];seen[row.key]=row.version;acknowledged.push(row);changed=true}
+  if(changed){const entries=Object.entries(seen),past=entries.filter(([id])=>!current.has(id)).slice(-300),live=entries.filter(([id])=>current.has(id));onSeen(Object.fromEntries([...past,...live]),acknowledged);onChange()}
  }
  function read(scope={}){
   const before=Number.isFinite(scope.before)?scope.before:Date.now();
