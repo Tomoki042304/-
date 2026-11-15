@@ -316,8 +316,7 @@
     if(backend!=='cloud'||growthPending()){toast('承認後にお知らせを確認できます。');return}
     const events=reactionEvents(),box=$('#notificationList');box.querySelectorAll('.reaction-notice').forEach(row=>row.remove());
     for(const event of events){const button=document.createElement('button');button.type='button';button.className='reaction-notice';button.dataset.noticeAt=event.at||'';button.textContent=event.text;const time=document.createElement('small');time.textContent=event.at?postTimeText(event.at):'成長ログのお知らせ';button.append(time);button.onclick=()=>{$('#notificationsDialog').close();if(event.kind==='comment')openCmts.add(event.key);openHomeLog(event.key,true)};box.append(button)}
-    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['member','log','like','comment','reaction','announcement','morning']}}));
-    sortNotificationRows();$('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});if(events.length){profile.seenReactionNotifications=events.map(e=>e.id);saveProfile(true);renderReactionNotice()}
+    sortNotificationRows();if(!$('#notificationsDialog').open)$('#notificationsDialog').showModal();ensureAnnouncements().then(ui=>ui?.open()).catch(()=>{$('#announcementStatus').textContent='お知らせを読み込めませんでした。'});
   }
   $('#notificationsClose').onclick=()=>$('#notificationsDialog').close();
   const agoText=at=>{const d=new Date(at),m=Math.floor((Date.now()-d)/60000);if(isNaN(m))return'';if(m<1)return'たった今';if(m<60)return`${m}分前`;if(m<1440)return`${Math.floor(m/60)}時間前`;return`${d.getMonth()+1}月${d.getDate()}日`};
@@ -405,8 +404,9 @@
   function markGrowthLogsSeen(){
     if(backend!=='cloud'||growthPending()||!feedReady||homeLogError||$('#app').hidden||$('#v-timeline').hidden||document.visibilityState!=='visible')return;
     const now=Date.now(),seen=Date.parse(profile.growthLogSeenAt||'')||0;
+    const latest=feedAll.filter(x=>x.uid!==uid&&Date.parse(x.at)<=now).reduce((at,x)=>Math.max(at,Date.parse(x.at)||0),0);
+    if(latest)window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['log'],before:latest}}));
     if(!feedAll.some(x=>x.uid!==uid&&Date.parse(x.at)>seen&&Date.parse(x.at)<=now))return;
-    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['log']}}));
     profile.growthLogSeenAt=new Date(now).toISOString();saveProfile(true);updateNewLogBadge();
   }
   function renderHomeLog(){
@@ -459,7 +459,7 @@
   }
 
   function renderFeed(){
-    markGrowthLogsSeen();renderHomeLog();renderReactionNotice();
+    renderHomeLog();renderReactionNotice();
     if($('#v-timeline').hidden)return;
     const box=$('#feed'),expandedResponders=new Set([...$('#feed').querySelectorAll('.post-responders[open]')].map(el=>el.dataset.postKey));
     const pa=$('#postAvatar');pa.style.backgroundColor=uid?colorOf(uid):'var(--accent)';paintAvatar(pa,profile.avatar,profile.nick);
@@ -510,7 +510,35 @@
       }
       box.append(el);
     });
+    scheduleNotificationReads();
   }
+  // Read only content that has actually rendered in the foreground. Opening the
+  // bell or navigating through a loading/error screen must not clear other pages.
+  let notificationReadTimer=0;
+  const onScreen=element=>{if(!element||!element.getClientRects().length)return false;const rect=element.getBoundingClientRect();return rect.bottom>0&&rect.top<innerHeight&&rect.right>0&&rect.left<innerWidth};
+  function scheduleNotificationReads(){clearTimeout(notificationReadTimer);notificationReadTimer=setTimeout(readVisibleNotifications,150)}
+  function readVisibleNotifications(){
+    if(document.visibilityState!=='visible'||backend!=='cloud'||!uid||growthPending()||$('#app').hidden)return;
+    if(!$('#v-timeline').hidden&&feedReady&&!homeLogError){
+      markGrowthLogsSeen();
+      const seen=new Set(Array.isArray(profile.seenReactionNotifications)?profile.seenReactionNotifications:[]);let changed=false;
+      const events=reactionEvents();
+      for(const post of document.querySelectorAll('#feed [data-post-key]')){
+        if(!onScreen(post))continue;const key=post.dataset.postKey;
+        const relevant=events.filter(event=>event.key===key),at=Math.max(Date.parse(feedAll.find(row=>homeLogKey(row)===key)?.at)||0,...relevant.map(event=>Date.parse(event.at)||0));
+        if(at)window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{postKey:key,before:at}}));
+        for(const event of relevant)if(!seen.has(event.id)){seen.add(event.id);changed=true}
+      }
+      if(changed){profile.seenReactionNotifications=[...seen];void saveProfile(true);renderReactionNotice()}
+    }
+    if(!$('#v-home').hidden){
+      window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['member']}}));
+      if(onScreen($('#zoomCard')))window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{kinds:['morning']}}));
+    }
+  }
+  addEventListener('scroll',scheduleNotificationReads,{passive:true});
+  document.addEventListener('visibilitychange',scheduleNotificationReads);
+  addEventListener('focus',scheduleNotificationReads);
   const selectedPostCategories=()=>[...document.querySelectorAll('#postCategories input:checked')].map(x=>x.value);
   function updatePostCategories(){
     const count=selectedPostCategories().length;
@@ -723,8 +751,9 @@
     if(!talkIntroduced||backend!=='cloud'||!uid||pending()||!chatReady||$('#v-mates').hidden||$('#mtChat').hidden||$('#groupCommon').hidden||document.visibilityState!=='visible')return;
     const give=chatMode==='give';
     const newest=chatAll.filter(x=>x.uid!==uid).reduce((a,x)=>x.at>a?x.at:a,'');   // one room: every message counts
-    if(!newest||newest<=(give?myGiveReadAt:myReadAt))return;
-    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{publicTalk:true}}));
+    if(!newest)return;
+    window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{publicTalk:true,kinds:['talk'],before:Date.parse(newest)}}));
+    if(newest<=(give?myGiveReadAt:myReadAt))return;
     if(give)myGiveReadAt=newest;else myReadAt=newest;
     clearTimeout(readTimer);readTimer=setTimeout(flushChat,1500);
   }
@@ -1959,13 +1988,13 @@
     else if(typeof notice.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(notice.groupId)){go('mates');await checkTalkIntroduction();if(!talkIntroduced)return;try{const ui=await ensureGroups();await ui?.openById(notice.groupId)}catch{toast('グループを開けませんでした。参加状況を確認してください。')}}
     else if(notice.kind==='talk'||notice.kind==='reaction'){go('mates');setTalkSection('give')}
     else if(notice.kind==='morning'){go('home');$('#zoomCard').scrollIntoView({block:'center'})}
-    else if(notice.kind==='announcement'){openReactionNotices()}
+    else if(notice.kind==='announcement'){openReactionNotices();ensureAnnouncements().then(ui=>ui?.open(notice.announcementId)).catch(()=>{})}
     else if(notice.kind==='member'){go('home')}
     else if(typeof notice.postKey==='string'&&notice.postKey.length<151){if(notice.kind==='comment')openCmts.add(notice.postKey);openHomeLog(notice.postKey,notice.kind!=='log')}
   }
   if(navigator.serviceWorker)navigator.serviceWorker.addEventListener('message',event=>{
     if(event.data?.type==='ikigai-open-notification'){pendingPushNotice=event.data;processPushNotice()}
-    if(event.data?.type==='ikigai-notification-received')window.dispatchEvent(new CustomEvent('ikigai-notification-received',{detail:event.data}));
+    if(event.data?.type==='ikigai-notification-received'){window.dispatchEvent(new CustomEvent('ikigai-notification-received',{detail:event.data}));scheduleNotificationReads()}
   });
   let messageReactions=null,messageReactionsLoading=null;
   async function ensureMessageReactions(){
@@ -2109,6 +2138,7 @@
     if(tab==='home')renderHomeLog();
     if(tab==='soon')openYoutube();else if(youtubeRecommendations)youtubeRecommendations.stop();
     if(tab!=='mates')groupUi?.leave();
+    scheduleNotificationReads();
     syncHomeLogTimer(true);
     window.scrollTo(0,0);
     processPushNotice();
@@ -2182,3 +2212,4 @@
   scheduleDayClock();
   initCloud().then(boot,boot);
 })();
+

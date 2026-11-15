@@ -59,8 +59,11 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  async function markRead(){
   if(readPending||!active||!visible()||!$('#dmPanel').hidden||$('#groupRoom').hidden)return;
   const incoming=messages.filter(m=>m.senderUid!==account()&&!m.unsent).slice(-40);if(!incoming.length)return;
-  const latest=incoming.reduce((at,m)=>m.at>at?m.at:at,''),id=active.id,uid=account(),version=epoch;if((readMarks.get(id)||'')>=latest)return;readPending=true;
-  try{await request({action:'read',groupId:id,ids:incoming.map(m=>m.id)});if(uid===account()&&version===epoch){readMarks.set(id,latest);window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{groupId:id}}))}}catch{}finally{if(version===epoch)readPending=false}
+  const latest=incoming.reduce((at,m)=>m.at>at?m.at:at,''),id=active.id,uid=account(),version=epoch,room=roomEpoch;
+  const stillOpen=()=>uid===account()&&version===epoch&&room===roomEpoch&&active?.id===id&&visible()&&$('#dmPanel').hidden&&!$('#groupRoom').hidden;
+  if((readMarks.get(id)||'')>=latest){if(stillOpen())window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{groupId:id,kinds:['talk'],before:Date.parse(latest)}}));return}
+  readPending=true;
+  try{await request({action:'read',groupId:id,ids:incoming.map(m=>m.id)});if(stillOpen()){readMarks.set(id,latest);window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{groupId:id,kinds:['talk'],before:Date.parse(latest)}}))}}catch{}finally{if(version===epoch)readPending=false}
  }
  function renderMessages(scroll=false){
   const box=$('#groupMessages'),near=box.scrollHeight-box.scrollTop-box.clientHeight<80,top=box.scrollTop,height=box.scrollHeight;box.replaceChildren();const block=messageBlocks(day);
@@ -132,3 +135,4 @@ export function mountGroups({request,account,nameOf,compose,beforeOpen=()=>{},on
  new MutationObserver(()=>{if(!$('#dmPanel').hidden)void refreshParticipantCounts();else if(active)void markRead()}).observe($('#dmPanel'),{attributes:true,attributeFilter:['hidden']});
  return {start,stop,leave,openById:async id=>{if(!account())return;const data=await request({action:'messages',groupId:id});await open({...data.group,joined:true})},replyTo:(id,groupId)=>{if(active?.id===groupId)beginReply(id)},refreshMemberInfo:()=>{if(active){renderParticipants();renderMessages()}},createFromTemplate,invitationError:()=>listError,invitations:()=>rooms.map(room=>({id:'group-invite:'+room.id,uid:room.ownerUid,at:room.at,groupInvite:true,room})),renderInvitation:invitationCard};
 }
+

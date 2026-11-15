@@ -10,7 +10,9 @@ export function setBadgeAccount(uid){
  if(!owner&&typeof navigator.clearAppBadge==='function')void navigator.clearAppBadge().catch(()=>{});
 }
 export function readBadge(scope={}){
- if(!owner)return;
- post({type:'ikigai-badge-read',account:owner,scope,before:Date.now()});
+ if(!owner||document.visibilityState!=='visible')return;
+ const {before,...target}=scope;
+ post({type:'ikigai-badge-read',account:owner,scope:target,before:Number.isFinite(before)?before:Date.now()});
 }
 window.addEventListener('ikigai-notification-read',event=>readBadge(event.detail||{}));
+

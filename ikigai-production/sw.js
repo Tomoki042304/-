@@ -1,5 +1,5 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v151-line-only-login";
+const CACHE = "ikigai-v152-read-notification-target";
 const SHELL = ["./", "index.html", "main-supabase.js", "line-login.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'images/premium-entry-artwork.jpg', 'images/shin-session-artwork.jpg', 'images/journal-purchase-artwork.jpg', 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
@@ -79,8 +79,9 @@ function badgeChange(change){
    if(count&&typeof navigator.setAppBadge==='function')await navigator.setAppBadge(count);
    else if(typeof navigator.clearAppBadge==='function')await navigator.clearAppBadge();
   }catch{}
+  return state;
  });
- badgeQueue=work.catch(()=>{});return badgeQueue;
+ badgeQueue=work.catch(()=>{});return work;
 }
 function badgeReceive(payload){
  return badgeChange(state=>{
@@ -90,21 +91,44 @@ function badgeReceive(payload){
   if(state.seen.includes(key)||state.items.some(item=>item.key===key))return state;
   const data=payload.data||{},at=Date.parse(data.eventAt),item={key,kind:data.kind,at:Number.isFinite(at)?at:Date.now()};
   for(const field of ['threadId','groupId','postKey','announcementId'])if(typeof data[field]==='string')item[field]=data[field];
-  const markers=['all','kind:'+item.kind];for(const field of ['threadId','groupId','postKey','announcementId'])if(item[field])markers.push(field+':'+item[field]);if(item.kind==='talk'&&!item.threadId&&!item.groupId)markers.push('publicTalk');
+  if(data.publicTalk===true)item.publicTalk=true;
+  const markers=['all','kind:'+item.kind];for(const field of ['threadId','groupId','postKey','announcementId'])if(item[field]){markers.push(field+':'+item[field]);markers.push('kind:'+item.kind+'|'+field+':'+item[field])}if((item.kind==='talk'||item.publicTalk)&&!item.threadId&&!item.groupId)markers.push('publicTalk','kind:'+item.kind+'|publicTalk');
   if(!markers.some(marker=>(state.readAt?.[marker]||0)>=item.at))state.items.push(item);
   state.seen.push(key);
   state.seen=state.seen.slice(-4096);return state;
  });
 }
-function badgeRead(account,scope,before=Date.now()){
- return badgeChange(state=>{
+function badgeMatches(item,scope){
+ if(scope.all===true)return true;
+ const keys=['key','threadId','groupId','postKey','announcementId'].filter(key=>typeof scope[key]==='string');
+ const targeted=keys.length>0||scope.publicTalk===true;
+ const matches=keys.some(key=>scope[key]===item[key])||(scope.publicTalk===true&&(item.kind==='talk'||item.publicTalk===true)&&!item.threadId&&!item.groupId);
+ const kinds=Array.isArray(scope.kinds)?scope.kinds:null;
+ return (!targeted||matches)&&(!kinds||kinds.includes(item.kind))&&(targeted||!!kinds);
+}
+function badgeReadMarkers(scope){
+ if(scope.all===true)return ['all'];
+ const targets=[];if(scope.publicTalk===true)targets.push('publicTalk');for(const field of ['threadId','groupId','postKey','announcementId'])if(typeof scope[field]==='string')targets.push(field+':'+scope[field]);
+ if(Array.isArray(scope.kinds))return targets.length?targets.flatMap(target=>scope.kinds.map(kind=>'kind:'+kind+'|'+target)):scope.kinds.map(kind=>'kind:'+kind);
+ return targets;
+}
+async function badgeRead(account,scope,before=Date.now()){
+ const cutoff=Number.isFinite(before)?Math.min(before,Date.now()):Date.now(),removed=new Set();let matchedAccount=false;
+ await badgeChange(state=>{
   if(state.account!==account)return state;
-  const cutoff=Number.isFinite(before)?Math.min(before,Date.now()):Date.now();
-  const matches=item=>scope.all===true||(['key','threadId','groupId','postKey','announcementId'].some(key=>typeof scope[key]==='string'&&scope[key]===item[key]))||(scope.publicTalk===true&&item.kind==='talk'&&!item.threadId&&!item.groupId)||(Array.isArray(scope.kinds)&&scope.kinds.includes(item.kind));
-  state.items=state.items.filter(item=>item.at>cutoff||!matches(item));
-  const markers=[];if(scope.all===true)markers.push('all');if(scope.publicTalk===true)markers.push('publicTalk');for(const field of ['threadId','groupId','postKey','announcementId'])if(typeof scope[field]==='string')markers.push(field+':'+scope[field]);if(Array.isArray(scope.kinds))for(const kind of scope.kinds)markers.push('kind:'+kind);
+  matchedAccount=true;
+  state.items=state.items.filter(item=>{if(item.at>cutoff||!badgeMatches(item,scope))return true;removed.add(item.key);return false});
+  const markers=badgeReadMarkers(scope);
   state.readAt=state.readAt||{};for(const marker of markers)state.readAt[marker]=Math.max(state.readAt[marker]||0,cutoff);state.readAt=Object.fromEntries(Object.entries(state.readAt).sort((a,b)=>b[1]-a[1]).slice(0,256));return state;
  });
+ // Clear only this account's displayed notifications for the page actually read.
+ // Older releases did not include account metadata; their stored tags are safe to match.
+ if(!matchedAccount||typeof self.registration.getNotifications!=='function')return;
+ try{for(const notification of await self.registration.getNotifications()){
+  const data=notification.data||{},at=Date.parse(data.eventAt);
+  if(data.account&&data.account!==account)continue;
+  if(removed.has(notification.tag)||(data.account===account&&Number.isFinite(at)&&at<=cutoff&&badgeMatches({...data,key:notification.tag},scope)))notification.close();
+ }}catch{}
 }
 self.addEventListener('message',event=>{
  const message=event.data;
@@ -123,6 +147,8 @@ self.addEventListener("push", event => {
   const data={};if(['member','log','talk','like','comment','reaction','announcement','morning'].includes(payload.data?.kind))data.kind=payload.data.kind;if(typeof payload.data?.postKey==='string'&&payload.data.postKey.length<151)data.postKey=payload.data.postKey;if(typeof payload.data?.threadId==='string'&&payload.data.threadId.length===73)data.threadId=payload.data.threadId;
   if(typeof payload.data?.groupId==='string'&&/^[0-9a-f-]{36}$/i.test(payload.data.groupId))data.groupId=payload.data.groupId;if(typeof payload.data?.announcementId==='string'&&/^[0-9a-f-]{36}$/i.test(payload.data.announcementId))data.announcementId=payload.data.announcementId;
   if(payload.data?.publicTalk===true)data.publicTalk=true;
+  if(badgeUid(payload.data?.account))data.account=payload.data.account;
+  const eventAt=Date.parse(payload.data?.eventAt);data.eventAt=new Date(Number.isFinite(eventAt)?eventAt:Date.now()).toISOString();
   event.waitUntil(Promise.allSettled([
     badgeReceive({...payload,data:{...data,account:payload.data?.account,eventAt:payload.data?.eventAt}}),
     self.registration.showNotification(title,{body,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:typeof payload.tag==='string'?payload.tag.slice(0,200):undefined,data}),
@@ -131,6 +157,7 @@ self.addEventListener("push", event => {
 });
 self.addEventListener("notificationclick", event => {
   event.notification.close();const data=event.notification.data||{};
-  event.waitUntil((async()=>{await badgeChange(state=>{state.items=state.items.filter(item=>item.key!==event.notification.tag);return state});const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){if(new URL(client.url).origin===self.location.origin){await client.focus();client.postMessage({type:'ikigai-open-notification',...data});return}}const url=new URL('./',self.registration.scope);if(data.postKey)url.searchParams.set('openPost',data.postKey);if(data.threadId)url.searchParams.set('openDm',data.threadId);if(data.groupId)url.searchParams.set('openGroup',data.groupId);if(data.kind)url.searchParams.set('openKind',data.kind);if(data.announcementId)url.searchParams.set('openAnnouncement',data.announcementId);await self.clients.openWindow(url.href)})());
+  // Opening the app is navigation, not proof that its destination loaded successfully.
+  event.waitUntil((async()=>{const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of windows){if(new URL(client.url).origin===self.location.origin){await client.focus();client.postMessage({type:'ikigai-open-notification',...data});return}}const url=new URL('./',self.registration.scope);if(data.postKey)url.searchParams.set('openPost',data.postKey);if(data.threadId)url.searchParams.set('openDm',data.threadId);if(data.groupId)url.searchParams.set('openGroup',data.groupId);if(data.kind)url.searchParams.set('openKind',data.kind);if(data.announcementId)url.searchParams.set('openAnnouncement',data.announcementId);await self.clients.openWindow(url.href)})());
 });
 

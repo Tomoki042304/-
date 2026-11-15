@@ -21,7 +21,10 @@ export function mountMessageReactions({request,account,notify,reply=null}){
  async function refresh(){
   clearTimeout(timer);if(!started||reading||!account()||document.visibilityState!=='visible')return;const visible=bubbles().filter(b=>b.getClientRects().length).slice(-30),groups=new Map();for(const b of visible){const t=target(b),g=t.scope+'|'+t.threadId;if(!groups.has(g))groups.set(g,[]);groups.get(g).push(t)}
   const token=epoch,uid=account();reading=true;
-  try{await Promise.all([...groups.values()].map(async targets=>{const first=targets[0],data=await request({action:'list',scope:first.scope,...(first.scope!=='group'?{threadId:first.threadId}:{}),targets:targets.map(({senderUid,messageId})=>({senderUid,messageId}))});if(token!==epoch||account()!==uid)return;if(!Array.isArray(data.states))return;for(const state of data.states){const k=key({...first,...state}),old=cache.get(k);if(!busy.has(k)&&!(old?.localUntil>Date.now()))cache.set(k,state)}}));if(token===epoch){failures=0;decorate()}}
+  try{await Promise.all([...groups.values()].map(async targets=>{const before=Date.now(),first=targets[0],data=await request({action:'list',scope:first.scope,...(first.scope!=='group'?{threadId:first.threadId}:{}),targets:targets.map(({senderUid,messageId})=>({senderUid,messageId}))});if(token!==epoch||account()!==uid)return;if(!Array.isArray(data.states))return;for(const state of data.states){const k=key({...first,...state}),old=cache.get(k);if(!busy.has(k)&&!(old?.localUntil>Date.now()))cache.set(k,state)}
+   const stillVisible=document.visibilityState==='visible'&&bubbles().some(b=>b.getClientRects().length&&target(b).scope===first.scope&&target(b).threadId===first.threadId);
+   if(stillVisible){decorate();const scope=first.scope==='direct'?{threadId:first.threadId}:first.scope==='private-group'?{groupId:first.threadId}:{publicTalk:true};window.dispatchEvent(new CustomEvent('ikigai-notification-read',{detail:{...scope,kinds:['reaction'],before}}))}
+  }));if(token===epoch){failures=0;decorate()}}
   catch{if(token===epoch)failures++}finally{if(token===epoch){reading=false;if(started)timer=setTimeout(refresh,failures?Math.min(300000,15000*Math.pow(2,failures)):15000)}}
  }
  for(const root of roots){
@@ -37,3 +40,4 @@ export function mountMessageReactions({request,account,notify,reply=null}){
  document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(started&&document.visibilityState==='visible')void refresh()});
  return {start(){started=true;decorate();void refresh()},stop(){started=false;failures=0;epoch++;clearTimeout(timer);clearTimeout(pressTimer);reading=false;openKey='';cache.clear();busy.clear();decorate()}};
 }
+
