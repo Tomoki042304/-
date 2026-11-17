@@ -1821,6 +1821,7 @@
   });
   function showApp(){
     $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
+    if(window.appEntry?.consumeGrowth())go('timeline');
     renderAll();fillForm();size();ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});void checkTalkIntroduction();scheduleNotificationReads();
   }
   // Opening curtain: wait for data readiness, then fade into the app; a tap skips quickly

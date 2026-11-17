@@ -1,3 +1,4 @@
+import {rememberGrowthEntry,consumeGrowthEntry} from './growth-entry.js';
 // Entry point (Supabase version): login with Supabase Auth, then a small adapter that gives app.js the
 // same `window.claude.use('db' | 'user')` interface it used in the prototype (see main.js for the Firebase one).
 // Data lives in public.documents as path + JSON; who may read or write what is decided by RLS (supabase/setup.sql).
@@ -82,6 +83,8 @@ const errText = e => {
 };
 const say = (msg, ok) => { const el = $("#authErr"); el.textContent = msg; el.classList.toggle("ok", !!ok); const lineStatus=$("#lineLoginStatus");if(lineStatus){lineStatus.textContent=msg;lineStatus.hidden=!msg;} };
 const note = msg => { const el = $("#authNote"); el.textContent = msg || ""; el.hidden = !msg; };
+try{rememberGrowthEntry(location,sessionStorage)}catch{}
+window.appEntry={consumeGrowth:()=>{try{return consumeGrowthEntry(sessionStorage)}catch{return false}}};
 const appUrl = () => location.origin + location.pathname;
 
 // An already-open tab can briefly have the preceding HTML shell after an update.

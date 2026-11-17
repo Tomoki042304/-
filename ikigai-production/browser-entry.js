@@ -1,3 +1,4 @@
+import {growthLoginTarget} from './growth-entry.js';
 const APP_URL='https://ikigai-shidoroku.pages.dev/';
 const SDK_URL='https://static.line-scdn.net/liff/edge/versions/2.31.1/sdk.js';
 const LIFF_ID='2012617316-f4FBapHK';
@@ -23,7 +24,7 @@ export const isLineBrowser=navigator=>/\bLine\//i.test(navigator.userAgent);
 export async function openLineLoginInBrowser({document,window,loadSdk=()=>loadLiff(document,window)}){
  const liff=await loadSdk();
  // Start OAuth only after arriving in the external browser. Never transport sessions between browsers.
- const target=APP_URL+'?login=line';
+ const target=APP_URL+'?login=line'+growthLoginTarget(window.location);
  if(liff.isInClient())liff.openWindow({url:target,external:true});
  else window.location.assign(target+'&openExternalBrowser=1');
 }
