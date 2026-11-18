@@ -41,6 +41,7 @@ export async function onRequest({request,env}){
   const completion=Date.parse(state.lastCheckedAt||'');
   return reply(200,{state,report,scheduledCheckMissing:!report||!Number.isFinite(completion)||completion<Date.parse(report.finishedAt)-1000||Date.now()>Date.parse(state.end)&&reportDay!==today});
  }catch(error){
+  console.error('IKIGAI_MAINTENANCE_STATUS_FAILED',{kind:['Error','TypeError','AbortError'].includes(error?.name)?error.name:'OtherError',dbStatus:Number.isInteger(error?.status)?error.status:null,dbCode:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/.test(error.code)?error.code:null,reason:['DATABASE_UNAVAILABLE','MAINTENANCE_STATE_UNAVAILABLE'].includes(error?.message)?error.message:'UNEXPECTED_RUNTIME_ERROR',runtimeKeyConfigured:typeof env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY==='string'&&env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY.length>0});
   let code='MAINTENANCE_STATUS_UNAVAILABLE';
   if(auditAuthorized)code=error?.code==='42501'?'AUDIT_DB_PERMISSION_DENIED':error?.status===401||error?.code==='PGRST301'?'AUDIT_DB_AUTH_FAILED':['PGRST202','42P01','42883'].includes(error?.code)?'AUDIT_DB_SCHEMA_MISSING':error?.name==='AbortError'?'AUDIT_DB_TIMEOUT':'AUDIT_EXECUTION_FAILED';
   return reply(503,{code,message:'点検状態を取得できませんでした。点検が成功したとは判定していません。'});
