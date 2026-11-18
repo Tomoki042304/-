@@ -1505,7 +1505,7 @@
   // ---------- first-run registration: membership questions ----------
   // answers go to applications/<uid>: the member writes their own, only the owner can read them all
   const OB_STEPS=5;
-  let obStep=-1,ob={},obSubmitting=false,obPushEnabled=false;
+  let obStep=-1,ob={},obSubmitting=false,obPushEnabled=false,obPushConnecting=null;
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const homeAppOpen=()=>navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
   const registerInHomeApp=()=>!homeAppOpen()&&(/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1));
@@ -1548,7 +1548,7 @@
           <p class="muted" style="font-size:12px;text-align:center">写真は丸く切り取って表示されます。登録しない場合は、お名前の頭文字のアイコンになります。</p></div>`;
     body+=`<div class="btn-row">${obStep>=0?'<button type="button" class="ghost" id="obBack">戻る</button>':''}<button type="submit" class="primary">${obStep===OB_STEPS-1?'登録してはじめる':'次へ'}</button></div>`;
     if(obStep===4)body=head('携帯に通知を届ける','入会後の新しい成長ログ・トーク・自分の投稿への反応・運営のお知らせを、携帯の通知画面で受け取れます。')
-      +`<p>新メンバーの参加もお知らせします。プレミアム会員には、朝活開始30分前のリマインドも届きます。</p><button type="button" class="primary" id="obPushEnable" disabled>携帯の通知を許可する</button><p id="obPushStatus" role="status" class="muted">通知機能を確認しています…</p><p class="muted" style="font-size:12px">iPhone・iPadはホーム画面に追加したIKIGAIから操作してください。入会手続きの完了には、この端末への通知を有効にする必要があります。拒否した場合は端末の設定から許可してください。通知非対応の端末では完了できません。</p>`
+      +`<p>新メンバーの参加もお知らせします。プレミアム会員には、朝活開始30分前のリマインドも届きます。</p><button type="button" class="primary" id="obPushEnable" disabled>携帯の通知を許可する</button><p id="obPushStatus" role="status" class="muted">通知機能を確認しています…</p><p class="muted" style="font-size:12px">iPhone・iPadはホーム画面に追加したIKIGAIから操作してください。通知を許可済みの方は、そのまま入会手続きを完了できます。拒否した場合は端末の設定から許可してください。通知非対応の端末では完了できません。</p>`
       +`<div class="btn-row"><button type="button" class="ghost" id="obBack">戻る</button><button type="submit" class="primary" id="obComplete" disabled>通知を有効にしてから入会を完了</button></div>`;
     if(obStep===-1){
       const installed=homeAppOpen(),homeRequired=registerInHomeApp();
@@ -1581,18 +1581,17 @@
       };
       button.disabled=false;
       button.onclick=async()=>{
-        if(button.disabled)return;pushAttempt++;button.disabled=true;setReady(false);const label=button.textContent;button.textContent='通知を準備しています…';
+        if(button.disabled)return;pushAttempt++;button.disabled=true;setReady(!!pushModule?.deviceNotificationPermissionGranted());const label=button.textContent;button.textContent='通知を準備しています…';
         try{
           if(!pushModule){status.textContent='通知機能を読み込んでいます…';await loadPush();if(current())status.textContent='準備ができました。「携帯の通知を許可する」をもう一度押してください。';return;}
-          await pushModule.enableDevicePush(payload=>window.appAuth.push(payload),message=>{if(current())status.textContent=message});
+          const connection=pushModule.enableDevicePush(payload=>{if(uid!==actor)throw Error('ログイン中の会員が変わりました。');return window.appAuth.push(payload)},message=>{if(current()){setReady(pushModule.deviceNotificationPermissionGranted());status.textContent=message}});obPushConnecting=connection;
+          try{await connection}finally{if(obPushConnecting===connection)obPushConnecting=null}
           if(!current())return;setReady(true);status.textContent='この端末への通知を有効にしました。入会手続きを完了してください。';
-        }catch(error){if(current())status.textContent=error.message||'通知を有効にできませんでした。もう一度お試しください。';}
+        }catch(error){if(current()){const granted=!!pushModule?.deviceNotificationPermissionGranted();setReady(granted);status.textContent=granted?'通知は許可されています。入会手続きを完了できます。通知の接続はアプリ内で再確認します。':error.message||'通知を有効にできませんでした。もう一度お試しください。';}}
         finally{if(current()){button.disabled=false;button.textContent=label;}}
       };
       loadPush().then(async module=>{
-        if(!current()||pushAttempt>0)return;status.textContent='通知を有効にすると、入会手続きを完了できます。';
-        try{const enabled=await module.devicePushEnabled(payload=>window.appAuth.push(payload));if(!current()||pushAttempt>0)return;setReady(enabled);if(enabled)status.textContent='この端末への通知は有効です。入会手続きを完了してください。';}
-        catch{if(current()&&pushAttempt===0)status.textContent='通知状態を確認できませんでした。「携帯の通知を許可する」からお試しください。';}
+        if(!current()||pushAttempt>0)return;const granted=module.deviceNotificationPermissionGranted();setReady(granted);status.textContent=granted?'この端末の通知は許可済みです。入会手続きを完了できます。':'通知を許可すると、入会手続きを完了できます。';
       }).catch(()=>{if(current()&&pushAttempt===0)status.textContent='通知機能を読み込めませんでした。ボタンを押すと再読み込みできます。';});
     }
 
@@ -1629,7 +1628,7 @@
     }
     if(obStep<OB_STEPS-1){obStep++;renderOnboard();return}
     const controls=[...$('#obForm').querySelectorAll('button,input,textarea')];obSubmitting=true;controls.forEach(el=>el.disabled=true);
-    try{const module=await import('./push-notifications.js');obPushEnabled=await module.devicePushEnabled(payload=>window.appAuth.push(payload));if(!obPushEnabled)throw Error('通知を有効にしてから入会手続きを完了してください。');}
+    try{const module=await import('./push-notifications.js');obPushEnabled=module.deviceNotificationPermissionGranted();if(!obPushEnabled)throw Error('通知を許可してから入会手続きを完了してください。');}
     catch(error){obPushEnabled=false;obSubmitting=false;controls.forEach(el=>el.disabled=false);$('#obComplete').disabled=true;$('#obPushStatus').textContent=error.message||'通知状態を確認できませんでした。もう一度通知を有効にしてください。';return}
 
     profile.nick=ob.name;profile.aff=ob.job;profile.avatar=ob.avatar;profile.registered=false;profile.registrationPending=true;profile.greetingDraft=ob.greeting;
@@ -1858,8 +1857,25 @@
     if(approvalSaved&&b.isConnected){const choice=b.parentElement.querySelector('[data-approval-plan]');if(choice)choice.value='basic'}
     renderApplicants();loadAdminMembers();
   });
+  let pushConnectionBusy=false,pushConnectedUid=null,pushConnectionAttemptAt=0;
+  async function syncPermittedPush(){
+    if(pushConnectionBusy||backend!=='cloud'||!uid||$('#app').hidden||!window.appAuth?.push)return;
+    const actor=uid;if(pushConnectedUid===actor||Date.now()-pushConnectionAttemptAt<30000)return;
+    pushConnectionBusy=true;pushConnectionAttemptAt=Date.now();
+    try{
+      const module=await import('./push-notifications.js');
+      if(uid!==actor||$('#app').hidden||!module.deviceNotificationPermissionGranted())return;
+      // Let a tap-started registration finish before a background retry.
+      if(obPushConnecting){try{await obPushConnecting;pushConnectedUid=actor;return}catch{}}
+      if(uid!==actor||$('#app').hidden||!module.deviceNotificationPermissionGranted())return;
+      await module.enableDevicePush(payload=>{if(uid!==actor)throw Error('ログイン中の会員が変わりました。');return window.appAuth.push(payload)},()=>{},{askPermission:false});
+      if(uid===actor)pushConnectedUid=actor;
+    }catch{}finally{pushConnectionBusy=false}
+  }
+  window.addEventListener('online',()=>void syncPermittedPush());
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void syncPermittedPush()});
   function showApp(){
-    $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();
+    $('#onboard').hidden=true;$('#app').hidden=false;renderQuote();renderZoom();void syncPermittedPush();
     if(window.appEntry?.consumeGrowth())go('timeline');
     renderAll();fillForm();size();ensureAnnouncements().then(ui=>ui?.start()).catch(()=>{});void checkTalkIntroduction();scheduleNotificationReads();
   }

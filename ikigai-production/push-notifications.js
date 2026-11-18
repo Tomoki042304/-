@@ -34,13 +34,18 @@ export function mountPushNotifications({request,allowed}){
   return {refresh};
 }
 // Call directly from a user tap; browsers control the permission prompt.
-export async function enableDevicePush(request,onProgress=()=>{}){
+export function deviceNotificationPermissionGranted(){
+ const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
+ return supported()&&(!ios||navigator.standalone===true||matchMedia('(display-mode: standalone)').matches)&&Notification.permission==='granted';
+}
+export async function enableDevicePush(request,onProgress=()=>{},options={}){
  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
  if(ios&&!navigator.standalone&&!matchMedia('(display-mode: standalone)').matches)throw Error('Safariの共有メニューでホーム画面に追加し、IKIGAIのアイコンから開いて通知を許可してください。');
  if(!supported())throw Error('この端末・ブラウザは通知に対応していません。対応する端末からご利用ください。');
  if(Notification.permission==='denied')throw Error('通知が拒否されています。端末の設定でIKIGAIの通知を許可してから、もう一度お試しください。');
  onProgress('端末の通知確認画面で「許可」を選んでください。');
  // Keep the permission request in the original tap, before asynchronous preparation.
+ if(options.askPermission===false&&Notification.permission!=='granted')throw Error('通知は許可されていません。');
  const permission=Notification.permission==='granted'?'granted':await waitFor(Notification.requestPermission(),'通知の確認が完了していません。端末の確認画面を閉じて、もう一度お試しください。',60000);
  if(permission!=='granted')throw Error('通知は許可されていません。あとから端末の設定で変更できます。');
  onProgress('通知を準備しています…');
@@ -53,7 +58,7 @@ export async function enableDevicePush(request,onProgress=()=>{}){
  return {enabled:true};
 }
 
-// Read-only registration gate: require browser permission, subscription and server activation.
+// Read-only delivery check. Admission uses the browser permission, not network readiness.
 export async function devicePushEnabled(request){
  if(!supported()||Notification.permission!=='granted')return false;
  const registration=await waitFor(navigator.serviceWorker.getRegistration());

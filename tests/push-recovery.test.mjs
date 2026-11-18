@@ -9,7 +9,7 @@ function fixture({ready,permission='default',subscription=null,subscribe,request
  const sub=subscription||{endpoint:'https://push.test/device',toJSON:()=>({endpoint:'https://push.test/device'}),unsubscribe:async()=>{removed++;return true}};
  const reg={pushManager:{getSubscription:async()=>subscription,subscribe:()=>{subscribes++;return subscribe?subscribe():Promise.resolve(sub)}}};
  const nodes=Object.fromEntries(['pushEnable','pushDisable','pushStatus'].map(k=>['#'+k,{disabled:false,textContent:''}]));
- const notify={permission,requestPermission:()=>{asks++;return Promise.resolve('granted')}};
+ const notify={permission,requestPermission:()=>{asks++;notify.permission='granted';return Promise.resolve('granted')}};
  const context={Promise,WeakMap,Uint8Array,atob,Error,window:{PushManager:{},Notification:notify},Notification:notify,navigator:{userAgent:'iPhone',standalone:true,serviceWorker:{ready:ready||Promise.resolve(reg),getRegistration:async()=>reg}},matchMedia:()=>({matches:true}),document:{querySelector:s=>nodes[s]},setTimeout:(cb,ms)=>{const id=++seq;timers.set(id,{cb,ms});return id},clearTimeout:id=>timers.delete(id)};
  vm.createContext(context);vm.runInContext(source,context);
  const rpc=async payload=>{calls.push(payload.action);if(request)return request(payload);if(payload.action==='status')return {enabled:true};if(payload.action==='key')return {publicKey:'AQ',keyId:'one'};return {enabled:true}};
@@ -43,7 +43,7 @@ test('timed-out subscribe is reused on retry instead of creating duplicates',asy
 test('onboarding recovers after loading failure and waits for a new tap before asking permission',async()=>{
  const app=fs.readFileSync(new URL('../ikigai-production/app.js',import.meta.url),'utf8');const start=app.indexOf('obPushEnabled=false;let pushAttempt'),end=app.indexOf('\n    }\n\n    if(obStep===3)',start);
  let loads=0,enables=0;const nodes={'#obPushEnable':{disabled:true,isConnected:true,textContent:'携帯の通知を許可する'},'#obComplete':{disabled:true},'#obPushStatus':{}};
- const c={uid:'one',obStep:4,obPushEnabled:false,$:s=>nodes[s],window:{appAuth:{push:()=>{}}},Promise,setTimeout,clearTimeout,loadFixture:()=>++loads===1?Promise.reject(Error('offline')):Promise.resolve({enableDevicePush:async()=>{enables++},devicePushEnabled:async()=>false})};
+ const c={uid:'one',obStep:4,obPushEnabled:false,$:s=>nodes[s],window:{appAuth:{push:()=>{}}},Promise,setTimeout,clearTimeout,loadFixture:()=>++loads===1?Promise.reject(Error('offline')):Promise.resolve({enableDevicePush:async()=>{enables++},devicePushEnabled:async()=>false,deviceNotificationPermissionGranted:()=>enables>0})};
  vm.createContext(c);vm.runInContext(app.slice(start,end).replaceAll("import('./push-notifications.js')",'loadFixture()'),c);await flush();
  assert.equal(nodes['#obPushEnable'].disabled,false);assert.match(nodes['#obPushStatus'].textContent,/再読み込み/);
  await nodes['#obPushEnable'].onclick();assert.equal(enables,0);assert.match(nodes['#obPushStatus'].textContent,/もう一度/);
@@ -81,4 +81,33 @@ test('iPhone browser cannot bypass installation guidance with a form submit',()=
  const start=app.indexOf("    e.preventDefault();if(obSubmitting)return;"),end=app.indexOf('    if(obStep===0){',start);
  let rendered=0,read=0;const c={obSubmitting:false,obStep:0,registerInHomeApp:()=>true,renderOnboard:()=>rendered++,toast:()=>{},readOnboard:()=>read++};
  vm.createContext(c);vm.runInContext('function guard(e){'+app.slice(start,end)+"return 'next';}",c);assert.equal(c.guard({preventDefault(){}}),undefined);assert.equal(c.obStep,-1);assert.equal(rendered,1);assert.equal(read,0);
+});
+
+test('permission becomes ready immediately, even while service worker preparation is pending',async()=>{
+ const f=fixture({ready:new Promise(()=>{})});assert.equal(f.context.deviceNotificationPermissionGranted(),false);
+ const pending=f.context.enableDevicePush(f.rpc);assert.equal(f.context.deviceNotificationPermissionGranted(),true);await flush();f.expire(12000);await assert.rejects(pending,/開き直して/);assert.equal(f.context.deviceNotificationPermissionGranted(),true);
+});
+test('background connection never opens a permission prompt',async()=>{
+ const f=fixture();await assert.rejects(f.context.enableDevicePush(f.rpc,()=>{},{askPermission:false}),/許可されていません/);assert.equal(f.asks,0);
+});
+function onboardPermissionFixture({granted=false,connect}={}){
+ const app=fs.readFileSync(new URL('../ikigai-production/app.js',import.meta.url),'utf8');const start=app.indexOf('obPushEnabled=false;let pushAttempt'),end=app.indexOf('\n    }\n\n    if(obStep===3)',start);
+ const nodes={'#obPushEnable':{disabled:true,isConnected:true,textContent:'携帯の通知を許可する'},'#obComplete':{disabled:true},'#obPushStatus':{}};
+ const c={uid:'one',obStep:4,obPushEnabled:false,obPushConnecting:null,$:s=>nodes[s],window:{appAuth:{push:()=>{throw Error('permission readiness must not call API')}}},Promise,setTimeout,clearTimeout,loadFixture:async()=>({deviceNotificationPermissionGranted:()=>granted,devicePushEnabled:()=>{throw Error('not an admission gate')},enableDevicePush:async(request,onProgress)=>{granted=true;onProgress('通知を準備しています');if(connect)return connect()}})};
+ vm.createContext(c);vm.runInContext(app.slice(start,end).replaceAll("import('./push-notifications.js')",'loadFixture()'),c);return {c,nodes};
+}
+test('already granted permission enables completion without any network check',async()=>{
+ const f=onboardPermissionFixture({granted:true});await flush();assert.equal(f.nodes['#obComplete'].disabled,false);assert.match(f.nodes['#obPushStatus'].textContent,/許可済み/);
+});
+test('new grant and a connection failure both leave completion available',async()=>{
+ let reject;const connection=new Promise((_,r)=>reject=r),f=onboardPermissionFixture({connect:()=>connection});await flush();assert.equal(f.nodes['#obComplete'].disabled,true);
+ const attempt=f.nodes['#obPushEnable'].onclick();await flush();assert.equal(f.nodes['#obComplete'].disabled,false);reject(Error('offline'));await attempt;assert.equal(f.nodes['#obComplete'].disabled,false);assert.match(f.nodes['#obPushStatus'].textContent,/完了できます/);
+});
+test('final entry requires permission but not a successful push server response',async()=>{
+ const app=fs.readFileSync(new URL('../ikigai-production/app.js',import.meta.url),'utf8');
+ const start=app.indexOf("    try{const module=await import('./push-notifications.js');obPushEnabled=module.deviceNotificationPermissionGranted();"),end=app.indexOf('\n    profile.nick=',start);assert.ok(start>0&&end>start);
+ for(const granted of [true,false]){
+  const nodes={'#obComplete':{},'#obPushStatus':{}},c={obPushEnabled:false,obSubmitting:true,controls:[], $:s=>nodes[s],loadFixture:async()=>({deviceNotificationPermissionGranted:()=>granted,devicePushEnabled:()=>{throw Error('not an admission gate')}})};
+  vm.createContext(c);vm.runInContext('async function guard(){'+app.slice(start,end).replaceAll("import('./push-notifications.js')",'loadFixture()')+"return 'next';}",c);assert.equal(await c.guard(),granted?'next':undefined);
+ }
 });
