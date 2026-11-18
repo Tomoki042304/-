@@ -1560,10 +1560,10 @@
         +'<ol aria-label="ホーム画面に追加する手順" style="list-style:none;padding:0;margin:8px 0 20px">'
         +step('1','共有を開く '+shareIcon,'Safariの「共有」（四角から上向き矢印）を押します。見つからない場合は、ページメニューや「…」から「共有」を選んでください。')
         +step('2','ホーム画面に追加','共有メニューを下へスクロールし、「ホーム画面に追加」を選びます。「ウェブアプリとして開く」が表示された場合はオンにして、右上の「追加」を押してください。')
-        +step('3','IKIGAIのアイコンを開く','ホーム画面に追加されたIKIGAIを開き、ログインして入会手続きを進めてください。登録と携帯の通知許可は、追加したアプリ内で行います。Safariから自動では切り替わらないため、ご自身でホーム画面のアイコンを押してください。')
+        +step('3','IKIGAIのアイコンを開く','ホーム画面に追加されたIKIGAIを開き、公式LINEで使ったものと同じLINEアカウントで続けてください。登録済みの会員情報・個人設定を読み込み、未登録の方は入会手続きへ進みます。登録と携帯の通知許可は、追加したアプリ内で行います。Safariから自動では切り替わらないため、ご自身でホーム画面のアイコンを押してください。')
         +'</ol><details style="font-size:13px;line-height:1.85;margin:0 0 20px"><summary>「ホーム画面に追加」が見つからないとき</summary><p class="muted">LINE内で開いている場合は、Safariなどのブラウザで開いてください。下のボタンでURLをコピーし、Safariのアドレス欄に貼り付けても開けます。Safariの共有メニューに項目がない場合は、一番下の「アクションを編集」を確認してください。</p><button type="button" class="small-btn" id="obCopyAppUrl">アプリのURLをコピー</button><p id="obInstallStatus" role="status" class="muted"></p></details>'
         +'<details style="font-size:13px;line-height:1.85;margin:0 0 24px"><summary>Androidの方へ</summary><p class="muted">Chromeでこのページを開き、右上の「︙」から「ホーム画面に追加」または「アプリをインストール」を選んでください。</p></details>'
-        +(homeRequired?'<div role="note" style="padding:18px;border:1px solid var(--line);border-radius:14px;line-height:1.9"><b>追加できたら、ホーム画面へ</b><p style="margin:8px 0 0;font-size:14px">このページを閉じ、ホーム画面の「IKIGAI」を押してください。必要に応じてログインすると、アプリ内で登録を始められます。</p><p class="muted" style="margin:8px 0 0;font-size:12px">Safariでは登録せず、追加したアプリで進めてください。</p></div>':'<div class="btn-row"><button type="submit" class="primary">登録をはじめる</button></div>');
+        +(homeRequired?'<div role="note" style="padding:18px;border:1px solid var(--line);border-radius:14px;line-height:1.9"><b>追加できたら、ホーム画面へ</b><p style="margin:8px 0 0;font-size:14px">このページを閉じ、ホーム画面の「IKIGAI」を押してください。初回はLINEログインを確認します。公式LINEで使ったものと同じLINEアカウントで続けると、登録済みの会員情報・個人設定を読み込みます。</p><p class="muted" style="margin:8px 0 0;font-size:12px">Safariでは登録せず、追加したアプリで進めてください。</p></div>':'<div class="btn-row"><button type="submit" class="primary">登録をはじめる</button></div>');
     }
     $('#obForm').innerHTML=body;
     if(obStep===-1){

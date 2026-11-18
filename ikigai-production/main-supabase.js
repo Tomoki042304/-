@@ -1,3 +1,4 @@
+import {createHomeLineResume} from './home-session.js';
 import {rememberGrowthEntry,consumeGrowthEntry} from './growth-entry.js';
 // Entry point (Supabase version): login with Supabase Auth, then a small adapter that gives app.js the
 // same `window.claude.use('db' | 'user')` interface it used in the prototype (see main.js for the Firebase one).
@@ -141,9 +142,19 @@ async function start() {
   const appleMobile = /iPad|iPhone|iPod/i.test(navigator.userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const homeScreen = navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  const homeLineResume=createHomeLineResume({
+    enabled:lineOnly&&!browserLoginRequested,standalone:homeScreen,
+    callback:!!(window.__authLink?.fromMail||window.__authLink?.errorCode||window.__recoveryLink),
+    storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
+    onResume:()=>void startOAuth('custom:line',true)
+  });
   const homeGuide = $("#homeLoginGuide"), homeNote = $("#homeLoginNote");
   if (homeGuide) homeGuide.hidden = lineOnly || !appleMobile || homeScreen;
   if (homeNote) homeNote.hidden = lineOnly || !appleMobile || !homeScreen;
+  if(homeScreen){
+    const hint=document.createElement('p');hint.className='muted';hint.style.cssText='font-size:13px;line-height:1.8;margin:12px 0';hint.textContent='公式LINEで使っていたものと同じLINEアカウントで続けてください。登録済みの会員情報と個人設定を読み込みます。';
+    document.querySelector('#authScreen .ob-head')?.append(hint);
+  }
   if(lineOnly){const subtitle=$('#authScreen .ob-head .sub');if(subtitle)subtitle.hidden=true;}
   if (appleMobile && !homeScreen) {
     githubButton.lastChild.textContent = "GitHubでログイン（ブラウザで利用）";
@@ -163,7 +174,7 @@ async function start() {
     restoreGitHub();
     try { sessionStorage.removeItem(githubIntent); } catch {}
   });
-  mountLineLogin({document,onLogin:()=>void beginLineLogin(),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login";}});
+  mountLineLogin({document,onLogin:()=>void beginLineLogin(),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login";homeLineResume.ready();}});
   githubButton.onclick = () => void startOAuth("github");
   async function beginLineLogin(){
     if(!isLineBrowser(navigator))return startOAuth('custom:line');
@@ -176,12 +187,12 @@ async function start() {
     catch{say('ブラウザを開けませんでした。通信状態を確認して、もう一度お試しください。')}
     finally{restoreGitHub()}
   }
-  async function startOAuth(provider) {
+  async function startOAuth(provider,automatic=false) {
     if (githubBusy) return;
     githubBusy = true;
     githubControls = [...document.querySelectorAll("#authForm button, #authForm input, #lineLogin button, #emailAuth button, #emailAuth input")].map(element => [element, element.disabled]);
     githubControls.forEach(([element]) => { element.disabled = true; });
-    say(""); note(""); $("#authResend").hidden = true;
+    say(automatic?"LINEの会員情報を確認しています…":"",automatic); note(""); $("#authResend").hidden = true;
     let leaving = false;
     try {
       sessionStorage.setItem(githubIntent, "1");
@@ -695,6 +706,7 @@ async function start() {
   }) : Promise.resolve();
 
   auth.onAuthStateChange((event, session) => {
+    homeLineResume.auth(event,session);
     if (event === "PASSWORD_RECOVERY") { recovering = true; showAuth("password"); return; }
     if (!session) {
       launchCheck++;mfaUi?.clear();mfaUi=null;emailUi?.reset();setBadgeAccount(null);
