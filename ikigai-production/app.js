@@ -1552,13 +1552,14 @@
       +`<div class="btn-row"><button type="button" class="ghost" id="obBack">戻る</button><button type="submit" class="primary" id="obComplete" disabled>通知を有効にしてから入会を完了</button></div>`;
     if(obStep===-1){
       const installed=homeAppOpen(),homeRequired=registerInHomeApp();
+      const pageMenuIcon='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
       const shareIcon='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M7 10H4v11h16V10h-3"/></svg>';
       const step=(n,title,text)=>'<li style="display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)"><span style="flex:none;display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;font-family:var(--logo)">'+n+'</span><div><b style="display:flex;align-items:center;gap:8px;font-size:15px">'+title+'</b><p class="muted" style="font-size:13px;line-height:1.85;margin:6px 0 0">'+text+'</p></div></li>';
       body=head('ホーム画面に追加する','いつでもすぐに開けるよう、最初にIKIGAIをホーム画面へ追加しましょう。')
         +(installed?'<p role="status" style="color:var(--ink);padding:14px 0">✓ ホーム画面から開いています。下のボタンから入会案内へ進めます。</p>':'')
         +'<p class="muted" style="font-size:13px;line-height:1.85">iPhone・iPadの方は、Safariでこのページを開いて操作してください。</p>'
         +'<ol aria-label="ホーム画面に追加する手順" style="list-style:none;padding:0;margin:8px 0 20px">'
-        +step('1','共有を開く '+shareIcon,'Safariの「共有」（四角から上向き矢印）を押します。見つからない場合は、ページメニューや「…」から「共有」を選んでください。')
+        +step('1','ページメニューから共有 '+pageMenuIcon,'Safariのアドレスバーにある「ページメニュー」（横棒3本）を押し、「共有」（四角から上向き矢印）を選んでください。'+shareIcon+'<br>共有ボタンが直接表示されるレイアウトでは、そのボタンを押してください。')
         +step('2','ホーム画面に追加','共有メニューを下へスクロールし、「ホーム画面に追加」を選びます。「ウェブアプリとして開く」が表示された場合はオンにして、右上の「追加」を押してください。')
         +step('3','IKIGAIのアイコンを開く','ホーム画面に追加されたIKIGAIを開き、公式LINEで使ったものと同じLINEアカウントで続けてください。登録済みの会員情報・個人設定を読み込み、未登録の方は入会手続きへ進みます。登録と携帯の通知許可は、追加したアプリ内で行います。Safariから自動では切り替わらないため、ご自身でホーム画面のアイコンを押してください。')
         +'</ol><details style="font-size:13px;line-height:1.85;margin:0 0 20px"><summary>「ホーム画面に追加」が見つからないとき</summary><p class="muted">LINE内で開いている場合は、Safariなどのブラウザで開いてください。下のボタンでURLをコピーし、Safariのアドレス欄に貼り付けても開けます。Safariの共有メニューに項目がない場合は、一番下の「アクションを編集」を確認してください。</p><button type="button" class="small-btn" id="obCopyAppUrl">アプリのURLをコピー</button><p id="obInstallStatus" role="status" class="muted"></p></details>'
