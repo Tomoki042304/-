@@ -1505,11 +1505,12 @@
   // ---------- first-run registration: membership questions ----------
   // answers go to applications/<uid>: the member writes their own, only the owner can read them all
   const OB_STEPS=5;
-  let obStep=0,ob={},obSubmitting=false,obPushEnabled=false;
+  let obStep=-1,ob={},obSubmitting=false,obPushEnabled=false;
   const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   function openOnboard(){
     ob={name:profile.nick||'',avatar:profile.avatar||'',referrer:'',email:window.appAuth?window.appAuth.email():'',age:'',job:profile.aff||'',sns:'',reason:'',shi:profile.shi||'',goal:goal().t||'',greeting:profile.greetingDraft||''};
-    obStep=0;obPushEnabled=false;
+    obStep=-1;obPushEnabled=false;
+    if(document.querySelectorAll('#obBar span').length===OB_STEPS)$('#obBar').prepend(document.createElement('span'));
     $('#app').hidden=true;$('#onboard').hidden=false;
     renderOnboard();
   }
@@ -1520,8 +1521,8 @@
     if(obStep===2){ob.shi=v('obShi');ob.goal=v('obGoal')}
   }
   function renderOnboard(){
-    document.querySelectorAll('#obBar span').forEach((s,i)=>s.classList.toggle('on',i<=obStep));
-    const head=(t,sub)=>`<div><div class="ob-step">STEP ${obStep+1} / ${OB_STEPS}</div><h1 class="ob-title">${t}</h1><p class="muted">${sub}</p></div>`;
+    document.querySelectorAll('#obBar span').forEach((s,i)=>s.classList.toggle('on',i<=obStep+1));
+    const head=(t,sub)=>`<div><div class="ob-step">STEP ${obStep+2} / ${OB_STEPS+1}</div><h1 class="ob-title">${t}</h1><p class="muted">${sub}</p></div>`;
     const req='<span class="req">必須</span>',opt='<span class="muted" style="font-size:11px;margin-left:4px">任意</span>';
     let body='';
     if(obStep===0)body=head('入会のご案内','はじめに、あなたのことを教えてください。お名前はメンバーにも表示されます。')
@@ -1543,20 +1544,53 @@
           <label class="file-btn">写真を選ぶ<input type="file" id="obAvatarFile" accept="image/*"></label>
           <button type="button" class="small-btn" id="obAvatarClear">写真を外す</button>
           <p class="muted" style="font-size:12px;text-align:center">写真は丸く切り取って表示されます。登録しない場合は、お名前の頭文字のアイコンになります。</p></div>`;
-    body+=`<div class="btn-row">${obStep>0?'<button type="button" class="ghost" id="obBack">戻る</button>':''}<button type="submit" class="primary">${obStep===OB_STEPS-1?'登録してはじめる':'次へ'}</button></div>`;
+    body+=`<div class="btn-row">${obStep>=0?'<button type="button" class="ghost" id="obBack">戻る</button>':''}<button type="submit" class="primary">${obStep===OB_STEPS-1?'登録してはじめる':'次へ'}</button></div>`;
     if(obStep===4)body=head('携帯に通知を届ける','入会後の新しい成長ログ・トーク・自分の投稿への反応・運営のお知らせを、携帯の通知画面で受け取れます。')
       +`<p>新メンバーの参加もお知らせします。プレミアム会員には、朝活開始30分前のリマインドも届きます。</p><button type="button" class="primary" id="obPushEnable" disabled>携帯の通知を許可する</button><p id="obPushStatus" role="status" class="muted">通知機能を確認しています…</p><p class="muted" style="font-size:12px">iPhone・iPadはホーム画面に追加したIKIGAIから操作してください。入会手続きの完了には、この端末への通知を有効にする必要があります。拒否した場合は端末の設定から許可してください。通知非対応の端末では完了できません。</p>`
       +`<div class="btn-row"><button type="button" class="ghost" id="obBack">戻る</button><button type="submit" class="primary" id="obComplete" disabled>通知を有効にしてから入会を完了</button></div>`;
+    if(obStep===-1){
+      const installed=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+      const shareIcon='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M7 10H4v11h16V10h-3"/></svg>';
+      const step=(n,title,text)=>'<li style="display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--line)"><span style="flex:none;display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line);border-radius:50%;font-family:var(--logo)">'+n+'</span><div><b style="display:flex;align-items:center;gap:8px;font-size:15px">'+title+'</b><p class="muted" style="font-size:13px;line-height:1.85;margin:6px 0 0">'+text+'</p></div></li>';
+      body=head('ホーム画面に追加する','いつでもすぐに開けるよう、最初にIKIGAIをホーム画面へ追加しましょう。')
+        +(installed?'<p role="status" style="color:var(--ink);padding:14px 0">✓ ホーム画面から開いています。下のボタンから入会案内へ進めます。</p>':'')
+        +'<p class="muted" style="font-size:13px;line-height:1.85">iPhone・iPadの方は、Safariでこのページを開いて操作してください。</p>'
+        +'<ol aria-label="ホーム画面に追加する手順" style="list-style:none;padding:0;margin:8px 0 20px">'
+        +step('1','共有を開く '+shareIcon,'Safariの「共有」（四角から上向き矢印）を押します。見つからない場合は、ページメニューや「…」から「共有」を選んでください。')
+        +step('2','ホーム画面に追加','共有メニューを下へスクロールし、「ホーム画面に追加」を選びます。「ウェブアプリとして開く」が表示された場合はオンにして、右上の「追加」を押してください。')
+        +step('3','IKIGAIのアイコンを開く','ホーム画面に追加されたIKIGAIを開き、ログインして入会手続きを進めてください。携帯の通知は、追加したアプリで許可します。')
+        +'</ol><details style="font-size:13px;line-height:1.85;margin:0 0 20px"><summary>「ホーム画面に追加」が見つからないとき</summary><p class="muted">LINE内で開いている場合は、Safariなどのブラウザで開いてください。下のボタンでURLをコピーし、Safariのアドレス欄に貼り付けても開けます。Safariの共有メニューに項目がない場合は、一番下の「アクションを編集」を確認してください。</p><button type="button" class="small-btn" id="obCopyAppUrl">アプリのURLをコピー</button><p id="obInstallStatus" role="status" class="muted"></p></details>'
+        +'<details style="font-size:13px;line-height:1.85;margin:0 0 24px"><summary>Androidの方へ</summary><p class="muted">Chromeでこのページを開き、右上の「︙」から「ホーム画面に追加」または「アプリをインストール」を選んでください。</p></details>'
+        +'<div class="btn-row"><button type="submit" class="primary">入会案内へ進む</button></div>';
+    }
     $('#obForm').innerHTML=body;
+    if(obStep===-1){
+      $('#obCopyAppUrl').onclick=async()=>{const status=$('#obInstallStatus'),url='https://ikigai-shidoroku.pages.dev/';try{await navigator.clipboard.writeText(url);if(status.isConnected)status.textContent='コピーしました。Safariのアドレス欄に貼り付けて開いてください。';}catch{if(status.isConnected)status.textContent='Safariのアドレス欄に '+url+' を入力してください。';}};
+    }
     if(obStep===4){
       obPushEnabled=false;let pushAttempt=0;const actor=uid,button=$('#obPushEnable'),complete=$('#obComplete'),status=$('#obPushStatus');
       const current=()=>uid===actor&&obStep===4&&button.isConnected;
       const setReady=enabled=>{if(!current())return;obPushEnabled=enabled;complete.disabled=!enabled;complete.textContent=enabled?'入会手続きを完了する':'通知を有効にしてから入会を完了'};
-      import('./push-notifications.js').then(async module=>{
-        if(!current())return;button.disabled=false;status.textContent='通知を有効にすると、入会手続きを完了できます。';
-        button.onclick=async()=>{pushAttempt++;button.disabled=true;setReady(false);try{await module.enableDevicePush(payload=>window.appAuth.push(payload));if(!current())return;const enabled=await module.devicePushEnabled(payload=>window.appAuth.push(payload));if(!enabled)throw Error('通知の有効化を確認できませんでした。もう一度お試しください。');setReady(true);if(current())status.textContent='この端末への通知を有効にしました。入会手続きを完了してください。'}catch(error){if(current())status.textContent=error.message||'通知を有効にできませんでした。通知を有効にしてからお進みください。'}finally{if(current())button.disabled=false}};
-        try{const enabled=await module.devicePushEnabled(payload=>window.appAuth.push(payload));if(!current()||pushAttempt>0)return;setReady(enabled);if(enabled)status.textContent='この端末への通知は有効です。入会手続きを完了してください。'}catch{if(current())status.textContent='通知状態を確認できませんでした。「携帯の通知を許可する」からお試しください。'}
-      }).catch(()=>{if(current())status.textContent='通知機能を読み込めませんでした。通信状態を確認して再度お試しください。'});
+      let pushModule=null,pushLoading=null;
+      const loadPush=()=>{
+        if(!pushLoading){let timer;pushLoading=Promise.race([import('./push-notifications.js').then(module=>{pushModule=module;return module}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('通知機能の読み込みに時間がかかっています。通信状態を確認し、もう一度押してください。')),15000)})]).finally(()=>clearTimeout(timer)).catch(error=>{pushLoading=null;throw error});}
+        return pushLoading;
+      };
+      button.disabled=false;
+      button.onclick=async()=>{
+        if(button.disabled)return;pushAttempt++;button.disabled=true;setReady(false);const label=button.textContent;button.textContent='通知を準備しています…';
+        try{
+          if(!pushModule){status.textContent='通知機能を読み込んでいます…';await loadPush();if(current())status.textContent='準備ができました。「携帯の通知を許可する」をもう一度押してください。';return;}
+          await pushModule.enableDevicePush(payload=>window.appAuth.push(payload),message=>{if(current())status.textContent=message});
+          if(!current())return;setReady(true);status.textContent='この端末への通知を有効にしました。入会手続きを完了してください。';
+        }catch(error){if(current())status.textContent=error.message||'通知を有効にできませんでした。もう一度お試しください。';}
+        finally{if(current()){button.disabled=false;button.textContent=label;}}
+      };
+      loadPush().then(async module=>{
+        if(!current()||pushAttempt>0)return;status.textContent='通知を有効にすると、入会手続きを完了できます。';
+        try{const enabled=await module.devicePushEnabled(payload=>window.appAuth.push(payload));if(!current()||pushAttempt>0)return;setReady(enabled);if(enabled)status.textContent='この端末への通知は有効です。入会手続きを完了してください。';}
+        catch{if(current()&&pushAttempt===0)status.textContent='通知状態を確認できませんでした。「携帯の通知を許可する」からお試しください。';}
+      }).catch(()=>{if(current()&&pushAttempt===0)status.textContent='通知機能を読み込めませんでした。ボタンを押すと再読み込みできます。';});
     }
 
     if(obStep===3){
