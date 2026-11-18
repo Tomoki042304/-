@@ -55,9 +55,30 @@ test('installation guide comes before personal details and supports going back w
  const start=app.indexOf('function renderOnboard(){'),end=app.indexOf("\n  $('#obForm').addEventListener('submit'",start);
  const nodes={'#obForm':{innerHTML:''},'#obCopyAppUrl':{},'#obInstallStatus':{isConnected:true}};
  const spans=Array.from({length:6},()=>({classList:{toggle(){}}}));
- const c={obStep:-1,ob:{name:'入力済み',greeting:'こんにちは'},OB_STEPS:5,navigator:{standalone:false,clipboard:{writeText:async()=>{}}},matchMedia:()=>({matches:false}),document:{querySelectorAll:()=>spans,querySelector:()=>null},window:{scrollTo(){}},$:s=>nodes[s]||null,esc:s=>s,readOnboard(){},paintAvatar(){}};
+ const c={obStep:-1,ob:{name:'入力済み',greeting:'こんにちは'},OB_STEPS:5,navigator:{standalone:false,clipboard:{writeText:async()=>{}}},matchMedia:()=>({matches:false}),document:{querySelectorAll:()=>spans,querySelector:()=>null},window:{scrollTo(){}},homeAppOpen:()=>false,registerInHomeApp:()=>false,$:s=>nodes[s]||null,esc:s=>s,readOnboard(){},paintAvatar(){}};
  vm.createContext(c);vm.runInContext(app.slice(start,end),c);c.renderOnboard();
  assert.match(nodes['#obForm'].innerHTML,/STEP 1 \/ 6/);assert.match(nodes['#obForm'].innerHTML,/共有/);assert.match(nodes['#obForm'].innerHTML,/ホーム画面に追加/);assert.doesNotMatch(nodes['#obForm'].innerHTML,/id="obName"/);
  nodes['#obBack']={};c.obStep=0;c.renderOnboard();assert.match(nodes['#obForm'].innerHTML,/STEP 2 \/ 6/);assert.match(nodes['#obForm'].innerHTML,/入力済み/);
  nodes['#obBack'].onclick();assert.equal(c.obStep,-1);assert.match(nodes['#obForm'].innerHTML,/共有/);assert.equal(c.ob.name,'入力済み');
+});
+
+test('iPhone Safari directs registration to the Home Screen app; installed app starts the form',()=>{
+ const app=fs.readFileSync(new URL('../ikigai-production/app.js',import.meta.url),'utf8');
+ const start=app.indexOf('const homeAppOpen='),end=app.indexOf("\n  $('#obForm').addEventListener('submit'",start);
+ function context(installed,userAgent='iPhone',touch=0){
+  const nodes={'#app':{},'#onboard':{},'#obBar':{prepend(){}},'#obForm':{innerHTML:''},'#obCopyAppUrl':{},'#obInstallStatus':{},'#obBack':{}};
+  const spans=Array.from({length:6},()=>({classList:{toggle(){}}}));
+  const c={obStep:-1,ob:{},obPushEnabled:false,OB_STEPS:5,profile:{},goal:()=>({t:''}),navigator:{userAgent,maxTouchPoints:touch,standalone:installed},matchMedia:()=>({matches:installed}),document:{querySelectorAll:()=>spans,querySelector:()=>null},window:{scrollTo(){}},$:s=>nodes[s]||null,esc:s=>s};
+  vm.createContext(c);vm.runInContext(app.slice(start,end),c);c.openOnboard();return {c,nodes};
+ }
+ const browser=context(false);assert.equal(browser.c.obStep,-1);assert.match(browser.nodes['#obForm'].innerHTML,/Safariでは登録せず/);assert.doesNotMatch(browser.nodes['#obForm'].innerHTML,/type="submit"/);
+ const installed=context(true);assert.equal(installed.c.obStep,0);assert.match(installed.nodes['#obForm'].innerHTML,/id="obName"/);assert.match(installed.nodes['#obForm'].innerHTML,/次へ/);
+ const ipad=context(false,'Macintosh',5);assert.doesNotMatch(ipad.nodes['#obForm'].innerHTML,/type="submit"/);
+ const desktop=context(false,'Macintosh');assert.match(desktop.nodes['#obForm'].innerHTML,/type="submit"/);
+});
+test('iPhone browser cannot bypass installation guidance with a form submit',()=>{
+ const app=fs.readFileSync(new URL('../ikigai-production/app.js',import.meta.url),'utf8');
+ const start=app.indexOf("    e.preventDefault();if(obSubmitting)return;"),end=app.indexOf('    if(obStep===0){',start);
+ let rendered=0,read=0;const c={obSubmitting:false,obStep:0,registerInHomeApp:()=>true,renderOnboard:()=>rendered++,toast:()=>{},readOnboard:()=>read++};
+ vm.createContext(c);vm.runInContext('function guard(e){'+app.slice(start,end)+"return 'next';}",c);assert.equal(c.guard({preventDefault(){}}),undefined);assert.equal(c.obStep,-1);assert.equal(rendered,1);assert.equal(read,0);
 });

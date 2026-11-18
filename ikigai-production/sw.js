@@ -1,5 +1,5 @@
 // Cache only the public application shell, never account data or API responses.
-const CACHE = "ikigai-v159-onboarding-install-push-retry";
+const CACHE = "ikigai-v160-home-app-registration";
 const SHELL = ["./", "index.html", "main-supabase.js", "line-login.js", "browser-entry.js", "growth-entry.js", "app-badge.js", "email-login.js", "login-mfa.js", "app.js", "notification-state.js", "supabase-config.js",
   "manifest.webmanifest", "update-manager.js", "pull-refresh.js", "maintenance.js", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 const PUBLIC_FILES = new Set([...SHELL, 'images/premium-entry-artwork.jpg', 'images/shin-session-artwork.jpg', 'images/journal-purchase-artwork.jpg', 'update-manager.js', 'pull-refresh.js', 'direct-messages.js',
