@@ -1095,8 +1095,6 @@
     $('#daysSince').textContent=Math.max(1,Math.round((TODAY-parseIso(profile.shiSince))/864e5)+1);
     const on=currentCheckDone();
     $('#todayCheck').setAttribute('aria-pressed',on);
-    const headerCheck=$('.header-check');
-    if(headerCheck){headerCheck.classList.toggle('is-checked',on);headerCheck.setAttribute('aria-label',on?'今日の行動はチェック済み。カレンダーを開く':'今日の行動をチェックしてカレンダーを開く');headerCheck.title=on?'今日の行動はチェック済み':'今日の行動をチェック';headerCheck.querySelector('span').textContent=on?'済':'行動';}
 
     $('#todayCheck').disabled=on||checkSaving||loadFailed;
     $('#todayTitle').textContent=on?'今日のタスク、やり遂げた！':'今日、自分が決めたタスクをやり遂げた？';
@@ -2259,7 +2257,7 @@
   }
   $('#navBack').onclick=()=>navTo(navIdx-1);
   $('#navFwd').onclick=()=>navTo(navIdx+1);
-  document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-goto]');if(t){go(t.dataset.tab||t.dataset.goto);if(t.classList.contains('header-check'))void completeDay()}});
+  document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-goto]');if(t){go(t.dataset.tab||t.dataset.goto)}});
 
   // ---------- hero ambience ----------
   const cv=$('#heroCanvas'),cx=cv.getContext('2d'),heroMotion=matchMedia('(prefers-reduced-motion: reduce)');
