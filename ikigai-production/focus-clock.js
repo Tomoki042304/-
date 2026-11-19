@@ -1,4 +1,4 @@
-import {createClock,snapshot,startClock,pauseClock,restoreClockBook,formatTime} from './focus-clock-state.js';
+import {createClock,snapshot,startClock,pauseClock,restoreClockBook,formatTime,formatStopwatch,recordLap} from './focus-clock-state.js';
 export function mountFocusClock(button){
  if(!button)return;
  const key='ikigai-focus-clock-v1';let book=restoreClockBook(),announced=false,tickId=null;
@@ -16,29 +16,37 @@ export function mountFocusClock(button){
  </defs><use href="#focusShiArtwork" filter="url(#focusShiOutline)" opacity=".8"/><use href="#focusShiArtwork" filter="url(#focusShiCutout)" mask="url(#focusPaintMask)"/></svg></div>
  <p class="focus-time" aria-label="時間">25:00</p><p class="focus-caption">一つのことに、心を注ぐ。</p>
  <div class="focus-setup"><label class="focus-duration-label" for="focusMinutes">集中する時間</label><div class="focus-duration"><select id="focusMinutes" aria-label="時間（分）">${Array.from({length:60},(_,i)=>`<option value="${i+1}"${i===24?' selected':''}>${i+1}分</option>`).join('')}</select></div><p class="focus-hint">設定した時間で「志」が満ちます。</p></div>
- <p class="focus-status" role="status" aria-live="polite"></p><div class="focus-actions"><button type="button" class="focus-reset">リセット</button><button type="button" class="focus-start">はじめる</button></div>`;
+ <p class="focus-status" role="status" aria-live="polite"></p><div class="focus-actions"><button type="button" class="focus-reset">リセット</button><button type="button" class="focus-start">はじめる</button></div><ol class="focus-laps" aria-label="ラップタイム" hidden></ol>`;
  document.body.append(dialog);const $=s=>dialog.querySelector(s),modes=[...dialog.querySelectorAll('[data-clock-mode]')];
+ let lapViewKey='';
+ const text=(selector,value)=>{const el=$(selector);if(el.textContent!==value)el.textContent=value};
+ function renderLaps(state){
+  const laps=clock.laps||[],visible=clock.mode==='stopwatch'&&(state.elapsed>0||state.running);$('.focus-laps').hidden=!visible;if(!visible)return;
+  const key=laps.join(',');if(lapViewKey!==key||!$('.focus-current-lap')){lapViewKey=key;const splits=laps.map((lap,i)=>lap-(laps[i-1]||0)),fast=Math.min(...splits),slow=Math.max(...splits);$('.focus-laps').innerHTML='<li class="focus-lap-current"><span>ラップ'+(laps.length+1)+'</span><span class="focus-current-lap"></span></li>'+splits.map((split,i)=>'<li class="'+(splits.length>1&&fast!==slow?(split===fast?'lap-fast':split===slow?'lap-slow':''):'')+'"><span>ラップ'+(i+1)+'</span><span>'+formatStopwatch(split)+'</span></li>').reverse().join('');}
+  text('.focus-current-lap',formatStopwatch(state.elapsed-(laps.at(-1)||0)));
+ }
  function fillInputs(){$('#focusMinutes').value=Math.max(1,Math.min(60,Math.round(clock.duration/60000)))}
- function render(){const state=snapshot(clock);button.classList.toggle('clock-running',state.running);button.setAttribute('aria-label',state.running?(clock.mode==='timer'?'実行中のタイマーを開く':'実行中のストップウォッチを開く'):'タイマーとストップウォッチを開く');
+ function render(){const state=snapshot(clock),stopwatch=clock.mode==='stopwatch';button.classList.toggle('clock-running',Object.values(book.clocks).some(c=>snapshot(c).running));button.setAttribute('aria-label',state.running?(clock.mode==='timer'?'実行中のタイマーを開く':'実行中のストップウォッチを開く'):'タイマーとストップウォッチを開く');
   if(!dialog.open)return;
-  dialog.classList.toggle('is-running',state.running);$('.focus-level').style.transform=`translateY(${state.progress===0?330:state.progress===1?-20:300-state.progress*290}px)`;
-  $('.focus-time').textContent=formatTime(clock.mode==='timer'?Math.ceil(state.remaining/1000)*1000:state.elapsed);$('.focus-time').setAttribute('aria-label',(clock.mode==='timer'?'残り時間 ':'経過時間 ')+$('.focus-time').textContent);
-  $('.focus-start').textContent=state.running?'一時停止':state.finished?'もう一度':state.elapsed?'再開':'はじめる';$('.focus-setup').hidden=state.elapsed>0||state.running;
-  $('.focus-duration-label').textContent=clock.mode==='timer'?'集中する時間':'志が満ちる目標時間';$('.focus-hint').textContent=clock.mode==='timer'?'設定した時間で「志」が満ちます。':'目標を過ぎても、時間は計り続けます。';
-  $('.focus-caption').textContent=state.finished?'おつかれさま。志が、また一つ満ちました。':state.running?'一つのことに、心を注ぐ。':state.elapsed?'ひと息ついて、またここから。':'一つのことに、心を注ぐ。';
+  dialog.classList.toggle('is-stopwatch',stopwatch);dialog.classList.toggle('is-running',state.running);text('#focusClockTitle',stopwatch?'ストップウォッチ':'志を満たす時間');$('.focus-level').style.transform=`translateY(${state.progress===0?330:state.progress===1?-20:300-state.progress*290}px)`;
+  text('.focus-time',stopwatch?formatStopwatch(state.elapsed):formatTime(Math.ceil(state.remaining/1000)*1000));$('.focus-time').setAttribute('aria-label',(stopwatch?'経過時間 ':'残り時間 ')+$('.focus-time').textContent);
+  text('.focus-start',stopwatch?(state.running?'停止':'開始'):(state.running?'一時停止':state.finished?'もう一度':state.elapsed?'再開':'はじめる'));$('.focus-setup').hidden=stopwatch||state.elapsed>0||state.running;
+  text('.focus-reset',stopwatch&&state.running?'ラップ':'リセット');$('.focus-reset').disabled=stopwatch&&!state.running&&state.elapsed===0;
+  text('.focus-duration-label','集中する時間');text('.focus-hint','設定した時間で「志」が満ちます。');
+  text('.focus-caption',state.finished?'おつかれさま。志が、また一つ満ちました。':state.running?'一つのことに、心を注ぐ。':state.elapsed?'ひと息ついて、またここから。':'一つのことに、心を注ぐ。');renderLaps(state);
   modes.forEach(b=>{const selected=String(b.dataset.clockMode===clock.mode);if(b.getAttribute('aria-pressed')!==selected)b.setAttribute('aria-pressed',selected)});
   if(state.finished&&!announced){announced=true;clock=pauseClock(clock);save();$('.focus-status').textContent='設定した時間になりました。'}
  }
- function loop(){clearInterval(tickId);tickId=setInterval(()=>{render();if(!dialog.open&&!snapshot(clock).running){clearInterval(tickId);tickId=null}},200)}
- function reset(){clock=createClock(clock.mode,clock.duration);announced=false;save();fillInputs();$('.focus-status').textContent='';render()}
+ function loop(){clearInterval(tickId);tickId=setInterval(()=>{render();if(!dialog.open&&!Object.values(book.clocks).some(c=>snapshot(c).running)){clearInterval(tickId);tickId=null}},clock.mode==='stopwatch'&&dialog.open&&document.visibilityState==='visible'?32:200)}
+ function reset(){lapViewKey='';$('.focus-laps').innerHTML='';clock=createClock(clock.mode,clock.duration);announced=false;save();fillInputs();$('.focus-status').textContent='';render()}
  function duration(){const minutes=Number($('#focusMinutes').value);if(!Number.isInteger(minutes)||minutes<1||minutes>60){$('.focus-status').textContent='1分から60分の間で選んでください。';return false}clock=createClock(clock.mode,minutes*60000);save();return true}
  button.addEventListener('click',()=>{if(!dialog.open){fillInputs();dialog.showModal();render();loop()}});
- $('.focus-close').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});dialog.addEventListener('close',()=>button.focus());
- modes.forEach(b=>b.onclick=()=>{const next=b.dataset.clockMode;if(next===clock.mode)return;const running=snapshot(clock).running,previous=clock.mode;clock=pauseClock(clock);save();clock=book.clocks[next];announced=snapshot(clock).finished;save();fillInputs();$('.focus-status').textContent=running?(previous==='timer'?'タイマー':'ストップウォッチ')+'を一時停止しました。':'';render()});
+ $('.focus-close').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});dialog.addEventListener('close',()=>{button.focus();loop()});
+ modes.forEach(b=>b.onclick=()=>{const next=b.dataset.clockMode;if(next===clock.mode)return;save();clock=book.clocks[next];announced=false;save();fillInputs();$('.focus-status').textContent='';render();loop()});
  $('#focusMinutes').onchange=()=>{if(duration())render()};
- $('.focus-reset').onclick=reset;
- $('.focus-start').onclick=()=>{const state=snapshot(clock);$('.focus-status').textContent='';if(state.running)clock=pauseClock(clock);else{if(state.finished){reset()}if(!clock.elapsed&&!duration())return;clock=startClock(clock);announced=false}save();render();loop()};
- document.addEventListener('visibilitychange',()=>{render();if(document.visibilityState==='visible'&&snapshot(clock).running)loop()});
+ $('.focus-reset').onclick=()=>{if(clock.mode==='stopwatch'&&snapshot(clock).running){clock=recordLap(clock);save();render();$('.focus-status').textContent='ラップ'+clock.laps.length+'を記録しました。'}else reset()};
+ $('.focus-start').onclick=()=>{const state=snapshot(clock);$('.focus-status').textContent='';if(state.running)clock=pauseClock(clock);else{if(state.finished){reset()}if(clock.mode==='timer'&&!clock.elapsed&&!duration())return;clock=startClock(clock);announced=false}save();render();loop()};
+ document.addEventListener('visibilitychange',()=>{render();loop()});
  fillInputs();render();if(snapshot(clock).running)loop();
 }
 mountFocusClock(document.getElementById('focusClockBtn'));
