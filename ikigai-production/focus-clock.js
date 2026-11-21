@@ -6,7 +6,7 @@ export function mountFocusClock(button){
  let clock=book.clocks[book.mode];
  const save=()=>{book.mode=clock.mode;book.clocks[clock.mode]=clock;try{localStorage.setItem(key,JSON.stringify(book))}catch{}};
  const dialog=document.createElement('dialog');dialog.className='focus-clock';dialog.setAttribute('aria-labelledby','focusClockTitle');
- dialog.innerHTML=`<div class="focus-clock-head"><div><span class="focus-eyebrow">TIME FOR YOUR 志</span><h2 id="focusClockTitle">志を満たす時間</h2></div><button type="button" class="focus-close" aria-label="時計を閉じる">×</button></div>
+ dialog.innerHTML=`<div class="focus-clock-head"><div><span class="focus-eyebrow">TIME FOR YOUR 志</span><h2 id="focusClockTitle">志を高める時間</h2></div><button type="button" class="focus-close" aria-label="時計を閉じる">×</button></div>
  <div class="focus-modes" role="group" aria-label="時計の種類"><button type="button" data-clock-mode="timer">タイマー</button><button type="button" data-clock-mode="stopwatch">ストップウォッチ</button></div>
  <div class="focus-art" aria-hidden="true"><svg viewBox="0 0 320 320"><defs>
  <image id="focusShiArtwork" href="${new URL('./images/focus-shi-gold.jpg',import.meta.url).href}" x="-127" y="-124" width="574" height="574"/>
@@ -28,7 +28,7 @@ export function mountFocusClock(button){
  function fillInputs(){$('#focusMinutes').value=Math.max(1,Math.min(60,Math.round(clock.duration/60000)))}
  function render(){const state=snapshot(clock),stopwatch=clock.mode==='stopwatch';button.classList.toggle('clock-running',Object.values(book.clocks).some(c=>snapshot(c).running));button.setAttribute('aria-label',state.running?(clock.mode==='timer'?'実行中のタイマーを開く':'実行中のストップウォッチを開く'):'タイマーとストップウォッチを開く');
   if(!dialog.open)return;
-  dialog.classList.toggle('is-stopwatch',stopwatch);dialog.classList.toggle('is-running',state.running);text('#focusClockTitle',stopwatch?'ストップウォッチ':'志を満たす時間');$('.focus-level').style.transform=`translateY(${state.progress===0?330:state.progress===1?-20:300-state.progress*290}px)`;
+  dialog.classList.toggle('is-stopwatch',stopwatch);dialog.classList.toggle('is-running',state.running);text('#focusClockTitle',stopwatch?'ストップウォッチ':'志を高める時間');$('.focus-level').style.transform=`translateY(${state.progress===0?330:state.progress===1?-20:300-state.progress*290}px)`;
   text('.focus-time',stopwatch?formatStopwatch(state.elapsed):formatTime(Math.ceil(state.remaining/1000)*1000));$('.focus-time').setAttribute('aria-label',(stopwatch?'経過時間 ':'残り時間 ')+$('.focus-time').textContent);
   text('.focus-start',stopwatch?(state.running?'停止':'開始'):(state.running?'一時停止':state.finished?'もう一度':state.elapsed?'再開':'はじめる'));$('.focus-setup').hidden=stopwatch||state.elapsed>0||state.running;
   text('.focus-reset',stopwatch&&state.running?'ラップ':'リセット');$('.focus-reset').disabled=stopwatch&&!state.running&&state.elapsed===0;

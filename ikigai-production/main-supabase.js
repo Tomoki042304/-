@@ -535,6 +535,7 @@ async function start() {
 
   // hooks app.js calls for logout and account deletion
   window.appAuth = {
+    login:async()=>{['#app','#onboard','#migrate'].forEach(id=>{const el=$(id);if(el)el.hidden=true});showAuth('login');say('');note('');await beginLineLogin();},
     communityNotificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);return data},
     registrationGreeting:fields=>notificationWrite({action:'greeting',fields}),
     growthAccess:async()=>{const {data,error}=await supabase.rpc('ikigai_growth_access_v1');if(error?.code==='PGRST202')return {allowed:false};fail(error);return data},
