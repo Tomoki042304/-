@@ -1,3 +1,4 @@
+import {preferredLoginProvider} from './login-provider.js';
 import {createHomeLineResume} from './home-session.js';
 import {rememberGrowthEntry,consumeGrowthEntry} from './growth-entry.js';
 // Entry point (Supabase version): login with Supabase Auth, then a small adapter that gives app.js the
@@ -62,6 +63,7 @@ if (!stopped && SUPABASE_ENV === "test") {
 let mode = "login";
 let emailLoginEnabled = false;
 const lineOnly = SUPABASE_ENV === "production";
+const preferGitHub=preferredLoginProvider({search:location.search,storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)}})==='github';
 let lineLoginReady = false, authWhich = "none";
 const AUTH_ERRORS = {
   invalid_credentials: "メールアドレスかパスワードが違います",
@@ -97,7 +99,8 @@ if(!$('#loginCheck')){
 let authRevealTimer=0,authViewVersion=0;
 function showAuth(which) {
   authWhich=which;
-  const lineRoot=$("#lineLogin");if(lineRoot)lineRoot.hidden=which!=="login"||!lineLoginReady;
+  const lineRoot=$("#lineLogin");if(lineRoot)lineRoot.hidden=which!=="login"||!lineLoginReady||preferGitHub;
+  const githubRoot=$("#githubLogin");if(githubRoot)githubRoot.hidden=which!=="login"||!preferGitHub;
   const sp = $("#splash");
   clearTimeout(authRevealTimer);const view=++authViewVersion;
   authRevealTimer=setTimeout(() => { if(view!==authViewVersion)return;if(sp)sp.hidden=true;$("#authScreen").hidden=false; },300);
@@ -143,7 +146,7 @@ async function start() {
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const homeScreen = navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
   const homeLineResume=createHomeLineResume({
-    enabled:lineOnly&&!browserLoginRequested,standalone:homeScreen,
+    enabled:lineOnly&&!preferGitHub&&!browserLoginRequested,standalone:homeScreen,
     callback:!!(window.__authLink?.fromMail||window.__authLink?.errorCode||window.__recoveryLink),
     storage:{getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)},
     onResume:()=>void startOAuth('custom:line',true)
@@ -159,7 +162,10 @@ async function start() {
   if (appleMobile && !homeScreen) {
     githubButton.lastChild.textContent = "GitHubでログイン（ブラウザで利用）";
   }
-  githubButton.hidden = lineOnly;
+  if(preferGitHub){
+    const root=document.createElement('section');root.id='githubLogin';root.className='card auth-box';root.hidden=authWhich!=='login';root.append(githubButton);$('#authScreen').append(root);
+  }
+  githubButton.hidden = lineOnly&&!preferGitHub;
   document.querySelectorAll("#authScreen .auth-alt").forEach(x => { x.hidden = false; });
   if (SUPABASE_ENV === "production") {
     document.querySelectorAll("#authForm .auth-tabs, #authForm .field, #authSubmit, #authReset, #authResend, #authForm .auth-alt").forEach(element => { element.hidden = true; });
@@ -174,7 +180,7 @@ async function start() {
     restoreGitHub();
     try { sessionStorage.removeItem(githubIntent); } catch {}
   });
-  mountLineLogin({document,onLogin:()=>void beginLineLogin(),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login";homeLineResume.ready();}});
+  mountLineLogin({document,onLogin:()=>void beginLineLogin(),onReady:root=>{lineLoginReady=true;root.hidden=authWhich!=="login"||preferGitHub;homeLineResume.ready();}});
   githubButton.onclick = () => void startOAuth("github");
   async function beginLineLogin(){
     if(!isLineBrowser(navigator))return startOAuth('custom:line');
@@ -535,7 +541,7 @@ async function start() {
 
   // hooks app.js calls for logout and account deletion
   window.appAuth = {
-    login:async()=>{['#app','#onboard','#migrate'].forEach(id=>{const el=$(id);if(el)el.hidden=true});showAuth('login');say('');note('');await beginLineLogin();},
+    login:async()=>{['#app','#onboard','#migrate'].forEach(id=>{const el=$(id);if(el)el.hidden=true});showAuth('login');say('');note('');if(preferGitHub)await startOAuth('github');else await beginLineLogin();},
     communityNotificationSince:async()=>{const {data,error}=await supabase.rpc('ikigai_chat_access_since_v1');fail(error);return data},
     registrationGreeting:fields=>notificationWrite({action:'greeting',fields}),
     growthAccess:async()=>{const {data,error}=await supabase.rpc('ikigai_growth_access_v1');if(error?.code==='PGRST202')return {allowed:false};fail(error);return data},
@@ -683,7 +689,7 @@ async function start() {
   const linkChecked = link.fromMail ? auth.initialize().then(async ({ error }) => {
     const { data } = await auth.getSession();
     const ok = !!data.session && !error && !link.errorCode;
-    if(lineOnly){
+    if(lineOnly&&!preferGitHub){
       say(lineReturnMessage({hasSession:!!data.session,error,errorCode:link.errorCode}));
       note('');$('#authResend').hidden=true;
       history.replaceState(history.state,'',location.pathname);
