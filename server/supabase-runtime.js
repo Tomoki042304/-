@@ -3,7 +3,7 @@ import {database} from './private-documents.js';
 const TABLE='ikigai_runtime_values_v1';
 export function runtimeStore(env){
  const serviceKey=env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY;
- const db=async(path,options={})=>{if(typeof serviceKey!=='string'||!serviceKey.startsWith('eyJ'))throw Error('RUNTIME_KEY_UNAVAILABLE');return database(null,path,{...options,serviceKey})};
+ const db=async(path,options={})=>{if(typeof serviceKey!=='string'||!/^(eyJ|sb_secret_)/.test(serviceKey))throw Error('RUNTIME_KEY_UNAVAILABLE');return database(null,path,{...options,serviceKey})};
  const validKey=key=>{if(typeof key!=='string'||!key||new TextEncoder().encode(key).length>512)throw Error('RUNTIME_KEY_INVALID')};
  const cache=new Map(),pending=new Map();let queued=false;
  async function flush(){
