@@ -8,7 +8,11 @@ export async function maintenanceState(env,now=Date.now()){
  const window=maintenanceWindow(now);let config;
  if(cached&&cached.until>now)config=cached.value;
  else if(pending)config=await pending;
- else{pending=(async()=>{try{return await database(null,'rpc/ikigai_maintenance_state_v1',{method:'POST',body:{},serviceKey:env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY})}catch(error){if(['PGRST202','42883'].includes(error?.code))return {configured:false,enabled:true,criticalHold:false,holdOnCritical:false};throw error}})();try{config=await pending;cached={until:now+5000,value:config}}finally{pending=null}}
+ else{pending=(async()=>{try{return await database(null,'rpc/ikigai_maintenance_state_v1',{method:'POST',body:{},serviceKey:env.SUPABASE_RUNTIME_SERVICE_ROLE_KEY})}catch(error){
+  // Keep the scheduled daily window even when the optional status store is unavailable.
+  // A stale status lookup must not block every member outside that window.
+  return {configured:false,enabled:true,criticalHold:false,holdOnCritical:false,lastCheckedAt:null,statusUnavailable:true};
+ }}})();try{config=await pending;cached={until:now+5000,value:config}}finally{pending=null}}
  if(!config||typeof config.configured!=='boolean')throw Error('MAINTENANCE_STATE_UNAVAILABLE');
  return {...window,configured:config.configured,enabled:config.enabled!==false,criticalHold:config.criticalHold===true,holdOnCritical:config.holdOnCritical===true,lastCheckedAt:config.lastCheckedAt||null,active:config.criticalHold===true||(config.enabled!==false&&window.inWindow)};
 }
