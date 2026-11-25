@@ -12,7 +12,7 @@ export async function maintenanceState(env,now=Date.now()){
   // Keep the scheduled daily window even when the optional status store is unavailable.
   // A stale status lookup must not block every member outside that window.
   return {configured:false,enabled:true,criticalHold:false,holdOnCritical:false,lastCheckedAt:null,statusUnavailable:true};
- }}})();try{config=await pending;cached={until:now+5000,value:config}}finally{pending=null}}
+ }})();try{config=await pending;cached={until:now+5000,value:config}}finally{pending=null}}
  if(!config||typeof config.configured!=='boolean')throw Error('MAINTENANCE_STATE_UNAVAILABLE');
  return {...window,configured:config.configured,enabled:config.enabled!==false,criticalHold:config.criticalHold===true,holdOnCritical:config.holdOnCritical===true,lastCheckedAt:config.lastCheckedAt||null,active:config.criticalHold===true||(config.enabled!==false&&window.inWindow)};
 }
