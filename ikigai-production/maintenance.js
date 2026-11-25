@@ -18,8 +18,14 @@ export async function mountMaintenance({fetchStatus=async()=>{const controller=n
   try{const response=await fetchStatus(),value=await response.json();if(![200,503].includes(response.status)||typeof value.active!=='boolean'||!Number.isFinite(Date.parse(value.serverNow)))throw Error();
    state=value;offset=Date.parse(value.serverNow)-clock();tick();
   }catch{
-   // Keep the last confirmed schedule during transient failures. Initial unknown state stays locked.
-   if(!state)display('利用状態を確認できません。通信を確認して「状態を更新」を押してください。');else tick();
+   // Preserve the planned daily window even if a status lookup is temporarily unavailable.
+   // Outside that window, do not prevent members from opening the app.
+   if(!state){
+    const jst=new Date(clock()+9*3600000),minutes=jst.getUTCHours()*60+jst.getUTCMinutes();
+    state={serverNow:new Date(clock()).toISOString(),active:false,enabled:true,criticalHold:false};
+    if(minutes>=120&&minutes<150)display('システム点検中です。毎日2:00〜2:30（日本時間）はご利用いただけません。終了後、自動で画面に戻ります。');
+    else tick();
+   }else tick();
   }finally{busy=false}
  }
  display('利用状態を確認しています…');box.querySelector('button').onclick=refresh;
